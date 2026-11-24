@@ -9,6 +9,7 @@ import type {
   BoardResponse,
   ConversationDetail,
   HealthResponse,
+  ReviewBatchResponse,
   SearchResponse,
 } from '../../shared/types.js';
 import { createApp } from '../src/api/createApp.js';
@@ -435,7 +436,7 @@ describe('LiveBoardService & REST/SSE API integration', () => {
     );
     expect(weirdSearch.status).toBe(200);
 
-    // 7. Review clears attention -> moves to active
+    // 7. Review clears attention -> moves to active, and review-batch supports Undo (reviewedAt: null)
     const reviewRes = await fetch(`${srv.baseUrl}/api/conversations/conv-attention/review`, {
       method: 'POST',
     });
@@ -443,6 +444,52 @@ describe('LiveBoardService & REST/SSE API integration', () => {
     const reviewJson = (await reviewRes.json()) as { card: { lane: string; attentionReasons: string[] } };
     expect(reviewJson.card.lane).toBe('active');
     expect(reviewJson.card.attentionReasons).toEqual([]);
+
+    // Batch undo restores attention lane
+    const undoRes = await fetch(`${srv.baseUrl}/api/conversations/review-batch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: ['conv-attention'], reviewedAt: null }),
+    });
+    expect(undoRes.status).toBe(200);
+    const undoJson = (await undoRes.json()) as ReviewBatchResponse;
+    expect(undoJson.updatedCount).toBe(1);
+    expect(undoJson.reviewedAt).toBeNull();
+    expect(undoJson.cards[0].lane).toBe('attention');
+
+    // Batch review re-clears attention
+    const batchRes = await fetch(`${srv.baseUrl}/api/conversations/review-batch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: ['conv-attention', 'conv-attention'] }),
+    });
+    expect(batchRes.status).toBe(200);
+    const batchJson = (await batchRes.json()) as ReviewBatchResponse;
+    expect(batchJson.updatedCount).toBe(1);
+    expect(batchJson.reviewedAt).toBeTruthy();
+    expect(batchJson.cards[0].lane).toBe('active');
+
+    // Batch review validation errors
+    const emptyBatch = await fetch(`${srv.baseUrl}/api/conversations/review-batch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: [] }),
+    });
+    expect(emptyBatch.status).toBe(400);
+
+    const tooManyBatch = await fetch(`${srv.baseUrl}/api/conversations/review-batch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: Array.from({ length: 201 }, (_, i) => `c-${i}`) }),
+    });
+    expect(tooManyBatch.status).toBe(400);
+
+    const badIdBatch = await fetch(`${srv.baseUrl}/api/conversations/review-batch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: ['../bad-id'] }),
+    });
+    expect(badIdBatch.status).toBe(400);
 
     // 8. SSE stream pushes connected + initial board_update + mutation board_update
     const controller = new AbortController();
@@ -516,6 +563,40 @@ describe('DemoBoardService REST API', () => {
     expect(board.stats.byLane.archived).toBe(2);
     expect(board.activeSwarms).toHaveLength(2);
     expect(board.workspaces.length).toBe(3);
+    expect(board.tags.length).toBeGreaterThanOrEqual(8);
+    expect(board.tags.length).toBeLessThanOrEqual(10);
+
+    // Rich primary demo artifact contains checklist, table, and SQL/TS code fences
+    const primaryArt = (await fetch(
+      `${srv.baseUrl}/api/conversations/demo-01/artifact?file=webhook_migration_spec.md`,
+    ).then((r) => r.json())) as ArtifactContentResponse;
+    expect(primaryArt.content).toContain('- [x]');
+    expect(primaryArt.content).toContain('```sql');
+    expect(primaryArt.content).toContain('```ts');
+    expect(primaryArt.content).toContain('| Event Type |');
+
+    // Batch review all attention cards in demo mode + undo back to attention
+    const attentionIds = board.conversations
+      .filter((c) => c.lane === 'attention')
+      .map((c) => c.id);
+    expect(attentionIds).toHaveLength(4);
+
+    const batchReview = (await fetch(`${srv.baseUrl}/api/conversations/review-batch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: attentionIds }),
+    }).then((r) => r.json())) as ReviewBatchResponse;
+    expect(batchReview.updatedCount).toBe(4);
+    expect(batchReview.cards.every((c) => c.lane === 'active')).toBe(true);
+
+    const batchUndo = (await fetch(`${srv.baseUrl}/api/conversations/review-batch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: attentionIds, reviewedAt: null }),
+    }).then((r) => r.json())) as ReviewBatchResponse;
+    expect(batchUndo.updatedCount).toBe(4);
+    expect(batchUndo.reviewedAt).toBeNull();
+    expect(batchUndo.cards.every((c) => c.lane === 'attention')).toBe(true);
 
     // Readable demo artifact
     const art = (await fetch(

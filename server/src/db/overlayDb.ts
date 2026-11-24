@@ -206,6 +206,31 @@ export class OverlayStore {
     return this.patchOverlay(conversationId, { reviewedAt: nowIso });
   }
 
+  markReviewedBatch(
+    conversationIds: string[],
+    reviewedAt: string | null = new Date().toISOString(),
+  ): OverlayData[] {
+    const uniqueIds = Array.from(new Set(conversationIds));
+    if (uniqueIds.length === 0) return [];
+
+    const results: OverlayData[] = [];
+    this.db.exec('BEGIN IMMEDIATE');
+    try {
+      for (const id of uniqueIds) {
+        results.push(this.patchOverlay(id, { reviewedAt }));
+      }
+      this.db.exec('COMMIT');
+    } catch (err) {
+      try {
+        this.db.exec('ROLLBACK');
+      } catch {
+        // ignore rollback error
+      }
+      throw err;
+    }
+    return results;
+  }
+
   getSettings(): BoardSettings {
     const rows = this.db.prepare('SELECT key, value FROM app_settings').all() as Array<{
       key: string;

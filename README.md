@@ -1,94 +1,140 @@
 <div align="center">
 
-# Antigravity Mission Board
+<img src="docs/logo.svg" alt="Antigravity Mission Board Logo" width="64" height="64" />
 
-**Local-first Kanban & Mission Control dashboard for Google Antigravity Desktop 2.0**
+<h1>Antigravity Mission Board</h1>
 
-Track running agents, unread completions, pending decisions, multi-agent Swarms, subagent trees, checklists, artifacts, and token usage — **100% read-only** on your Antigravity data with **zero native C++ build dependencies**.
+<p><strong>Turn <code>~/.gemini/antigravity</code> into a live, local-first Mission Control Kanban — never lose track of a background agent, Swarm, or unread completion again.</strong></p>
 
-[![CI](https://github.com/Lovlace777/antigravity-mission-board/actions/workflows/ci.yml/badge.svg)](https://github.com/Lovlace777/antigravity-mission-board/actions/workflows/ci.yml)
-[![Node.js >= 22.5](https://img.shields.io/badge/Node.js-%E2%89%A522.5-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![Zero Native Deps](https://img.shields.io/badge/SQLite-node%3Asqlite%20(Zero%20Native%20Deps)-0F766E)](https://nodejs.org/api/sqlite.html)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
+<p>
+  <a href="https://github.com/Lovlace777/antigravity-mission-board/actions/workflows/ci.yml"><img src="https://github.com/Lovlace777/antigravity-mission-board/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <a href="https://github.com/Lovlace777/antigravity-mission-board/releases/tag/v1.1.0"><img src="https://img.shields.io/badge/Release-v1.1.0-0EA5E9" alt="Release v1.1.0" /></a>
+  <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-%E2%89%A522.5-339933?logo=node.js&logoColor=white" alt="Node.js >= 22.5" /></a>
+  <a href="https://nodejs.org/api/sqlite.html"><img src="https://img.shields.io/badge/SQLite-Zero%20Native%20Deps-0F766E" alt="Zero Native Deps" /></a>
+  <img src="https://img.shields.io/badge/Antigravity%20Data-100%25%20Read--Only-16A34A" alt="100% Read-Only" />
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/License-MIT-64748B" alt="MIT License" /></a>
+</p>
 
-**English** · [简体中文](./README.zh-CN.md)
+<p>
+  <strong>English</strong> · <a href="./README.zh-CN.md">简体中文</a>
+</p>
+
+<p>
+  <a href="#try-it-in-10-seconds">Quick Start</a> ·
+  <a href="#how-it-compares">How It Compares</a> ·
+  <a href="#visual-feature-showcase">Visual Tour</a> ·
+  <a href="#read-only-privacy--safety-pledge">Privacy &amp; Safety</a> ·
+  <a href="#architecture">Architecture</a> ·
+  <a href="#keyboard-shortcuts">Shortcuts</a>
+</p>
+
+<br />
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/kanban-dark.png" />
+  <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/kanban-light.png" />
+  <img src="docs/screenshots/kanban-dark.png" alt="Antigravity Mission Board — Live Kanban & Attention Radar" width="100%" />
+</picture>
+
+<sub><em>All screenshots are captured from the built-in synthetic Demo Mode (<code>npm run start:demo</code>). Zero private data or real user conversations are ever included.</em></sub>
 
 </div>
 
-![Antigravity Mission Board — Dark Mode Kanban](docs/screenshots/kanban-dark.png)
-
-> *All screenshots in this repository are rendered from the built-in synthetic Demo Mode (`npm run start:demo`). Zero private user data is included.*
-
 ---
 
-## Why Antigravity Mission Board?
+## Try It in 10 Seconds
 
-When you run multiple Antigravity Desktop 2.0 conversations, Swarms, and background subagents across projects, it becomes hard to tell at a glance:
+Explore the full interactive dashboard immediately with realistic synthetic Swarms, subagents, checklists, and Markdown artifacts — **zero Antigravity installation or real data required**:
 
-- Which agents are **actively executing right now** (including Swarms whose coordinator is waiting on a working worker)?
-- Which tasks **just finished unread**, hit an **execution error**, paused on **`ask_question`**, or have a **`requestFeedback` artifact** waiting for your approval?
-- Which workstreams have gone **stale** without follow-up?
-
-**Antigravity Mission Board** reads Antigravity's local metadata directly from `~/.gemini/antigravity` in strict read-only mode, classifies every root conversation automatically, and overlays your own local priorities, pins, custom tags, manual lane overrides, and follow-up notes in a separate SQLite database.
-
----
-
-## Highlights
-
-- **Automatic 5-Lane Kanban + Drag & Drop** — `Running`, `Needs Attention`, `In Progress`, `Stale`, and collapsible `Archived` rail. Drag cards across columns to set a manual lane override while keeping live running indicators and one-click reset to auto-classification.
-- **High-Signal Attention Radar** — Automatically surfaces `marked_as_unread`, `unread_update`, `needs_input` (pending `ask_question`), `request_feedback` artifacts, `error` turns, and due follow-up reminders. Dismiss alerts cleanly via **Mark Reviewed** without ever writing to Antigravity's files.
-- **Swarm & Multi-Agent Cluster View** — Dedicated view of `plan.json` goals & threads, worker rosters (`working` / `waiting` / `stopped` / `killed` + model), live board message feeds, and recursive subagent trees.
-- **Slide-Over Detail Drawer** — Inspect live `update_steps` checklists (with automatic `transcript_full.jsonl` fallback when compact logs truncate), token & cache hit-rate breakdowns, inline GFM Markdown artifact previews, chronological turn timelines, and autosaving personal notes & tags.
-- **High-Density Project Matrix View** — Group by workspace, tag, or lane and sort by recency, attention, priority, steps, or token usage.
-- **Real-Time SSE & Desktop Alerts** — Live Server-Sent Events stream pushes snapshot diffs on changes plus optional Web Notifications & subtle chime when a running agent completes, asks a question, or hits an error.
-- **Bilingual UI & Crisp Light/Dark Themes** — Instant `中文` / `EN` switcher and refined Linear/Raycast-inspired Light & Dark surfaces.
-- **Zero Native Dependencies** — Powered by Node 22's built-in `node:sqlite` (`DatabaseSync`) with automatic `conversations_fts_content` shadow-table fallback for full compatibility across all Node 22.5+ builds on Windows, macOS, and Linux.
-
----
-
-## Visual Tour
-
-### Light Mode Kanban
-![Antigravity Mission Board — Light Mode Kanban](docs/screenshots/kanban-light.png)
-
-### Slide-Over Detail Drawer (Checklist, Notes, Artifacts & Timeline)
-![Antigravity Mission Board — Detail Drawer](docs/screenshots/drawer-dark.png)
-
-### Swarm & Multi-Agent Cluster Monitor
-![Antigravity Mission Board — Swarm Cluster View](docs/screenshots/swarm-dark.png)
-
----
-
-## Quick Start
-
-### Prerequisites
-- **Node.js 22.5+** (required for built-in `node:sqlite`; tested on Node 22.13+ on Windows, macOS, and Linux)
-- **Google Antigravity Desktop 2.0** (optional if running `--demo` mode)
-
-### 1. Install & Build
 ```bash
 git clone https://github.com/Lovlace777/antigravity-mission-board.git
 cd antigravity-mission-board
-npm run setup
-npm run build
-```
-
-### 2. Run Locally (Live Read-Only Mode)
-```bash
-npm start
-```
-Open **http://127.0.0.1:3777** in your browser.
-
-### One-Click Launchers
-- **Windows:** Double-click `start.bat` (auto-installs/builds on first run, opens `http://127.0.0.1:3777`, and starts the server). Pass `--demo` for demo mode: `start.bat --demo`.
-- **macOS / Linux:** Run `./start.sh` (or `./start.sh --demo`).
-
-### Try Demo Mode (No Antigravity Installation Required)
-Explore a realistic synthetic dataset (3 projects, 14 conversations across all 5 lanes, 2 Swarms, subagents, checklists, and Markdown artifacts) with interactive in-memory overlay mutations:
-```bash
+npm run setup && npm run build
 npm run start:demo
 ```
+
+Open **http://127.0.0.1:3777** — then switch to your real local `~/.gemini/antigravity` data (100% read-only) anytime:
+
+| Platform | Live Mode (Real Antigravity Data) | Synthetic Demo Mode |
+| --- | --- | --- |
+| **Windows** | Double-click **`start.bat`** | `start.bat --demo` |
+| **macOS / Linux** | **`./start.sh`** | `./start.sh --demo` |
+| **Cross-platform CLI** | **`npm start`** | `npm run start:demo` |
+
+> **Prerequisite:** Node.js **22.5+** (uses Node's built-in `node:sqlite` — no Python, no `node-gyp`, no Visual Studio C++ Build Tools).
+
+---
+
+## Why Mission Board?
+
+Once you juggle 5–30 parallel **Google Antigravity Desktop 2.0** threads, multi-agent Swarms, and background subagents across repositories, linear sidebars collapse:
+
+- **Silent completions:** An agent finished 20 minutes ago or paused on `ask_question` / `requestFeedback` — buried three folders down.
+- **Hidden active Swarms:** The coordinator is parked in `waiting`, so the sidebar looks idle while two workers are actively building.
+- **Zero triage ergonomics:** No priorities, no personal follow-up notes, no batch mark-read, and no way to spot workstreams going stale.
+
+**Antigravity Mission Board** reads your existing Antigravity Desktop 2.0 SQLite WAL store, `.pbtxt` annotations, transcripts, Swarm files, and artifacts **strictly read-only**, classifies every root conversation into 5 live lanes, and layers your personal Kanban triage in an isolated local overlay database.
+
+---
+
+## How It Compares
+
+| Capability | **Antigravity Mission Board** | Quota / Account Monitors | Static History Viewers | External CLI Orchestrators |
+| --- | :---: | :---: | :---: | :---: |
+| Passive support for existing Antigravity Desktop 2.0 sessions | ✅ | ✅ | ✅ | ❌ |
+| 5-Lane Auto Kanban (`Running` / `Attention` / `In Progress` / `Stale` / `Archived`) + DnD | ✅ | ❌ | ❌ | ⚠️ Partial |
+| Real-Time Attention Radar (`ask_question`, `requestFeedback`, unread, error, batch review + Undo) | ✅ | ❌ | ❌ | ❌ |
+| Native Swarm `plan.json` threads, worker roster & board monitor | ✅ | ❌ | ❌ | ❌ |
+| Floating `Ctrl+K` Command Palette, density toggle & keyboard triage | ✅ | ❌ | ❌ | ❌ |
+| Zero C++ native deps on Windows/macOS/Linux (`node:sqlite` + FTS shadow fallback) | ✅ | ⚠️ Varies | ⚠️ Varies | ⚠️ Varies |
+| 100% Read-Only on `~/.gemini/antigravity` & fully offline | ✅ | ✅ | ✅ | ❌ |
+
+---
+
+## Visual Feature Showcase
+
+### 1. Floating Command Palette (`Ctrl+K` / `/`) & Instant Triage
+Jump to any conversation via live local + full-text search, switch views, toggle themes or density, or clear all unread alerts without lifting your hands off the keyboard. Hovering any card reveals a 1-second Quick-Action Pill (`Pin` · `Cycle Priority` · `Mark Reviewed`), and every batch or drag-and-drop action includes instant **Undo**.
+
+![Floating Command Palette over blurred Kanban](docs/screenshots/command-palette-dark.png)
+
+### 2. Slide-Over Detail Drawer & Rich Markdown Artifacts
+Click any card to inspect live `update_steps` checklists (with automatic `transcript_full.jsonl` recovery when compact logs truncate), token & cache hit-rate breakdowns, chronological timelines, and rendered GFM Markdown artifacts (checklists, metrics tables, syntax-styled code fences). Personal tags, notes, and follow-up dates sit in a sleek 1-line expandable bar, with `←` / `→` keyboard triage across conversations.
+
+![Detail Drawer Artifacts Tab with GFM Checklist and Table](docs/screenshots/drawer-artifacts-dark.png)
+
+### 3. Swarm & Multi-Agent Cluster Monitor
+Track every active and completed Swarm in one dedicated workspace: inspect `plan.json` goals and thread assignments, live worker states (`working` / `waiting` / `stopped` / `killed` + model), board message feeds, and nested subagent trees.
+
+![Swarm and Multi-Agent Clusters View](docs/screenshots/swarm-dark.png)
+
+### 4. High-Density Project Matrix View
+Scanning 30+ conversations across repositories? Switch to **Project Matrix** (`2`) to group by workspace, tag, or lane and sort by recency, attention, priority, step count, or token usage with inline pinning and one-click review.
+
+![High-Density Project Matrix View](docs/screenshots/matrix-dark.png)
+
+<details>
+<summary><strong>More Screenshots: Light Mode &amp; Simplified Chinese UI (中文界面)</strong></summary>
+
+<br />
+
+#### Crisp Alabaster Light Mode
+![Light Mode Kanban](docs/screenshots/kanban-light.png)
+
+#### Bilingual Simplified Chinese UI (`中文` / `EN`)
+![Simplified Chinese Dark Mode Kanban](docs/screenshots/kanban-zh-dark.png)
+
+</details>
+
+---
+
+## Read-Only Privacy & Safety Pledge
+
+- **100% Read-Only on Antigravity Data:** `conversation_summaries.db` is opened exclusively with `new DatabaseSync(dbPath, { readOnly: true })` and `PRAGMA query_only = ON`, then closed immediately after each snapshot so Antigravity WAL checkpoints are never blocked. Mission Board **never writes, modifies, or deletes** any file inside `~/.gemini/antigravity`.
+- **Isolated Local Overlay Store:** Your personal triage state (manual lanes, pins, priorities, custom tags, notes, reminders, `reviewedAt` timestamps, and settings) is stored separately in `~/.antigravity-mission-board/overlay.db`.
+- **Localhost-Only & Zero Telemetry:** Binds strictly to `127.0.0.1:3777` by default with zero external network calls or analytics.
+- **Hardened Artifact Reader:** `/api/conversations/:id/artifact` validates IDs, blocks `..`, absolute paths, Windows drive prefixes, `.system_generated` internal logs, and symlink escapes (`realpathSync` containment), and caps responses at 512 KB.
+- **Universal Node 22 Compatibility:** Automatically falls back to SQLite's regular `conversations_fts_content` shadow table on Node 22.5–22.15 builds compiled without the FTS5 module — zero native addons required.
 
 ---
 
@@ -103,11 +149,11 @@ flowchart LR
         subgraph Server["Express + TypeScript Server (Node 22)"]
             DB["AntigravityReadOnlyDb<br/>node:sqlite { readOnly: true }"]
             CACHE["FileStatCache (mtimeMs + size)<br/>pbtxt / transcript / swarm / artifacts"]
-            CLS["Lane & Attention Classifier<br/>+ Transition Detector"]
+            CLS["5-Lane & Attention Classifier<br/>+ SSE Transition Detector"]
             API["REST API + SSE Broker<br/>+ Static web/dist"]
         end
 
-        UI["React 19 + Tailwind v4 SPA<br/>Kanban · Matrix · Swarm · Drawer"]
+        UI["React 19 + Tailwind v4 SPA<br/>Kanban · Matrix · Swarm · Command Palette"]
     end
 
     AG -- "100% Read-Only" --> DB
@@ -121,74 +167,69 @@ flowchart LR
 
 ---
 
-## Read-Only Safety & Privacy Guarantees
+## Keyboard Shortcuts
 
-1. **Strictly Read-Only on Antigravity Storage:** `conversation_summaries.db` is opened exclusively with `new DatabaseSync(dbPath, { readOnly: true })` + `PRAGMA query_only = ON`, and closed immediately after each snapshot so Antigravity WAL checkpoints are never blocked. Mission Board **never writes, modifies, or deletes** anything inside `~/.gemini/antigravity`.
-2. **Isolated Local Overlay Store:** Your personal Kanban metadata (manual lane overrides, pins, priorities, custom tags, notes, follow-up reminders, reviewed timestamps, and settings) lives separately in `~/.antigravity-mission-board/overlay.db`.
-3. **Localhost-Only by Default:** The HTTP server binds strictly to `127.0.0.1:3777` and sends zero telemetry or outbound network requests.
-4. **Path-Traversal-Safe Artifact Reader:** `/api/conversations/:id/artifact` validates conversation IDs, blocks `..`, absolute paths, drive letters, `.system_generated` internals, and symlink escapes via `realpathSync` containment, and caps reads at 512 KB.
+| Shortcut | Action |
+| --- | --- |
+| `Ctrl+K` / `⌘K` / `/` | Open floating Command Palette (search + quick commands) |
+| `1` / `2` / `3` | Switch between **Kanban**, **Project Matrix**, and **Swarm Clusters** |
+| `←` / `→` | Navigate previous / next conversation while Detail Drawer is open |
+| `R` | Refresh board snapshot immediately |
+| `?` | Open Keyboard Shortcuts cheatsheet |
+| `Esc` | Close Command Palette, Detail Drawer, or modal |
 
 ---
 
-## Environment Variables
+<details>
+<summary><strong>Environment Variables</strong></summary>
 
 | Variable | Default | Description |
 | --- | --- | --- |
 | `PORT` | `3777` | HTTP listen port |
 | `HOST` | `127.0.0.1` | Bind address (keep `127.0.0.1` for local-only access) |
 | `ANTIGRAVITY_DATA_DIR` | `~/.gemini/antigravity` | Override Antigravity Desktop 2.0 local data directory |
-| `OVERLAY_DB_PATH` | `~/.antigravity-mission-board/overlay.db` | Override Mission Board overlay SQLite database path |
+| `OVERLAY_DB_PATH` | `~/.antigravity-mission-board/overlay.db` | Override Mission Board local overlay SQLite path |
 | `DEMO_MODE` | `0` | Set to `1` or `true` (or pass `--demo`) to run with the synthetic demo dataset |
 
----
+</details>
 
-## REST & SSE API Overview
+<details>
+<summary><strong>REST &amp; SSE API Reference</strong></summary>
 
 All endpoints are served under `http://127.0.0.1:3777`:
 
 | Endpoint | Description |
 | --- | --- |
-| `GET /api/health` | Runtime mode (`live` \| `demo`), version, data directory & DB accessibility, uptime |
+| `GET /api/health` | Runtime mode (`live` \| `demo`), version (`1.1.0`), data directory & DB accessibility, uptime |
 | `GET /api/board` | Full board snapshot: root `ConversationCard[]`, `stats`, `workspaces`, `projects`, `tags`, `settings`, `activeSwarms` |
 | `GET /api/conversations/:id` | Detailed `ConversationDetail` (checklist, Swarm detail & board feed, recursive subagent tree, artifacts, timeline, tokens) |
-| `GET /api/conversations/:id/artifact?file=...` | Path-traversal-safe artifact text/Markdown reader (max 512 KB) |
+| `GET /api/conversations/:id/artifact?file=...` | Path-traversal-safe artifact Markdown/text reader (max 512 KB) |
 | `PATCH /api/conversations/:id/overlay` | Update `manualLane`, `pinned`, `priority`, `tags`, `notes`, `followUpAt`, or `reviewedAt` |
-| `POST /api/conversations/:id/review` | Convenience action setting `reviewedAt = now` to clear pending attention alerts |
+| `POST /api/conversations/:id/review` | Set `reviewedAt = now` to clear pending attention alerts for one conversation |
+| `POST /api/conversations/review-batch` | Batch update `reviewedAt` for up to 200 conversation IDs (supports `reviewedAt: null` for Undo) |
 | `GET /api/search?q=...` | Full-text search across transcripts (FTS5 / shadow fallback), titles, previews, tags, and notes |
 | `GET /api/settings` · `PATCH /api/settings` | Read or update `staleAfterHours` and `pollIntervalMs` |
 | `GET /api/events` | Server-Sent Events stream (`connected`, `heartbeat`, snapshot-diff `board_update`, semantic `notification`) |
 
----
+</details>
 
-## Keyboard Shortcuts
-
-- `Ctrl+K` or `/` — Focus global search
-- `1` / `2` / `3` — Switch between **Kanban**, **Matrix**, and **Swarm** views
-- `Esc` — Close detail drawer or settings popover
-
----
-
-## Development & Testing
+<details>
+<summary><strong>Development &amp; Testing Commands</strong></summary>
 
 ```bash
-# Run backend (tsx watch) + frontend (Vite HMR) together
-npm run dev
-
-# Run dev mode with synthetic demo data
-npm run dev:demo
-
-# Typecheck both server and web
-npm run typecheck
-
-# Run backend Vitest suite (parsers, classifier, overlay DB, REST/SSE & security)
-npm test
-
-# Production build (server tsc + web vite build)
-npm run build
+npm run dev        # Run backend (tsx watch) + frontend (Vite HMR) together
+npm run dev:demo   # Run dev servers against synthetic Demo Mode
+npm run typecheck  # Strict TypeScript check across server + web
+npm test           # Run backend Vitest unit + API + security test suite
+npm run build      # Production build (server tsc + web vite build)
 ```
+
+</details>
 
 ---
 
-## License
+## Contributing & License
 
-[MIT](./LICENSE) © 2026 Antigravity Mission Board Contributors
+Contributions, bug reports, and feature ideas are warmly welcome — see [CONTRIBUTING.md](./CONTRIBUTING.md) to get started.
+
+Licensed under the [MIT License](./LICENSE).

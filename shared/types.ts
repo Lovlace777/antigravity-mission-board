@@ -55,6 +55,18 @@ export interface OverlayPatch {
   reviewedAt?: string | null;
 }
 
+export interface ReviewBatchRequest {
+  ids: string[];
+  /** ISO timestamp to apply; omit for current time, or pass `null` to clear `reviewedAt` (Undo). */
+  reviewedAt?: string | null;
+}
+
+export interface ReviewBatchResponse {
+  updatedCount: number;
+  reviewedAt: string | null;
+  cards: ConversationCard[];
+}
+
 export type SwarmMemberState = 'working' | 'waiting' | 'killed' | 'stopped';
 
 export interface SwarmMemberInfo {

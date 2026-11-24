@@ -10,6 +10,7 @@ import type {
   HealthResponse,
   OverlayData,
   OverlayPatch,
+  ReviewBatchResponse,
   SearchMatchField,
   SearchResponse,
   SearchResult,
@@ -199,7 +200,7 @@ export class LiveBoardService implements IBoardService {
     );
   }
 
-  private hydrateAll(targetConversationId?: string): HydratedConversation[] {
+  private hydrateAll(targetConversationIds?: string | Set<string>): HydratedConversation[] {
     const snapshot = this.antigravityDb.readSnapshot();
     const settings = this.overlayStore.getSettings();
     const overlays = this.overlayStore.getAllOverlays();
@@ -237,9 +238,12 @@ export class LiveBoardService implements IBoardService {
       }
     }
 
-    const filteredRoots = targetConversationId
-      ? roots.filter((r) => r.conversationId === targetConversationId)
-      : roots;
+    const filteredRoots =
+      typeof targetConversationIds === 'string'
+        ? roots.filter((r) => r.conversationId === targetConversationIds)
+        : targetConversationIds instanceof Set
+          ? roots.filter((r) => targetConversationIds.has(r.conversationId))
+          : roots;
 
     const results: HydratedConversation[] = [];
 
@@ -459,6 +463,20 @@ export class LiveBoardService implements IBoardService {
     return {
       overlay,
       card: hydrated[0]?.card ?? null,
+    };
+  }
+
+  markReviewedBatch(ids: string[], reviewedAt?: string | null): ReviewBatchResponse {
+    const uniqueIds = Array.from(new Set(ids));
+    const appliedReviewedAt =
+      reviewedAt === undefined ? new Date().toISOString() : reviewedAt;
+    this.overlayStore.markReviewedBatch(uniqueIds, appliedReviewedAt);
+    const idSet = new Set(uniqueIds);
+    const hydrated = this.hydrateAll(idSet);
+    return {
+      updatedCount: uniqueIds.length,
+      reviewedAt: appliedReviewedAt,
+      cards: hydrated.map((h) => h.card),
     };
   }
 

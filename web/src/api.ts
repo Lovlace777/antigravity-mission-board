@@ -7,6 +7,8 @@ import type {
   HealthResponse,
   OverlayData,
   OverlayPatch,
+  ReviewBatchRequest,
+  ReviewBatchResponse,
   SearchResponse,
   SseEvent,
 } from '@shared/types';
@@ -70,6 +72,15 @@ export function markConversationReviewed(
       method: 'POST',
     },
   );
+}
+
+export function reviewConversationsBatch(
+  body: ReviewBatchRequest,
+): Promise<ReviewBatchResponse> {
+  return requestJson<ReviewBatchResponse>('/api/conversations/review-batch', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
 }
 
 export function searchConversations(

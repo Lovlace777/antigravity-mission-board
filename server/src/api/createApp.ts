@@ -2,7 +2,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express, { type Express, type NextFunction, type Request, type Response } from 'express';
-import type { BoardSettings, LaneId, OverlayPatch, Priority } from '../../../shared/types.js';
+import type {
+  BoardSettings,
+  LaneId,
+  OverlayPatch,
+  Priority,
+  ReviewBatchRequest,
+} from '../../../shared/types.js';
 import type { IBoardService } from '../engine/types.js';
 import { isValidConversationId } from '../utils/pathSafety.js';
 import { SseBroker } from './sse.js';
@@ -121,6 +127,49 @@ function validateOverlayPatch(body: unknown): { patch?: OverlayPatch; error?: st
   return { patch };
 }
 
+function validateReviewBatchRequest(body: unknown): {
+  request?: ReviewBatchRequest;
+  error?: string;
+} {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    return { error: 'Request body must be a JSON object.' };
+  }
+
+  const raw = body as Record<string, unknown>;
+  if (!Array.isArray(raw.ids) || raw.ids.length === 0) {
+    return { error: 'Field `ids` must be a non-empty array of conversation IDs.' };
+  }
+  if (raw.ids.length > 200) {
+    return { error: 'Batch review supports at most 200 conversation IDs per request.' };
+  }
+
+  const ids: string[] = [];
+  for (const item of raw.ids) {
+    if (typeof item !== 'string' || !isValidConversationId(item)) {
+      return { error: 'All items in `ids` must be valid conversation IDs.' };
+    }
+    ids.push(item);
+  }
+
+  let reviewedAt: string | null | undefined;
+  if ('reviewedAt' in raw) {
+    if (raw.reviewedAt === null || raw.reviewedAt === '') {
+      reviewedAt = null;
+    } else if (typeof raw.reviewedAt === 'string' && raw.reviewedAt.trim().length <= 64) {
+      reviewedAt = raw.reviewedAt.trim();
+    } else {
+      return { error: 'Invalid reviewedAt. Must be an ISO timestamp string or null.' };
+    }
+  }
+
+  return {
+    request: {
+      ids: Array.from(new Set(ids)),
+      ...(reviewedAt !== undefined ? { reviewedAt } : {}),
+    },
+  };
+}
+
 function validateSettingsPatch(body: unknown): { patch?: Partial<BoardSettings>; error?: string } {
   if (!body || typeof body !== 'object' || Array.isArray(body)) {
     return { error: 'Request body must be a JSON object.' };
@@ -170,6 +219,19 @@ export function createApp(service: IBoardService, options: CreateAppOptions = {}
   // Main board snapshot
   app.get('/api/board', (_req, res) => {
     res.json(service.getBoard());
+  });
+
+  // Batch mark-reviewed (or undo when reviewedAt: null)
+  app.post('/api/conversations/review-batch', (req, res) => {
+    const { request, error } = validateReviewBatchRequest(req.body);
+    if (error || !request) {
+      res.status(400).json({ error: error ?? 'Invalid batch review payload.' });
+      return;
+    }
+
+    const result = service.markReviewedBatch(request.ids, request.reviewedAt);
+    sseBroker.notifyMutation();
+    res.json(result);
   });
 
   // Conversation detail

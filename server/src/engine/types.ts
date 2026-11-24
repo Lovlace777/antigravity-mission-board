@@ -7,6 +7,7 @@ import type {
   HealthResponse,
   OverlayData,
   OverlayPatch,
+  ReviewBatchResponse,
   SearchResponse,
 } from '../../../shared/types.js';
 
@@ -21,6 +22,7 @@ export interface IBoardService {
     patch: OverlayPatch,
   ): { overlay: OverlayData; card: ConversationCard | null };
   markReviewed(conversationId: string): { overlay: OverlayData; card: ConversationCard | null };
+  markReviewedBatch(ids: string[], reviewedAt?: string | null): ReviewBatchResponse;
   search(query: string): SearchResponse;
   getSettings(): BoardSettings;
   patchSettings(patch: Partial<BoardSettings>): BoardSettings;

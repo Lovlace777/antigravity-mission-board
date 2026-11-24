@@ -7,6 +7,7 @@ import type {
   HealthResponse,
   LaneId,
   OverlayPatch,
+  Priority,
   SseEvent,
 } from '@shared/types';
 import { AlertCircle, RefreshCw } from 'lucide-react';
@@ -16,17 +17,26 @@ import {
   markConversationReviewed,
   patchConversationOverlay,
   patchSettings,
+  reviewConversationsBatch,
   searchConversations,
   subscribeBoardEvents,
   type SseStatus,
 } from './api';
+import { CommandPalette } from './components/CommandPalette';
 import { DetailDrawer, type DrawerTab } from './components/DetailDrawer';
 import { KanbanBoard } from './components/KanbanBoard';
 import { MatrixView } from './components/MatrixView';
 import { RadarStrip, type RadarFilter } from './components/RadarStrip';
+import { ShortcutsModal } from './components/ShortcutsModal';
 import { SwarmClusterView } from './components/SwarmClusterView';
-import { ToastContainer, type ToastItem } from './components/ToastNotification';
-import { TopBar, type ThemeMode, type ViewMode } from './components/TopBar';
+import { ToastHost, type ToastItem } from './components/ToastHost';
+import {
+  TopBar,
+  type CardDensity,
+  type KanbanSortMode,
+  type ThemeMode,
+  type ViewMode,
+} from './components/TopBar';
 import {
   dictionaries,
   loadSavedLocale,
@@ -62,6 +72,28 @@ function loadBoolPref(key: string, fallback: boolean): boolean {
   return fallback;
 }
 
+function loadDensityPref(): CardDensity {
+  try {
+    const val = localStorage.getItem('agmb_density');
+    if (val === 'compact' || val === 'comfortable') return val;
+  } catch {
+    // ignore
+  }
+  return 'comfortable';
+}
+
+function loadKanbanSortPref(): KanbanSortMode {
+  try {
+    const val = localStorage.getItem('agmb_kanban_sort');
+    if (val === 'smart' || val === 'recent' || val === 'priority' || val === 'steps') {
+      return val;
+    }
+  } catch {
+    // ignore
+  }
+  return 'smart';
+}
+
 function getNotificationPermission(): NotificationPermission | 'unsupported' {
   if (typeof window === 'undefined' || !('Notification' in window)) {
     return 'unsupported';
@@ -86,6 +118,36 @@ function applyOptimisticOverlay(
     lane: nextLane,
     isManualLane: nextManualLane !== null,
     overlay: nextOverlay,
+  };
+}
+
+function applyOptimisticReview(
+  card: ConversationCard,
+  reviewedAt: string | null,
+): ConversationCard {
+  if (reviewedAt === null) {
+    return {
+      ...card,
+      overlay: { ...card.overlay, reviewedAt: null },
+    };
+  }
+  const remainingReasons = card.attentionReasons.filter(
+    (r) => r !== 'unread_update' && r !== 'marked_as_unread',
+  );
+  const nextAutoLane: LaneId =
+    !card.isRunning &&
+    !card.isArchived &&
+    remainingReasons.length === 0 &&
+    card.autoLane === 'attention'
+      ? 'active'
+      : card.autoLane;
+  return {
+    ...card,
+    markedAsUnread: false,
+    attentionReasons: remainingReasons,
+    autoLane: nextAutoLane,
+    lane: card.overlay.manualLane ?? nextAutoLane,
+    overlay: { ...card.overlay, reviewedAt },
   };
 }
 
@@ -115,10 +177,24 @@ function recomputeBoardSummary(board: BoardResponse): BoardResponse {
   };
 }
 
+function nextPriority(current: Priority): Priority {
+  if (current === null) return 'p0';
+  if (current === 'p0') return 'p1';
+  if (current === 'p1') return 'p2';
+  return null;
+}
+
+function shortenTitle(title: string, fallback: string): string {
+  const clean = (title || fallback).trim();
+  return clean.length > 26 ? `${clean.slice(0, 26)}…` : clean;
+}
+
 export function App() {
   // Preferences
   const [locale, setLocale] = useState<Locale>(loadSavedLocale);
   const [theme, setTheme] = useState<ThemeMode>(loadInitialTheme);
+  const [density, setDensity] = useState<CardDensity>(loadDensityPref);
+  const [kanbanSort, setKanbanSort] = useState<KanbanSortMode>(loadKanbanSortPref);
   const [notificationsEnabled, setNotificationsEnabled] = useState<boolean>(() =>
     loadBoolPref('agmb_notifications', false),
   );
@@ -149,9 +225,11 @@ export function App() {
   const [selectedTag, setSelectedTag] = useState('');
   const [radarFilter, setRadarFilter] = useState<RadarFilter>(null);
 
-  // Detail Drawer
+  // Overlays: Detail Drawer, Command Palette, Shortcuts Modal
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawerInitialTab, setDrawerInitialTab] = useState<DrawerTab>('overview');
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [shortcutsModalOpen, setShortcutsModalOpen] = useState(false);
 
   // Toasts
   const [toasts, setToasts] = useState<ToastItem[]>([]);
@@ -159,7 +237,6 @@ export function App() {
   // Periodic tick to keep relative timestamps fresh
   const [, setRelativeClockTick] = useState(0);
 
-  const searchInputRef = useRef<HTMLInputElement | null>(null);
   const seenNotificationsRef = useRef<Set<string>>(new Set());
   const notificationsEnabledRef = useRef(notificationsEnabled);
   const soundEnabledRef = useRef(soundEnabled);
@@ -184,11 +261,26 @@ export function App() {
     }
   }, [theme]);
 
-  // Apply document lang attribute
   useEffect(() => {
     document.documentElement.lang = locale === 'zh' ? 'zh-CN' : 'en';
     saveLocale(locale);
   }, [locale]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('agmb_density', density);
+    } catch {
+      // ignore
+    }
+  }, [density]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('agmb_kanban_sort', kanbanSort);
+    } catch {
+      // ignore
+    }
+  }, [kanbanSort]);
 
   // 30s ticker for relative timestamps
   useEffect(() => {
@@ -196,12 +288,13 @@ export function App() {
     return () => clearInterval(timer);
   }, []);
 
-  const pushToast = useCallback((toast: Omit<ToastItem, 'id'>) => {
+  const pushToast = useCallback((toast: Omit<ToastItem, 'id'>, durationMs?: number) => {
     const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     setToasts((prev) => [...prev.slice(-3), { ...toast, id }]);
+    const ttl = durationMs ?? (toast.action ? 7200 : 4200);
     setTimeout(() => {
       setToasts((prev) => prev.filter((item) => item.id !== id));
-    }, 6000);
+    }, ttl);
   }, []);
 
   const dismissToast = useCallback((id: string) => {
@@ -217,24 +310,33 @@ export function App() {
   );
 
   // Initial fetch + manual refresh
-  const loadBoardData = useCallback(async (manual = false) => {
-    if (manual) setIsRefreshing(true);
-    try {
-      const [boardRes, healthRes] = await Promise.all([
-        fetchBoard(),
-        fetchHealth().catch(() => null),
-      ]);
-      setBoard(boardRes);
-      if (healthRes) setHealth(healthRes);
-      setLastSyncedAt(new Date());
-      setLoadError(null);
-    } catch (err: unknown) {
-      setLoadError(err instanceof Error ? err.message : 'Network error');
-    } finally {
-      setLoading(false);
-      if (manual) setIsRefreshing(false);
-    }
-  }, []);
+  const loadBoardData = useCallback(
+    async (manual = false) => {
+      if (manual) setIsRefreshing(true);
+      try {
+        const [boardRes, healthRes] = await Promise.all([
+          fetchBoard(),
+          fetchHealth().catch(() => null),
+        ]);
+        setBoard(boardRes);
+        if (healthRes) setHealth(healthRes);
+        setLastSyncedAt(new Date());
+        setLoadError(null);
+        if (manual) {
+          pushToast(
+            { title: dictionaries[localeRef.current].toasts.refreshed, tone: 'info' },
+            2200,
+          );
+        }
+      } catch (err: unknown) {
+        setLoadError(err instanceof Error ? err.message : 'Network error');
+      } finally {
+        setLoading(false);
+        if (manual) setIsRefreshing(false);
+      }
+    },
+    [pushToast],
+  );
 
   useEffect(() => {
     void loadBoardData(false);
@@ -258,12 +360,15 @@ export function App() {
             ? 'success'
             : 'warning';
 
-      pushToast({
-        title: `${kindLabel} · ${notif.title}`,
-        message: notif.message || notif.workspace,
-        tone,
-        conversationId: notif.conversationId,
-      });
+      pushToast(
+        {
+          title: `${kindLabel} · ${notif.title}`,
+          message: notif.message || notif.workspace,
+          tone,
+          conversationId: notif.conversationId,
+        },
+        6000,
+      );
 
       if (soundEnabledRef.current) {
         playChime(
@@ -321,7 +426,7 @@ export function App() {
     return unsubscribe;
   }, [handleSseNotification]);
 
-  // Debounced Server FTS Search
+  // Debounced Server FTS Search when board search filter is active
   useEffect(() => {
     const q = searchQuery.trim();
     if (!q) {
@@ -345,7 +450,7 @@ export function App() {
             setIsSearchingServer(false);
           }
         });
-    }, 240);
+    }, 220);
 
     return () => {
       clearTimeout(timer);
@@ -353,15 +458,17 @@ export function App() {
     };
   }, [searchQuery]);
 
-  // Global Keyboard Shortcuts: Ctrl+K, /, 1, 2, 3
+  // Global Keyboard Shortcuts: Ctrl+K, /, 1, 2, 3, R, ?
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
-        searchInputRef.current?.focus();
-        searchInputRef.current?.select();
+        setShortcutsModalOpen(false);
+        setCommandPaletteOpen((open) => !open);
         return;
       }
+
+      if (commandPaletteOpen || shortcutsModalOpen) return;
 
       const target = e.target as HTMLElement | null;
       const isEditing =
@@ -371,28 +478,29 @@ export function App() {
           target.tagName === 'SELECT' ||
           target.isContentEditable);
 
-      if (isEditing) {
-        if (e.key === 'Escape' && target === searchInputRef.current) {
-          searchInputRef.current?.blur();
-        }
-        return;
-      }
+      if (isEditing || e.metaKey || e.ctrlKey || e.altKey) return;
 
       if (e.key === '/') {
         e.preventDefault();
-        searchInputRef.current?.focus();
-      } else if (e.key === '1') {
+        setCommandPaletteOpen(true);
+      } else if (e.key === '?') {
+        e.preventDefault();
+        setShortcutsModalOpen(true);
+      } else if (e.key === '1' && !selectedId) {
         setViewMode('kanban');
-      } else if (e.key === '2') {
+      } else if (e.key === '2' && !selectedId) {
         setViewMode('matrix');
-      } else if (e.key === '3') {
+      } else if (e.key === '3' && !selectedId) {
         setViewMode('swarm');
+      } else if (e.key.toLowerCase() === 'r' && !selectedId) {
+        e.preventDefault();
+        void loadBoardData(true);
       }
     };
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, []);
+  }, [commandPaletteOpen, shortcutsModalOpen, selectedId, loadBoardData]);
 
   // Toggle Desktop Notifications
   const handleToggleNotifications = useCallback(async () => {
@@ -466,59 +574,120 @@ export function App() {
         }
       } catch {
         if (snapshot) setBoard(snapshot);
-        pushToast({ title: t.errors.updateFailed, tone: 'error' });
+        pushToast({ title: dictionaries[localeRef.current].errors.updateFailed, tone: 'error' });
       }
     },
-    [pushToast, t.errors.updateFailed],
+    [pushToast],
   );
 
   const handleMoveLane = useCallback(
     (card: ConversationCard, targetLane: LaneId) => {
-      const manualLane = targetLane === card.autoLane ? null : targetLane;
-      void handlePatchOverlay(card.id, { manualLane });
+      const prevManualLane = card.overlay.manualLane;
+      const nextManualLane = targetLane === card.autoLane ? null : targetLane;
+      const dict = dictionaries[localeRef.current];
+      const short = shortenTitle(card.title, dict.card.untitled);
+
+      void handlePatchOverlay(card.id, { manualLane: nextManualLane }).then(() => {
+        pushToast({
+          title: dict.toasts.movedToLane(short, dict.lanes[targetLane]),
+          tone: 'info',
+          action: {
+            label: dict.toasts.undo,
+            onClick: () => {
+              void handlePatchOverlay(card.id, { manualLane: prevManualLane }).then(
+                () => pushToast({ title: dict.toasts.undone, tone: 'info' }, 2200),
+              );
+            },
+          },
+        });
+      });
     },
-    [handlePatchOverlay],
+    [handlePatchOverlay, pushToast],
   );
 
   const handleResetManualLane = useCallback(
     (card: ConversationCard) => {
-      void handlePatchOverlay(card.id, { manualLane: null });
+      const prevManualLane = card.overlay.manualLane;
+      const dict = dictionaries[localeRef.current];
+      const short = shortenTitle(card.title, dict.card.untitled);
+
+      void handlePatchOverlay(card.id, { manualLane: null }).then(() => {
+        pushToast({
+          title: dict.toasts.resetAutoLane(short),
+          tone: 'info',
+          action:
+            prevManualLane !== null
+              ? {
+                  label: dict.toasts.undo,
+                  onClick: () => {
+                    void handlePatchOverlay(card.id, {
+                      manualLane: prevManualLane,
+                    }).then(() =>
+                      pushToast({ title: dict.toasts.undone, tone: 'info' }, 2200),
+                    );
+                  },
+                }
+              : undefined,
+        });
+      });
     },
-    [handlePatchOverlay],
+    [handlePatchOverlay, pushToast],
   );
 
   const handleTogglePin = useCallback(
     (card: ConversationCard) => {
-      void handlePatchOverlay(card.id, { pinned: !card.overlay.pinned });
+      const nextPinned = !card.overlay.pinned;
+      const dict = dictionaries[localeRef.current];
+      const short = shortenTitle(card.title, dict.card.untitled);
+      void handlePatchOverlay(card.id, { pinned: nextPinned }).then(() => {
+        pushToast(
+          {
+            title: nextPinned
+              ? dict.toasts.pinned(short)
+              : dict.toasts.unpinned(short),
+            tone: 'info',
+          },
+          2600,
+        );
+      });
     },
-    [handlePatchOverlay],
+    [handlePatchOverlay, pushToast],
+  );
+
+  const handleCyclePriority = useCallback(
+    (card: ConversationCard) => {
+      const nextP = nextPriority(card.overlay.priority);
+      const dict = dictionaries[localeRef.current];
+      const short = shortenTitle(card.title, dict.card.untitled);
+      void handlePatchOverlay(card.id, { priority: nextP }).then(() => {
+        pushToast(
+          {
+            title: nextP
+              ? dict.toasts.prioritySet(short, nextP.toUpperCase())
+              : dict.toasts.priorityCleared(short),
+            tone: 'info',
+          },
+          2600,
+        );
+      });
+    },
+    [handlePatchOverlay, pushToast],
   );
 
   const handleMarkReviewed = useCallback(
     async (card: ConversationCard) => {
+      const prevReviewedAt = card.overlay.reviewedAt;
       const nowIso = new Date().toISOString();
+      const dict = dictionaries[localeRef.current];
+      const short = shortenTitle(card.title, dict.card.untitled);
+
       let snapshot: BoardResponse | null = null;
       setBoard((prev) => {
         if (!prev) return prev;
         snapshot = prev;
-        const nextConversations = prev.conversations.map((c) => {
-          if (c.id !== card.id) return c;
-          const remainingReasons = c.attentionReasons.filter(
-            (r) => r !== 'unread_update' && r !== 'marked_as_unread',
-          );
-          const nextAutoLane: LaneId =
-            !c.isRunning && !c.isArchived && remainingReasons.length === 0 && c.autoLane === 'attention'
-              ? 'active'
-              : c.autoLane;
-          return {
-            ...c,
-            markedAsUnread: false,
-            attentionReasons: remainingReasons,
-            autoLane: nextAutoLane,
-            lane: c.overlay.manualLane ?? nextAutoLane,
-            overlay: { ...c.overlay, reviewedAt: nowIso },
-          };
-        });
+        const nextConversations = prev.conversations.map((c) =>
+          c.id === card.id ? applyOptimisticReview(c, nowIso) : c,
+        );
         return recomputeBoardSummary({ ...prev, conversations: nextConversations });
       });
 
@@ -536,12 +705,95 @@ export function App() {
             });
           });
         }
+        pushToast({
+          title: dict.toasts.markedReviewed(short),
+          tone: 'success',
+          action: {
+            label: dict.toasts.undo,
+            onClick: () => {
+              void handlePatchOverlay(card.id, {
+                reviewedAt: prevReviewedAt,
+              }).then(() => {
+                void loadBoardData(false);
+                pushToast({ title: dict.toasts.undone, tone: 'info' }, 2200);
+              });
+            },
+          },
+        });
       } catch {
         if (snapshot) setBoard(snapshot);
-        pushToast({ title: t.errors.updateFailed, tone: 'error' });
+        pushToast({ title: dict.errors.updateFailed, tone: 'error' });
       }
     },
-    [pushToast, t.errors.updateFailed],
+    [handlePatchOverlay, loadBoardData, pushToast],
+  );
+
+  // Batch Mark All Needs Attention Read + Instant Undo
+  const handleMarkAllAttentionRead = useCallback(
+    async (cards: ConversationCard[]) => {
+      if (cards.length === 0) return;
+      const ids = cards.map((c) => c.id);
+      const idSet = new Set(ids);
+      const nowIso = new Date().toISOString();
+      const dict = dictionaries[localeRef.current];
+
+      let snapshot: BoardResponse | null = null;
+      setBoard((prev) => {
+        if (!prev) return prev;
+        snapshot = prev;
+        const nextConversations = prev.conversations.map((c) =>
+          idSet.has(c.id) ? applyOptimisticReview(c, nowIso) : c,
+        );
+        return recomputeBoardSummary({ ...prev, conversations: nextConversations });
+      });
+
+      try {
+        const res = await reviewConversationsBatch({ ids });
+        const updatedMap = new Map(res.cards.map((c) => [c.id, c]));
+        setBoard((prev) => {
+          if (!prev) return prev;
+          const nextConversations = prev.conversations.map(
+            (c) => updatedMap.get(c.id) ?? c,
+          );
+          return recomputeBoardSummary({
+            ...prev,
+            conversations: nextConversations,
+          });
+        });
+
+        pushToast({
+          title: dict.toasts.markedAllReviewed(res.updatedCount || ids.length),
+          tone: 'success',
+          action: {
+            label: dict.toasts.undo,
+            onClick: () => {
+              void reviewConversationsBatch({ ids, reviewedAt: null })
+                .then((undoRes) => {
+                  const revertedMap = new Map(undoRes.cards.map((c) => [c.id, c]));
+                  setBoard((prev) => {
+                    if (!prev) return prev;
+                    const nextConversations = prev.conversations.map(
+                      (c) => revertedMap.get(c.id) ?? c,
+                    );
+                    return recomputeBoardSummary({
+                      ...prev,
+                      conversations: nextConversations,
+                    });
+                  });
+                  pushToast({ title: dict.toasts.undone, tone: 'info' }, 2200);
+                })
+                .catch(() => {
+                  void loadBoardData(false);
+                });
+            },
+          },
+        });
+      } catch {
+        if (snapshot) setBoard(snapshot);
+        pushToast({ title: dict.errors.updateFailed, tone: 'error' });
+      }
+    },
+    [loadBoardData, pushToast],
   );
 
   const handleSaveSettings = useCallback(
@@ -552,6 +804,18 @@ export function App() {
     },
     [loadBoardData],
   );
+
+  // Tag usage counts for intelligent top-6 tag prioritization
+  const tagCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    if (!board) return counts;
+    for (const c of board.conversations) {
+      for (const tag of c.overlay.tags) {
+        counts[tag] = (counts[tag] ?? 0) + 1;
+      }
+    }
+    return counts;
+  }, [board]);
 
   // Filtered Conversations
   const filteredConversations = useMemo(() => {
@@ -611,6 +875,31 @@ export function App() {
     radarFilter,
   ]);
 
+  // Attention cards currently visible for Mark All Read command
+  const attentionLaneCards = useMemo(
+    () => filteredConversations.filter((c) => c.lane === 'attention'),
+    [filteredConversations],
+  );
+
+  // Ordered conversation IDs for Drawer Prev / Next triage
+  const navigableIds = useMemo(
+    () => filteredConversations.map((c) => c.id),
+    [filteredConversations],
+  );
+  const selectedIndex = selectedId ? navigableIds.indexOf(selectedId) : -1;
+
+  const handleDrawerPrev = useCallback(() => {
+    if (selectedIndex > 0) {
+      setSelectedId(navigableIds[selectedIndex - 1]);
+    }
+  }, [selectedIndex, navigableIds]);
+
+  const handleDrawerNext = useCallback(() => {
+    if (selectedIndex >= 0 && selectedIndex < navigableIds.length - 1) {
+      setSelectedId(navigableIds[selectedIndex + 1]);
+    }
+  }, [selectedIndex, navigableIds]);
+
   const selectedCardFromBoard = useMemo(() => {
     if (!selectedId || !board) return null;
     return board.conversations.find((c) => c.id === selectedId) ?? null;
@@ -633,7 +922,7 @@ export function App() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#F7F8FA] text-zinc-900 dark:bg-[#0B0D11] dark:text-zinc-100">
+    <div className="agmb-ambient-bg flex min-h-screen flex-col text-zinc-900 dark:text-zinc-100">
       <TopBar
         mode={board?.mode ?? 'live'}
         health={health}
@@ -643,13 +932,14 @@ export function App() {
         onRefresh={() => void loadBoardData(true)}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
-        searchInputRef={searchInputRef}
+        onOpenCommandPalette={() => setCommandPaletteOpen(true)}
         serverSearchCount={serverMatchIds ? serverMatchIds.size : null}
         isSearchingServer={isSearchingServer}
         workspaces={board?.workspaces ?? []}
         selectedWorkspace={selectedWorkspace}
         onSelectWorkspace={setSelectedWorkspace}
         allTags={board?.tags ?? []}
+        tagCounts={tagCounts}
         selectedTag={selectedTag}
         onSelectTag={setSelectedTag}
         radarFilter={radarFilter}
@@ -657,6 +947,10 @@ export function App() {
         hasActiveFilters={hasActiveFilters}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
+        density={density}
+        onDensityChange={setDensity}
+        kanbanSort={kanbanSort}
+        onKanbanSortChange={setKanbanSort}
         notificationsEnabled={notificationsEnabled}
         soundEnabled={soundEnabled}
         notificationPermission={notificationPermission}
@@ -664,6 +958,7 @@ export function App() {
         onToggleSound={handleToggleSound}
         settings={defaultSettings}
         onSaveSettings={handleSaveSettings}
+        onOpenShortcuts={() => setShortcutsModalOpen(true)}
         theme={theme}
         onToggleTheme={() => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))}
         locale={locale}
@@ -694,12 +989,12 @@ export function App() {
 
         {/* Loading Skeleton */}
         {loading && !board ? (
-          <div className="space-y-4 animate-pulse">
+          <div className="animate-pulse space-y-4">
             <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
               {Array.from({ length: 5 }).map((_, i) => (
                 <div
                   key={i}
-                  className="h-[68px] rounded-lg border border-zinc-200/80 bg-white dark:border-[#222733] dark:bg-[#13161D]"
+                  className="h-[68px] rounded-xl border border-zinc-200/80 bg-white dark:border-[#212633] dark:bg-[#12151C]"
                 />
               ))}
             </div>
@@ -707,7 +1002,7 @@ export function App() {
               {Array.from({ length: 4 }).map((_, i) => (
                 <div
                   key={i}
-                  className="h-[520px] rounded-xl border border-zinc-200/80 bg-zinc-100/60 dark:border-[#1E2330] dark:bg-[#0F1218]"
+                  className="h-[520px] rounded-xl border border-zinc-200/80 bg-zinc-100/60 dark:border-[#1D2230] dark:bg-[#0E1117]"
                 />
               ))}
             </div>
@@ -727,11 +1022,17 @@ export function App() {
               <KanbanBoard
                 conversations={filteredConversations}
                 selectedId={selectedId}
+                density={density}
+                sortMode={kanbanSort}
                 onSelectConversation={(id) => handleOpenConversation(id, 'overview')}
                 onMoveLane={handleMoveLane}
                 onResetManualLane={handleResetManualLane}
                 onTogglePin={handleTogglePin}
                 onMarkReviewed={(card) => void handleMarkReviewed(card)}
+                onCyclePriority={handleCyclePriority}
+                onMarkAllAttentionRead={(cards) =>
+                  void handleMarkAllAttentionRead(cards)
+                }
                 t={t}
               />
             )}
@@ -766,15 +1067,66 @@ export function App() {
         initialTab={drawerInitialTab}
         cardFromBoard={selectedCardFromBoard}
         allTags={board?.tags ?? []}
+        currentIndex={selectedIndex}
+        totalCount={navigableIds.length}
+        hasPrev={selectedIndex > 0}
+        hasNext={selectedIndex >= 0 && selectedIndex < navigableIds.length - 1}
+        onPrev={handleDrawerPrev}
+        onNext={handleDrawerNext}
         onClose={() => setSelectedId(null)}
         onPatchOverlay={handlePatchOverlay}
         onMarkReviewed={handleMarkReviewed}
+        onCopySuccess={(kind) =>
+          pushToast(
+            {
+              title: kind === 'id' ? t.toasts.copiedId : t.toasts.copiedPath,
+              tone: 'info',
+            },
+            2200,
+          )
+        }
         locale={locale}
         t={t}
       />
 
-      {/* Toasts */}
-      <ToastContainer
+      {/* Floating Command Palette (Ctrl+K / /) */}
+      <CommandPalette
+        open={commandPaletteOpen}
+        onClose={() => setCommandPaletteOpen(false)}
+        conversations={board?.conversations ?? []}
+        attentionCount={attentionLaneCards.length}
+        activeSearchQuery={searchQuery}
+        onApplyBoardSearch={setSearchQuery}
+        onSelectConversation={(id) => handleOpenConversation(id, 'overview')}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        theme={theme}
+        onToggleTheme={() => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))}
+        locale={locale}
+        onToggleLocale={() => setLocale((prev) => (prev === 'zh' ? 'en' : 'zh'))}
+        density={density}
+        onToggleDensity={() =>
+          setDensity((d) => (d === 'comfortable' ? 'compact' : 'comfortable'))
+        }
+        notificationsEnabled={notificationsEnabled}
+        onToggleNotifications={() => void handleToggleNotifications()}
+        onMarkAllAttentionReviewed={() =>
+          void handleMarkAllAttentionRead(attentionLaneCards)
+        }
+        onRefresh={() => void loadBoardData(true)}
+        onOpenShortcuts={() => setShortcutsModalOpen(true)}
+        t={t}
+      />
+
+      {/* Keyboard Shortcuts Modal (?) */}
+      <ShortcutsModal
+        open={shortcutsModalOpen}
+        onClose={() => setShortcutsModalOpen(false)}
+        t={t}
+      />
+
+      {/* Floating Toasts with Undo */}
+      <ToastHost
         toasts={toasts}
         onDismiss={dismissToast}
         onOpenConversation={(id) => handleOpenConversation(id, 'overview')}
@@ -782,4 +1134,5 @@ export function App() {
     </div>
   );
 }
+
 export default App;

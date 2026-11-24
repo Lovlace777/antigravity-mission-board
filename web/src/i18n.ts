@@ -17,12 +17,29 @@ export interface Dictionary {
   lastSynced: string;
   refresh: string;
   searchPlaceholder: string;
+  searchTriggerPlaceholder: string;
   searchShortcutHint: string;
   searchServerMatches: (count: number) => string;
   clearFilters: string;
+  resetFilters: string;
   allWorkspaces: string;
   noWorkspace: string;
   allTags: string;
+  moreTags: (count: number) => string;
+  searchTagsPlaceholder: string;
+  noMatchingTags: string;
+  density: {
+    label: string;
+    comfortable: string;
+    compact: string;
+  };
+  kanbanSort: {
+    label: string;
+    smart: string;
+    recent: string;
+    priority: string;
+    steps: string;
+  };
   views: {
     kanban: string;
     matrix: string;
@@ -83,6 +100,7 @@ export interface Dictionary {
     emptyColumn: string;
     expandArchived: string;
     collapseArchived: string;
+    markAllRead: string;
   };
   attentionReasons: Record<AttentionReason, string>;
   priority: {
@@ -91,6 +109,7 @@ export interface Dictionary {
     p0: string;
     p1: string;
     p2: string;
+    cycleTooltip: string;
   };
   card: {
     markReviewed: string;
@@ -151,6 +170,62 @@ export interface Dictionary {
     totalSubagents: string;
     boardMessagesCount: (count: number) => string;
   };
+  commandPalette: {
+    placeholder: string;
+    empty: string;
+    conversationsSection: string;
+    recentSection: string;
+    commandsSection: string;
+    filterBoardBy: (query: string) => string;
+    clearBoardSearch: string;
+    navigateHint: string;
+    selectHint: string;
+    closeHint: string;
+    ftsSearching: string;
+    cmds: {
+      kanban: string;
+      matrix: string;
+      swarm: string;
+      toggleTheme: string;
+      toggleLocale: string;
+      toggleDensity: string;
+      toggleNotifications: string;
+      markAllRead: (count: number) => string;
+      refresh: string;
+      shortcuts: string;
+    };
+  };
+  shortcutsModal: {
+    title: string;
+    subtitle: string;
+    buttonTooltip: string;
+    groupNavigation: string;
+    groupTriage: string;
+    groupDrawer: string;
+    openCommandPalette: string;
+    switchKanban: string;
+    switchMatrix: string;
+    switchSwarm: string;
+    refreshBoard: string;
+    openShortcuts: string;
+    prevNextConversation: string;
+    closeOverlay: string;
+  };
+  toasts: {
+    undo: string;
+    movedToLane: (title: string, lane: string) => string;
+    resetAutoLane: (title: string) => string;
+    markedReviewed: (title: string) => string;
+    markedAllReviewed: (count: number) => string;
+    undone: string;
+    pinned: (title: string) => string;
+    unpinned: (title: string) => string;
+    prioritySet: (title: string, priority: string) => string;
+    priorityCleared: (title: string) => string;
+    copiedId: string;
+    copiedPath: string;
+    refreshed: string;
+  };
   drawer: {
     close: string;
     copyId: string;
@@ -159,6 +234,11 @@ export interface Dictionary {
     laneControl: string;
     autoLaneNote: (laneName: string) => string;
     followUpPanel: string;
+    editFollowUp: string;
+    doneEditing: string;
+    addFollowUpHint: string;
+    prevConversation: string;
+    nextConversation: string;
     tagsLabel: string;
     tagsCount: (count: number) => string;
     addTagPlaceholder: string;
@@ -265,14 +345,31 @@ export const dictionaries: Record<Locale, Dictionary> = {
     liveConnecting: '连接中',
     liveDisconnected: '已断开',
     lastSynced: '同步于',
-    refresh: '手动刷新',
-    searchPlaceholder: '搜索标题、正文、工作区、标签、备注…',
+    refresh: '手动刷新 (R)',
+    searchPlaceholder: '搜索对话、正文、工作区、标签或输入命令…',
+    searchTriggerPlaceholder: '搜索对话、工作区或运行命令…',
     searchShortcutHint: '⌘K',
     searchServerMatches: (n) => `全文命中 ${n}`,
     clearFilters: '清除筛选',
+    resetFilters: '重置筛选',
     allWorkspaces: '全部工作区',
     noWorkspace: '未绑定工作区',
     allTags: '全部标签',
+    moreTags: (c) => `+${c} 标签`,
+    searchTagsPlaceholder: '筛选标签…',
+    noMatchingTags: '无匹配标签',
+    density: {
+      label: '密度',
+      comfortable: '舒适',
+      compact: '紧凑',
+    },
+    kanbanSort: {
+      label: '排序',
+      smart: '智能推荐',
+      recent: '最新活跃',
+      priority: '优先级',
+      steps: '步数最多',
+    },
     views: {
       kanban: '看板',
       matrix: '列表',
@@ -314,9 +411,9 @@ export const dictionaries: Record<Locale, Dictionary> = {
       dataDir: '数据目录',
       mode: '运行模式',
       shortcutsTitle: '快捷键',
-      shortcutSearch: '聚焦搜索框',
+      shortcutSearch: '打开命令面板 / 搜索',
       shortcutViews: '切换看板 / 列表 / Swarm',
-      shortcutClose: '关闭抽屉 / 退出聚焦',
+      shortcutClose: '关闭抽屉 / 面板',
     },
     theme: {
       light: '浅色',
@@ -352,6 +449,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
       emptyColumn: '暂无对话',
       expandArchived: '展开已归档',
       collapseArchived: '折叠已归档',
+      markAllRead: '全部已阅',
     },
     attentionReasons: {
       unread_update: '刚完成未读',
@@ -367,6 +465,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
       p0: 'P0 紧急',
       p1: 'P1 高',
       p2: 'P2 常规',
+      cycleTooltip: '点击切换优先级 (P0 / P1 / P2 / 无)',
     },
     card: {
       markReviewed: '标为已阅',
@@ -427,6 +526,62 @@ export const dictionaries: Record<Locale, Dictionary> = {
       totalSubagents: '关联子代理',
       boardMessagesCount: (c) => `${c} 条公告板消息`,
     },
+    commandPalette: {
+      placeholder: '搜索对话、正文、标签，或输入快速命令…',
+      empty: '未找到匹配的对话或命令',
+      conversationsSection: '匹配对话',
+      recentSection: '最近活跃 / 待关注对话',
+      commandsSection: '快捷命令',
+      filterBoardBy: (q) => `在看板中筛选 “${q}”`,
+      clearBoardSearch: '清除当前看板搜索关键词',
+      navigateHint: '选择',
+      selectHint: '执行 / 打开',
+      closeHint: '关闭',
+      ftsSearching: '全文检索中…',
+      cmds: {
+        kanban: '切换到 看板视图 (Kanban)',
+        matrix: '切换到 列表矩阵视图 (Matrix)',
+        swarm: '切换到 Swarm 集群视图',
+        toggleTheme: '切换 浅色 / 深色主题',
+        toggleLocale: '切换界面语言 (中文 / EN)',
+        toggleDensity: '切换卡片密度 (舒适 / 紧凑)',
+        toggleNotifications: '切换桌面通知提醒',
+        markAllRead: (count) => `将全部 ${count} 条待关注对话标为已阅`,
+        refresh: '立即刷新看板数据',
+        shortcuts: '查看快捷键一览 (?)',
+      },
+    },
+    shortcutsModal: {
+      title: '快捷键一览',
+      subtitle: '专为高频多任务巡检与秒级分诊设计',
+      buttonTooltip: '快捷键 (?)',
+      groupNavigation: '全局导航',
+      groupTriage: '快速操作',
+      groupDrawer: '详情抽屉',
+      openCommandPalette: '打开命令面板与全文检索',
+      switchKanban: '切换到 看板视图',
+      switchMatrix: '切换到 列表矩阵视图',
+      switchSwarm: '切换到 Swarm 集群视图',
+      refreshBoard: '立即刷新看板数据',
+      openShortcuts: '打开快捷键一览',
+      prevNextConversation: '切换上一条 / 下一条对话',
+      closeOverlay: '关闭详情抽屉 / 命令面板 / 弹窗',
+    },
+    toasts: {
+      undo: '撤销',
+      movedToLane: (title, lane) => `已将「${title}」移至 ${lane}`,
+      resetAutoLane: (title) => `已恢复「${title}」自动归类`,
+      markedReviewed: (title) => `已将「${title}」标为已阅`,
+      markedAllReviewed: (count) => `已将 ${count} 条待关注对话全部标为已阅`,
+      undone: '已撤销刚才的操作',
+      pinned: (title) => `已置顶「${title}」`,
+      unpinned: (title) => `已取消置顶「${title}」`,
+      prioritySet: (title, p) => `已将「${title}」优先级设为 ${p}`,
+      priorityCleared: (title) => `已清除「${title}」优先级`,
+      copiedId: '已复制对话 ID',
+      copiedPath: '已复制工作区路径',
+      refreshed: '看板数据已刷新',
+    },
     drawer: {
       close: '关闭 (Esc)',
       copyId: '复制对话 ID',
@@ -435,6 +590,11 @@ export const dictionaries: Record<Locale, Dictionary> = {
       laneControl: '看板分组',
       autoLaneNote: (laneName) => `自动归类：${laneName}`,
       followUpPanel: '个人跟进与标注',
+      editFollowUp: '编辑',
+      doneEditing: '收起',
+      addFollowUpHint: '添加标签、备注或跟进日期…',
+      prevConversation: '上一条对话 (←)',
+      nextConversation: '下一条对话 (→)',
       tagsLabel: '自定义标签',
       tagsCount: (c) => `${c} 个标签`,
       addTagPlaceholder: '输入标签按回车…',
@@ -539,14 +699,31 @@ export const dictionaries: Record<Locale, Dictionary> = {
     liveConnecting: 'Connecting',
     liveDisconnected: 'Offline',
     lastSynced: 'Synced',
-    refresh: 'Refresh',
-    searchPlaceholder: 'Search titles, transcripts, workspaces, tags, notes…',
+    refresh: 'Refresh (R)',
+    searchPlaceholder: 'Search conversations, transcripts, tags, or commands…',
+    searchTriggerPlaceholder: 'Search conversations or run a command…',
     searchShortcutHint: '⌘K',
     searchServerMatches: (n) => `${n} FTS match${n === 1 ? '' : 'es'}`,
     clearFilters: 'Clear filters',
+    resetFilters: 'Reset filters',
     allWorkspaces: 'All workspaces',
     noWorkspace: 'No workspace',
     allTags: 'All tags',
+    moreTags: (c) => `+${c} more`,
+    searchTagsPlaceholder: 'Filter tags…',
+    noMatchingTags: 'No matching tags',
+    density: {
+      label: 'Density',
+      comfortable: 'Comfortable',
+      compact: 'Compact',
+    },
+    kanbanSort: {
+      label: 'Sort',
+      smart: 'Smart',
+      recent: 'Recent',
+      priority: 'Priority',
+      steps: 'Steps',
+    },
     views: {
       kanban: 'Kanban',
       matrix: 'Matrix',
@@ -588,9 +765,9 @@ export const dictionaries: Record<Locale, Dictionary> = {
       dataDir: 'Data directory',
       mode: 'Mode',
       shortcutsTitle: 'Keyboard Shortcuts',
-      shortcutSearch: 'Focus search',
+      shortcutSearch: 'Command palette / Search',
       shortcutViews: 'Switch Kanban / Matrix / Swarms',
-      shortcutClose: 'Close drawer / clear focus',
+      shortcutClose: 'Close drawer / modal',
     },
     theme: {
       light: 'Light',
@@ -626,6 +803,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
       emptyColumn: 'No conversations',
       expandArchived: 'Expand Archived',
       collapseArchived: 'Collapse Archived',
+      markAllRead: 'Mark all read',
     },
     attentionReasons: {
       unread_update: 'Unread completion',
@@ -641,6 +819,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
       p0: 'P0 Urgent',
       p1: 'P1 High',
       p2: 'P2 Normal',
+      cycleTooltip: 'Cycle priority (P0 / P1 / P2 / None)',
     },
     card: {
       markReviewed: 'Mark reviewed',
@@ -701,6 +880,62 @@ export const dictionaries: Record<Locale, Dictionary> = {
       totalSubagents: 'Subagents',
       boardMessagesCount: (c) => `${c} board post${c === 1 ? '' : 's'}`,
     },
+    commandPalette: {
+      placeholder: 'Search conversations, transcripts, tags, or type a command…',
+      empty: 'No matching conversations or commands',
+      conversationsSection: 'Matching Conversations',
+      recentSection: 'Recent & Needs Attention',
+      commandsSection: 'Quick Commands',
+      filterBoardBy: (q) => `Filter board by "${q}"`,
+      clearBoardSearch: 'Clear active board search filter',
+      navigateHint: 'Navigate',
+      selectHint: 'Select',
+      closeHint: 'Close',
+      ftsSearching: 'Searching transcripts…',
+      cmds: {
+        kanban: 'Switch to Kanban View',
+        matrix: 'Switch to Project Matrix View',
+        swarm: 'Switch to Swarm Clusters View',
+        toggleTheme: 'Toggle Light / Dark Theme',
+        toggleLocale: 'Toggle Language (EN / 中文)',
+        toggleDensity: 'Toggle Card Density (Comfortable / Compact)',
+        toggleNotifications: 'Toggle Desktop Alerts',
+        markAllRead: (count) => `Mark all ${count} Needs Attention reviewed`,
+        refresh: 'Refresh Board Now',
+        shortcuts: 'Show Keyboard Shortcuts (?)',
+      },
+    },
+    shortcutsModal: {
+      title: 'Keyboard Shortcuts',
+      subtitle: 'Built for high-velocity multi-agent triage',
+      buttonTooltip: 'Keyboard shortcuts (?)',
+      groupNavigation: 'Navigation',
+      groupTriage: 'Quick Actions',
+      groupDrawer: 'Detail Drawer',
+      openCommandPalette: 'Open Command Palette & full-text search',
+      switchKanban: 'Switch to Kanban board',
+      switchMatrix: 'Switch to Project Matrix table',
+      switchSwarm: 'Switch to Swarm Clusters view',
+      refreshBoard: 'Refresh board snapshot',
+      openShortcuts: 'Open keyboard shortcuts cheatsheet',
+      prevNextConversation: 'Navigate to previous / next conversation',
+      closeOverlay: 'Close drawer, command palette, or modal',
+    },
+    toasts: {
+      undo: 'Undo',
+      movedToLane: (title, lane) => `Moved "${title}" to ${lane}`,
+      resetAutoLane: (title) => `Reset "${title}" to auto lane`,
+      markedReviewed: (title) => `Marked "${title}" as reviewed`,
+      markedAllReviewed: (count) => `Marked ${count} attention conversation${count === 1 ? '' : 's'} reviewed`,
+      undone: 'Reverted last action',
+      pinned: (title) => `Pinned "${title}"`,
+      unpinned: (title) => `Unpinned "${title}"`,
+      prioritySet: (title, p) => `Set "${title}" priority to ${p}`,
+      priorityCleared: (title) => `Cleared priority on "${title}"`,
+      copiedId: 'Copied conversation ID',
+      copiedPath: 'Copied workspace path',
+      refreshed: 'Board refreshed',
+    },
     drawer: {
       close: 'Close (Esc)',
       copyId: 'Copy conversation ID',
@@ -709,6 +944,11 @@ export const dictionaries: Record<Locale, Dictionary> = {
       laneControl: 'Board Lane',
       autoLaneNote: (laneName) => `Auto lane: ${laneName}`,
       followUpPanel: 'Personal Follow-up & Metadata',
+      editFollowUp: 'Edit',
+      doneEditing: 'Done',
+      addFollowUpHint: 'Add tags, follow-up notes, or reminder date…',
+      prevConversation: 'Previous conversation (←)',
+      nextConversation: 'Next conversation (→)',
       tagsLabel: 'Custom Tags',
       tagsCount: (c) => `${c} ${c === 1 ? 'tag' : 'tags'}`,
       addTagPlaceholder: 'Type tag and press Enter…',

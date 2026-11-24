@@ -44,6 +44,18 @@ describe('OverlayStore SQLite persistence', () => {
 
     const settings = store2.getSettings();
     expect(settings).toEqual({ staleAfterHours: 48, pollIntervalMs: 2500 });
+
+    // Batch review and undo (reviewedAt: null) persist atomically
+    const batchTs = '2026-11-24T15:30:00.000Z';
+    const batchReviewed = store2.markReviewedBatch(['conv-1', 'conv-2', 'conv-1'], batchTs);
+    expect(batchReviewed).toHaveLength(2);
+    expect(store2.getOverlay('conv-1').reviewedAt).toBe(batchTs);
+    expect(store2.getOverlay('conv-2').reviewedAt).toBe(batchTs);
+
+    const undone = store2.markReviewedBatch(['conv-1', 'conv-2'], null);
+    expect(undone).toHaveLength(2);
+    expect(store2.getOverlay('conv-1').reviewedAt).toBeNull();
+    expect(store2.getOverlay('conv-2').reviewedAt).toBeNull();
     store2.close();
   });
 });

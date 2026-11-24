@@ -8,6 +8,7 @@ import type {
   HealthResponse,
   OverlayData,
   OverlayPatch,
+  ReviewBatchResponse,
   SearchMatchField,
   SearchResponse,
   SearchResult,
@@ -357,31 +358,55 @@ function buildDemoSeeds(baseMs: number): DemoSeedRecord[] {
         {
           fileName: 'webhook_migration_spec.md',
           relativePath: 'webhook_migration_spec.md',
-          summary: 'Stripe v2 webhook idempotency design, schema changes, and rollback triggers.',
+          summary: 'Stripe v2 webhook idempotency design, schema changes, replay metrics, and rollback triggers.',
           updatedAt: isoMinutesAgo(baseMs, 14),
           userFacing: true,
           requestFeedback: false,
-          sizeBytes: 1420,
-          content: `# Stripe v2 Webhook Migration Spec
-
-## Summary
-Migrates Aurora Platform's billing ingestion pipeline to Stripe SDK v2 with strict replay protection and idempotent event storage.
-
-## Key Changes
-- Added \`webhook_events(event_id PRIMARY KEY, received_at, payload_hash, status)\`
-- Enforced 300-second timestamp tolerance on \`Stripe-Signature\` headers
-- Replaced mutable invoice polling with event-driven state reconciliation
-
-## Verification Matrix
-| Event Type | Fixture Count | Result |
-| --- | ---: | --- |
-| \`checkout.session.completed\` | 6 | Pass |
-| \`invoice.paid\` | 7 | Pass |
-| \`customer.subscription.updated\` | 5 | In progress |
-
-## Rollback Plan
-Toggle \`BILLING_STRIPE_V2_ENABLED=false\` to fall back to v1 handlers without schema reversal.
-`,
+          sizeBytes: 2180,
+          content: [
+            '# Stripe v2 Webhook Migration Spec',
+            '',
+            '> Migrates Aurora Platform billing ingestion to Stripe SDK v2 with replay-safe idempotency and sub-30ms webhook acks.',
+            '',
+            '## Rollout Checklist',
+            '- [x] Create `webhook_events` deduplication table with composite primary key',
+            '- [x] Enforce 300-second timestamp tolerance on `Stripe-Signature` headers',
+            '- [x] Migrate `checkout.session.completed` & `invoice.paid` handlers to v2 client',
+            '- [ ] Complete replay verification on remaining subscription lifecycle fixtures',
+            '- [ ] Enable 10% staging canary via `BILLING_STRIPE_V2_ENABLED=true`',
+            '',
+            '## Verification Matrix',
+            '| Event Type | Fixtures | P95 Latency | Status |',
+            '| --- | ---: | ---: | --- |',
+            '| `checkout.session.completed` | 6 / 6 | 19 ms | Pass |',
+            '| `invoice.paid` | 7 / 7 | 24 ms | Pass |',
+            '| `customer.subscription.updated` | 4 / 5 | 27 ms | Running |',
+            '',
+            '## Idempotent Event Ledger (SQL)',
+            '```sql',
+            'CREATE TABLE IF NOT EXISTS webhook_events (',
+            '  event_id     TEXT PRIMARY KEY,',
+            '  event_type   TEXT NOT NULL,',
+            '  payload_hash TEXT NOT NULL,',
+            '  received_at  TIMESTAMPTZ NOT NULL DEFAULT now()',
+            ');',
+            '```',
+            '',
+            '## Replay Guard Middleware (TypeScript)',
+            '```ts',
+            'export async function recordWebhookOnce(db: Pool, evt: StripeEvent): Promise<boolean> {',
+            '  const res = await db.query(',
+            "    'INSERT INTO webhook_events(event_id, event_type, payload_hash) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',",
+            '    [evt.id, evt.type, sha256(evt.rawBody)],',
+            '  );',
+            '  return res.rowCount === 1;',
+            '}',
+            '```',
+            '',
+            '## Rollback Plan',
+            'Set `BILLING_STRIPE_V2_ENABLED=false` to return traffic to v1 handlers immediately without reversing the additive ledger table.',
+            '',
+          ].join('\n'),
         },
       ],
       timeline: [
@@ -419,7 +444,7 @@ Toggle \`BILLING_STRIPE_V2_ENABLED=false\` to fall back to v1 handlers without s
       initialOverlay: {
         pinned: true,
         priority: 'p0',
-        tags: ['billing', 'release-2.4'],
+        tags: ['billing', 'release'],
         notes: 'Must land before Thursday staging freeze.',
       },
     },
@@ -531,7 +556,7 @@ Toggle \`BILLING_STRIPE_V2_ENABLED=false\` to fall back to v1 handlers without s
       sideQuestions: [],
       initialOverlay: {
         priority: 'p1',
-        tags: ['clickhouse', 'perf'],
+        tags: ['perf'],
       },
     },
 
@@ -591,7 +616,7 @@ Toggle \`BILLING_STRIPE_V2_ENABLED=false\` to fall back to v1 handlers without s
       ],
       sideQuestions: [],
       initialOverlay: {
-        tags: ['cli', 'dx'],
+        tags: ['cli'],
       },
     },
 
@@ -636,25 +661,39 @@ Toggle \`BILLING_STRIPE_V2_ENABLED=false\` to fall back to v1 handlers without s
           updatedAt: isoMinutesAgo(baseMs, 18),
           userFacing: true,
           requestFeedback: true,
-          sizeBytes: 1860,
-          content: `# Implementation Plan: Zero-Downtime Partitioning for \`audit_logs\`
-
-## Problem Statement
-\`audit_logs\` has reached **420 GB** (~640M rows). Autovacuum cycles now exceed 4 hours and p99 insert latency degrades during monthly retention purges.
-
-## Proposed Architecture
-1. Create partitioned shadow table \`audit_logs_v2\` partitioned by monthly \`RANGE (created_at)\`.
-2. Attach lightweight \`AFTER INSERT\` dual-write trigger with batch-safe \`ON CONFLICT DO NOTHING\`.
-3. Backfill historical partitions in 50k-row chunks throttled to <15% primary IOPS.
-4. Validate row counts + checksums per month, then perform atomic \`ALTER TABLE ... RENAME\` swap inside a 2-second lock timeout window.
-
-## Risk Assessment
-- **Lock contention:** Protected by \`SET lock_timeout = '2s'\` with automatic retry.
-- **Disk headroom:** Requires 180 GB temporary space (staging volume currently has 640 GB free).
-
-## Decision Requested
-Please confirm whether retention should drop partitions older than **180 days** or archive them to object storage first.
-`,
+          sizeBytes: 2240,
+          content: [
+            '# Implementation Plan: Zero-Downtime Partitioning for `audit_logs`',
+            '',
+            '## Problem Statement',
+            '`audit_logs` has reached **420 GB** (~640M rows). Autovacuum cycles now exceed 4 hours and P99 insert latency degrades during monthly retention purges.',
+            '',
+            '## Execution Checklist',
+            '- [x] Profile table bloat, index footprint, and staging IOPS headroom',
+            '- [x] Design monthly `RANGE (created_at)` shadow table and dual-write trigger',
+            '- [ ] Confirm 180-day archive vs drop policy before generating migration SQL',
+            '- [ ] Execute throttled 50k-row backfill and atomic table swap',
+            '',
+            '## Cutover Metrics & Safeguards',
+            '| Metric | Current | Target | Guardrail |',
+            '| --- | ---: | ---: | --- |',
+            '| Table size (active) | 420 GB | 70 GB / mo | 640 GB free |',
+            '| Lock window | n/a | < 400 ms | `lock_timeout = 2s` |',
+            '| Backfill IOPS | n/a | < 15% | 50k chunk pause |',
+            '',
+            '## Atomic Swap Preview (SQL)',
+            '```sql',
+            "SET lock_timeout = '2s';",
+            'BEGIN;',
+            '  ALTER TABLE audit_logs RENAME TO audit_logs_legacy;',
+            '  ALTER TABLE audit_logs_v2 RENAME TO audit_logs;',
+            'COMMIT;',
+            '```',
+            '',
+            '## Decision Requested',
+            'Please confirm whether retention should drop partitions older than **180 days** or archive them to object storage first.',
+            '',
+          ].join('\n'),
         },
       ],
       timeline: [
@@ -684,7 +723,7 @@ Please confirm whether retention should drop partitions older than **180 days** 
       initialOverlay: {
         pinned: true,
         priority: 'p0',
-        tags: ['postgres', 'rfc'],
+        tags: ['postgres'],
         notes: 'Confirm 180-day S3 archival requirement with security lead.',
       },
     },
@@ -808,7 +847,7 @@ Please confirm whether retention should drop partitions older than **180 days** 
       sideQuestions: [],
       initialOverlay: {
         priority: 'p1',
-        tags: ['e2e', 'bug'],
+        tags: ['e2e'],
         notes: 'Check if local Stripe mock container hit port collision.',
       },
     },
@@ -892,7 +931,7 @@ Please confirm whether retention should drop partitions older than **180 days** 
       sideQuestions: [],
       initialOverlay: {
         priority: 'p2',
-        tags: ['frontend', 'analytics'],
+        tags: ['frontend'],
       },
     },
 
@@ -954,7 +993,7 @@ Please confirm whether retention should drop partitions older than **180 days** 
       sideQuestions: [],
       initialOverlay: {
         priority: 'p2',
-        tags: ['sdk', 'perf'],
+        tags: ['perf'],
         notes: 'Keep gzipped bundle under 6 KB.',
       },
     },
@@ -1056,7 +1095,7 @@ Please confirm whether retention should drop partitions older than **180 days** 
       ],
       sideQuestions: [],
       initialOverlay: {
-        tags: ['cli', 'dx'],
+        tags: ['cli'],
       },
     },
 
@@ -1130,7 +1169,7 @@ Please confirm whether retention should drop partitions older than **180 days** 
       ],
       sideQuestions: [],
       initialOverlay: {
-        tags: ['ops', 'infra'],
+        tags: ['ops'],
         notes: 'Revisit after billing v2 release ships.',
       },
     },
@@ -1180,7 +1219,7 @@ Please confirm whether retention should drop partitions older than **180 days** 
       ],
       sideQuestions: [],
       initialOverlay: {
-        tags: ['perf', 'wasm'],
+        tags: ['perf'],
       },
     },
 
@@ -1299,7 +1338,7 @@ Please confirm whether retention should drop partitions older than **180 days** 
       ],
       sideQuestions: [],
       initialOverlay: {
-        tags: ['security'],
+        tags: ['auth'],
       },
     },
   ];
@@ -1488,6 +1527,26 @@ export class DemoBoardService implements IBoardService {
     return {
       overlay,
       card: seed ? this.buildCard(seed, settings) : null,
+    };
+  }
+
+  markReviewedBatch(ids: string[], reviewedAt?: string | null): ReviewBatchResponse {
+    const uniqueIds = Array.from(new Set(ids));
+    const appliedReviewedAt =
+      reviewedAt === undefined ? new Date().toISOString() : reviewedAt;
+    this.overlayStore.markReviewedBatch(uniqueIds, appliedReviewedAt);
+    const settings = this.overlayStore.getSettings();
+    const cards: ConversationCard[] = [];
+    for (const id of uniqueIds) {
+      const seed = this.seedById.get(id);
+      if (seed) {
+        cards.push(this.buildCard(seed, settings));
+      }
+    }
+    return {
+      updatedCount: uniqueIds.length,
+      reviewedAt: appliedReviewedAt,
+      cards,
     };
   }
 
