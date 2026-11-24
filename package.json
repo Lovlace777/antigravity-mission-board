@@ -1,0 +1,22 @@
+{
+  "name": "antigravity-mission-board",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local Kanban & live monitoring dashboard for Google Antigravity Desktop 2.0",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "setup": "npm --prefix server install && npm --prefix web install",
+    "dev": "node server/scripts/dev-all.mjs",
+    "dev:demo": "node server/scripts/dev-all.mjs --demo",
+    "dev:server": "npm --prefix server run dev",
+    "dev:web": "npm --prefix web run dev",
+    "build": "npm --prefix server run build && npm --prefix web run build",
+    "start": "npm --prefix server run start",
+    "start:demo": "npm --prefix server run start:demo",
+    "test": "npm --prefix server test",
+    "typecheck": "npm --prefix server run typecheck && npm --prefix web run typecheck"
+  }
+}

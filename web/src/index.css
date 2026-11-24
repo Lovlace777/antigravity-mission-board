@@ -1,0 +1,247 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  :root {
+    color-scheme: light;
+    --surface-bg: #F7F8FA;
+    --surface-card: #FFFFFF;
+    --surface-elevated: #FFFFFF;
+    --surface-subtle: #F1F3F6;
+    --border-hairline: #E4E7EC;
+    --border-strong: #D0D5DD;
+  }
+
+  .dark {
+    color-scheme: dark;
+    --surface-bg: #0B0D11;
+    --surface-card: #13161D;
+    --surface-elevated: #181C25;
+    --surface-subtle: #11141B;
+    --border-hairline: #222733;
+    --border-strong: #2F3646;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+    font-family:
+      "Inter",
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      "PingFang SC",
+      "Hiragino Sans GB",
+      "Microsoft YaHei",
+      sans-serif;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  code,
+  pre,
+  .font-mono {
+    font-family:
+      "JetBrains Mono",
+      "Cascadia Code",
+      "SFMono-Regular",
+      Consolas,
+      "Liberation Mono",
+      Menlo,
+      monospace;
+  }
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Refined thin scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(113, 113, 122, 0.28);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(113, 113, 122, 0.48);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(161, 161, 170, 0.2);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(161, 161, 170, 0.36);
+}
+
+/* Subtle live radar pulse */
+@keyframes agmb-pulse-ring {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.75;
+  }
+  70% {
+    transform: scale(2.1);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(2.1);
+    opacity: 0;
+  }
+}
+
+.live-pulse-ring {
+  animation: agmb-pulse-ring 2s cubic-bezier(0.24, 0, 0.38, 1) infinite;
+}
+
+/* Clean Markdown Viewer styles */
+.agmb-prose {
+  font-size: 0.875rem;
+  line-height: 1.65;
+  color: inherit;
+}
+
+.agmb-prose h1 {
+  font-size: 1.25rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  margin-top: 1.25rem;
+  margin-bottom: 0.65rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--border-hairline);
+}
+
+.agmb-prose h1:first-child,
+.agmb-prose h2:first-child,
+.agmb-prose h3:first-child {
+  margin-top: 0;
+}
+
+.agmb-prose h2 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.agmb-prose h3 {
+  font-size: 0.925rem;
+  font-weight: 600;
+  margin-top: 1rem;
+  margin-bottom: 0.35rem;
+}
+
+.agmb-prose p {
+  margin-top: 0.5rem;
+  margin-bottom: 0.65rem;
+}
+
+.agmb-prose ul,
+.agmb-prose ol {
+  margin-top: 0.4rem;
+  margin-bottom: 0.75rem;
+  padding-left: 1.35rem;
+}
+
+.agmb-prose ul {
+  list-style-type: disc;
+}
+
+.agmb-prose ol {
+  list-style-type: decimal;
+}
+
+.agmb-prose li {
+  margin-top: 0.2rem;
+  margin-bottom: 0.2rem;
+}
+
+.agmb-prose blockquote {
+  margin: 0.75rem 0;
+  padding: 0.4rem 0.85rem;
+  border-left: 3px solid #0ea5e9;
+  background: rgba(14, 165, 233, 0.06);
+  border-radius: 0 6px 6px 0;
+}
+
+.agmb-prose code {
+  font-size: 0.8125rem;
+  padding: 0.12rem 0.35rem;
+  border-radius: 4px;
+  background: rgba(113, 113, 122, 0.12);
+}
+
+.dark .agmb-prose code {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.agmb-prose pre {
+  margin: 0.75rem 0;
+  padding: 0.75rem 0.9rem;
+  border-radius: 8px;
+  overflow-x: auto;
+  border: 1px solid var(--border-hairline);
+  background: #F4F5F7;
+}
+
+.dark .agmb-prose pre {
+  background: #0D1016;
+}
+
+.agmb-prose pre code {
+  padding: 0;
+  background: transparent;
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+
+.agmb-prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.75rem 0;
+  font-size: 0.8125rem;
+}
+
+.agmb-prose th,
+.agmb-prose td {
+  border: 1px solid var(--border-hairline);
+  padding: 0.45rem 0.65rem;
+  text-align: left;
+}
+
+.agmb-prose th {
+  font-weight: 600;
+  background: var(--surface-subtle);
+}
+
+.agmb-prose a {
+  color: #0284c7;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.dark .agmb-prose a {
+  color: #38bdf8;
+}
+
+.agmb-prose hr {
+  border: 0;
+  border-top: 1px solid var(--border-hairline);
+  margin: 1rem 0;
+}
+
+.agmb-prose input[type="checkbox"] {
+  margin-right: 0.4rem;
+  accent-color: #0284c7;
+}
