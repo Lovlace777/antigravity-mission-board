@@ -16,7 +16,7 @@ function main(): void {
   const server = app.listen(config.port, config.host, () => {
     const modeLabel = config.demoMode ? 'DEMO (synthetic dataset)' : 'LIVE (read-only)';
     console.log('');
-    console.log('  Antigravity Mission Board');
+    console.log(`  Antigravity Mission Board v${config.version}`);
     console.log(`  URL:   http://${config.host}:${config.port}`);
     console.log(`  Mode:  ${modeLabel}`);
     if (!config.demoMode) {
@@ -31,22 +31,48 @@ function main(): void {
     console.log('');
   });
 
+  server.on('error', (err: NodeJS.ErrnoException) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(`Port ${config.port} on ${config.host} is already in use.`);
+    } else {
+      console.error('Server error:', err.message);
+    }
+    sseBroker.close();
+    service.close();
+    process.exit(1);
+  });
+
+  let shuttingDown = false;
   const shutdown = (signal: string) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+
     console.log(`\nReceived ${signal}, shutting down...`);
     sseBroker.close();
+
+    // Immediately terminate idle & keep-alive connections so Electron tray Quit exits cleanly
+    server.closeIdleConnections?.();
     server.close(() => {
       service.close();
       process.exit(0);
     });
-    // Force exit if lingering keep-alive sockets delay shutdown
+    server.closeAllConnections?.();
+
+    // Safety fallback if any socket still refuses to close
     setTimeout(() => {
       service.close();
       process.exit(0);
-    }, 3000).unref();
+    }, 1500).unref();
   };
 
   process.on('SIGINT', () => shutdown('SIGINT'));
   process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGBREAK', () => shutdown('SIGBREAK'));
+  process.on('message', (msg) => {
+    if (msg === 'shutdown') {
+      shutdown('IPC');
+    }
+  });
 }
 
 main();

@@ -55,15 +55,15 @@ import { LivePulseDot, SwarmStateBadge } from '../badges';
 function StepIcon({ status }: { status: StepItem['status'] }) {
   switch (status) {
     case 'done':
-      return <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />;
+      return <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#16A34A] dark:text-[#22C55E]" />;
     case 'in_progress':
-      return <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin text-sky-500" />;
+      return <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin text-[#1C1917] dark:text-[#F2F1EE]" />;
     case 'failed':
-      return <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-500" />;
+      return <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-[#DC2626] dark:text-[#EF4444]" />;
     case 'skipped':
-      return <MinusCircle className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" />;
+      return <MinusCircle className="mt-0.5 h-4 w-4 shrink-0 text-[#A8A29E] dark:text-[#666560]" />;
     default:
-      return <Circle className="mt-0.5 h-4 w-4 shrink-0 text-zinc-300 dark:text-zinc-600" />;
+      return <Circle className="mt-0.5 h-4 w-4 shrink-0 text-[#D6D3D1] dark:text-[#44433F]" />;
   }
 }
 
@@ -87,41 +87,41 @@ export function OverviewTab({
       : 0;
 
   return (
-    <div className="space-y-4">
-      {/* High-priority Alert Callouts */}
+    <div className="space-y-3.5">
+      {/* Alert Callouts */}
       {detail.lastError && (
-        <div className="rounded-lg border border-rose-200 bg-rose-50/75 p-3 dark:border-rose-500/30 dark:bg-rose-500/10">
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-rose-700 dark:text-rose-300">
+        <div className="rounded-xl border border-[#DC2626]/25 bg-[#FEF2F2]/80 p-3 dark:border-[#EF4444]/25 dark:bg-[#2A1616]/70">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-[#B91C1C] dark:text-[#FCA5A5]">
             <AlertCircle className="h-3.5 w-3.5 shrink-0" />
             <span>{t.drawer.overview.lastErrorTitle}</span>
           </div>
-          <p className="mt-1 font-mono text-[11.5px] leading-relaxed break-words whitespace-pre-wrap text-rose-800 dark:text-rose-200">
+          <p className="mt-1 font-mono text-[11.5px] leading-relaxed break-words whitespace-pre-wrap text-[#991B1B] dark:text-[#FECACA]">
             {detail.lastError}
           </p>
         </div>
       )}
 
       {detail.pendingQuestionText && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50/75 p-3 dark:border-amber-500/30 dark:bg-amber-500/10">
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-800 dark:text-amber-300">
+        <div className="rounded-xl border border-[#D97706]/25 bg-[#FFFBEB]/80 p-3 dark:border-[#F59E0B]/25 dark:bg-[#261E12]/70">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-[#92400E] dark:text-[#FCD34D]">
             <HelpCircle className="h-3.5 w-3.5 shrink-0" />
             <span>{t.drawer.overview.pendingQuestionTitle}</span>
           </div>
-          <p className="mt-1 text-xs leading-relaxed whitespace-pre-wrap text-amber-900 dark:text-amber-100">
+          <p className="mt-1 text-xs leading-relaxed whitespace-pre-wrap text-[#78350F] dark:text-[#FEF3C7]">
             {detail.pendingQuestionText}
           </p>
         </div>
       )}
 
       {/* Current Focus */}
-      <section className="rounded-lg border border-zinc-200/80 bg-zinc-50/60 p-3.5 dark:border-[#222733] dark:bg-[#0F1218]">
-        <div className="flex items-center gap-1.5 text-[11px] font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
-          <Compass className="h-3.5 w-3.5 text-sky-500" />
+      <section className="rounded-xl border border-[#1C1917]/[0.07] bg-white p-3.5 dark:border-white/[0.065] dark:bg-[#191917]">
+        <div className="flex items-center gap-1.5 text-[10.5px] font-semibold tracking-wider text-[#8C867E] uppercase dark:text-[#6E6D68]">
+          <Compass className="h-3.5 w-3.5" />
           <span>{t.drawer.overview.currentFocus}</span>
         </div>
-        <p className="mt-1.5 text-xs leading-relaxed text-zinc-800 dark:text-zinc-200">
+        <p className="mt-1.5 text-xs leading-relaxed text-[#1C1917] dark:text-[#E7E5E0]">
           {detail.currentFocus || (
-            <span className="text-zinc-400 dark:text-zinc-500">
+            <span className="text-[#969088] dark:text-[#666560]">
               {t.drawer.overview.noFocus}
             </span>
           )}
@@ -129,13 +129,13 @@ export function OverviewTab({
       </section>
 
       {/* Steps Checklist */}
-      <section className="rounded-lg border border-zinc-200/80 bg-white p-3.5 dark:border-[#222733] dark:bg-[#13161D]">
+      <section className="rounded-xl border border-[#1C1917]/[0.07] bg-white p-3.5 dark:border-white/[0.065] dark:bg-[#191917]">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">
+          <span className="text-xs font-semibold text-[#1C1917] dark:text-[#F2F1EE]">
             {t.drawer.overview.checklist}
           </span>
           {detail.stepsTotal > 0 && (
-            <span className="tabular-nums font-mono text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
+            <span className="tabular-nums font-mono text-[11px] font-medium text-[#78716C] dark:text-[#8C8B85]">
               {detail.stepsCompleted} / {detail.stepsTotal} ({progressPct}%)
             </span>
           )}
@@ -143,26 +143,28 @@ export function OverviewTab({
 
         {detail.steps.length > 0 ? (
           <>
-            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-[#1E2330]">
+            <div className="mt-2 h-[3px] w-full overflow-hidden rounded-full bg-[#1C1917]/[0.08] dark:bg-white/[0.08]">
               <div
                 className={`h-full rounded-full transition-all ${
-                  progressPct === 100 ? 'bg-emerald-500' : 'bg-sky-500'
+                  progressPct === 100
+                    ? 'bg-[#16A34A] dark:bg-[#22C55E]'
+                    : 'bg-[#1C1917] dark:bg-[#E7E5E0]'
                 }`}
                 style={{ width: `${progressPct}%` }}
               />
             </div>
-            <ul className="mt-3 space-y-2">
+            <ul className="mt-3 space-y-1.5">
               {detail.steps.map((step, idx) => (
                 <li
                   key={`${idx}-${step.title}`}
-                  className={`flex items-start gap-2 rounded-md px-2 py-1.5 text-xs ${
+                  className={`flex items-start gap-2 rounded-lg px-2 py-1.5 text-xs ${
                     step.status === 'in_progress'
-                      ? 'bg-sky-50/70 text-zinc-900 dark:bg-sky-500/10 dark:text-zinc-100'
+                      ? 'bg-[#F6F5F1] font-medium text-[#1C1917] dark:bg-[#232320] dark:text-[#F2F1EE]'
                       : step.status === 'failed'
-                        ? 'bg-rose-50/70 text-rose-800 dark:bg-rose-500/10 dark:text-rose-200'
+                        ? 'bg-[#FEF2F2]/70 text-[#B91C1C] dark:bg-[#2A1616]/60 dark:text-[#FCA5A5]'
                         : step.status === 'done'
-                          ? 'text-zinc-500 dark:text-zinc-400'
-                          : 'text-zinc-700 dark:text-zinc-300'
+                          ? 'text-[#78716C] dark:text-[#8C8B85]'
+                          : 'text-[#44403C] dark:text-[#D6D3CD]'
                   }`}
                 >
                   <StepIcon status={step.status} />
@@ -174,21 +176,21 @@ export function OverviewTab({
             </ul>
           </>
         ) : (
-          <p className="mt-2 text-xs text-zinc-400 dark:text-zinc-500">
+          <p className="mt-2 text-xs text-[#969088] dark:text-[#666560]">
             {t.drawer.overview.noChecklist}
           </p>
         )}
       </section>
 
       {/* Token & Model Breakdown */}
-      <section className="rounded-lg border border-zinc-200/80 bg-white p-3.5 dark:border-[#222733] dark:bg-[#13161D]">
+      <section className="rounded-xl border border-[#1C1917]/[0.07] bg-white p-3.5 dark:border-white/[0.065] dark:bg-[#191917]">
         <div className="flex items-center justify-between gap-2">
-          <span className="flex items-center gap-1.5 text-xs font-semibold text-zinc-800 dark:text-zinc-200">
-            <Cpu className="h-3.5 w-3.5 text-zinc-400" />
+          <span className="flex items-center gap-1.5 text-xs font-semibold text-[#1C1917] dark:text-[#F2F1EE]">
+            <Cpu className="h-3.5 w-3.5 text-[#8C867E]" />
             {t.drawer.overview.tokenBreakdown}
           </span>
           {tokens.totalTokens > 0 && (
-            <span className="tabular-nums rounded bg-emerald-50 px-1.5 py-0.5 font-mono text-[10.5px] font-semibold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
+            <span className="tabular-nums font-mono text-[11px] font-medium text-[#15803D] dark:text-[#4ADE80]">
               {t.drawer.overview.cacheHitRate} {formatPercent(tokens.cacheHitRate)}
             </span>
           )}
@@ -197,45 +199,45 @@ export function OverviewTab({
         {tokens.totalTokens > 0 ? (
           <>
             <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-              <div className="rounded-md border border-zinc-100 bg-zinc-50/70 p-2 dark:border-[#1E2330] dark:bg-[#0F1218]">
-                <div className="text-[10.5px] text-zinc-500 dark:text-zinc-400">
+              <div className="rounded-lg border border-[#1C1917]/[0.06] bg-[#FAF9F6] p-2 dark:border-white/[0.055] dark:bg-[#141413]">
+                <div className="text-[10.5px] text-[#8C867E] dark:text-[#787771]">
                   {t.drawer.overview.inputTokens}
                 </div>
                 <div
-                  className="tabular-nums mt-0.5 font-mono text-sm font-semibold text-zinc-900 dark:text-zinc-100"
+                  className="tabular-nums mt-0.5 font-mono text-sm font-semibold text-[#1C1917] dark:text-[#F2F1EE]"
                   title={formatExactNumber(tokens.inputTokens)}
                 >
                   {formatCompactNumber(tokens.inputTokens)}
                 </div>
               </div>
-              <div className="rounded-md border border-zinc-100 bg-zinc-50/70 p-2 dark:border-[#1E2330] dark:bg-[#0F1218]">
-                <div className="text-[10.5px] text-zinc-500 dark:text-zinc-400">
+              <div className="rounded-lg border border-[#1C1917]/[0.06] bg-[#FAF9F6] p-2 dark:border-white/[0.055] dark:bg-[#141413]">
+                <div className="text-[10.5px] text-[#8C867E] dark:text-[#787771]">
                   {t.drawer.overview.cacheReadTokens}
                 </div>
                 <div
-                  className="tabular-nums mt-0.5 font-mono text-sm font-semibold text-emerald-600 dark:text-emerald-400"
+                  className="tabular-nums mt-0.5 font-mono text-sm font-semibold text-[#15803D] dark:text-[#4ADE80]"
                   title={formatExactNumber(tokens.cacheReadTokens)}
                 >
                   {formatCompactNumber(tokens.cacheReadTokens)}
                 </div>
               </div>
-              <div className="rounded-md border border-zinc-100 bg-zinc-50/70 p-2 dark:border-[#1E2330] dark:bg-[#0F1218]">
-                <div className="text-[10.5px] text-zinc-500 dark:text-zinc-400">
+              <div className="rounded-lg border border-[#1C1917]/[0.06] bg-[#FAF9F6] p-2 dark:border-white/[0.055] dark:bg-[#141413]">
+                <div className="text-[10.5px] text-[#8C867E] dark:text-[#787771]">
                   {t.drawer.overview.outputTokens}
                 </div>
                 <div
-                  className="tabular-nums mt-0.5 font-mono text-sm font-semibold text-sky-600 dark:text-sky-400"
+                  className="tabular-nums mt-0.5 font-mono text-sm font-semibold text-[#44403C] dark:text-[#D6D3CD]"
                   title={formatExactNumber(tokens.outputTokens)}
                 >
                   {formatCompactNumber(tokens.outputTokens)}
                 </div>
               </div>
-              <div className="rounded-md border border-zinc-100 bg-zinc-50/70 p-2 dark:border-[#1E2330] dark:bg-[#0F1218]">
-                <div className="text-[10.5px] text-zinc-500 dark:text-zinc-400">
+              <div className="rounded-lg border border-[#1C1917]/[0.06] bg-[#FAF9F6] p-2 dark:border-white/[0.055] dark:bg-[#141413]">
+                <div className="text-[10.5px] text-[#8C867E] dark:text-[#787771]">
                   {t.drawer.overview.totalTokens}
                 </div>
                 <div
-                  className="tabular-nums mt-0.5 font-mono text-sm font-semibold text-zinc-900 dark:text-zinc-100"
+                  className="tabular-nums mt-0.5 font-mono text-sm font-semibold text-[#1C1917] dark:text-[#F2F1EE]"
                   title={formatExactNumber(tokens.totalTokens)}
                 >
                   {formatCompactNumber(tokens.totalTokens)}
@@ -243,20 +245,20 @@ export function OverviewTab({
               </div>
             </div>
 
-            {/* Stacked Ratio Bar */}
-            <div className="mt-2.5 flex h-1.5 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-[#1E2330]">
+            {/* Restrained Stacked Ratio Bar */}
+            <div className="mt-2.5 flex h-[3px] w-full overflow-hidden rounded-full bg-[#1C1917]/[0.08] dark:bg-white/[0.08]">
               <div
-                className="bg-zinc-500 dark:bg-zinc-400"
+                className="bg-[#78716C] dark:bg-[#8C8B85]"
                 style={{ width: `${inputPct}%` }}
                 title={`${t.drawer.overview.inputTokens}: ${inputPct}%`}
               />
               <div
-                className="bg-emerald-500"
+                className="bg-[#16A34A] dark:bg-[#22C55E]"
                 style={{ width: `${cachePct}%` }}
                 title={`${t.drawer.overview.cacheReadTokens}: ${cachePct}%`}
               />
               <div
-                className="bg-sky-500"
+                className="bg-[#1C1917] dark:bg-[#F2F1EE]"
                 style={{ width: `${outputPct}%` }}
                 title={`${t.drawer.overview.outputTokens}: ${outputPct}%`}
               />
@@ -264,13 +266,13 @@ export function OverviewTab({
 
             {detail.models.length > 0 && (
               <div className="mt-3 flex flex-wrap items-center gap-1.5">
-                <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                <span className="text-[11px] text-[#8C867E] dark:text-[#787771]">
                   {t.drawer.overview.modelsUsed}:
                 </span>
                 {detail.models.map((m) => (
                   <span
                     key={m}
-                    className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10.5px] text-zinc-700 dark:bg-[#1B202C] dark:text-zinc-300"
+                    className="rounded-md bg-[#F2F0EB] px-1.5 py-0.5 font-mono text-[10.5px] text-[#44403C] dark:bg-[#242421] dark:text-[#D6D3CD]"
                   >
                     {shortModelName(m)}
                   </span>
@@ -279,80 +281,79 @@ export function OverviewTab({
             )}
           </>
         ) : (
-          <p className="mt-2 text-xs text-zinc-400 dark:text-zinc-500">
+          <p className="mt-2 text-xs text-[#969088] dark:text-[#666560]">
             {t.drawer.overview.noTokenData}
           </p>
         )}
       </section>
 
-      {/* Latest Preview & Timestamps */}
       {detail.preview && (
-        <section className="rounded-lg border border-zinc-200/80 bg-white p-3.5 dark:border-[#222733] dark:bg-[#13161D]">
-          <div className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">
+        <section className="rounded-xl border border-[#1C1917]/[0.07] bg-white p-3.5 dark:border-white/[0.065] dark:bg-[#191917]">
+          <div className="text-xs font-semibold text-[#1C1917] dark:text-[#F2F1EE]">
             {t.drawer.overview.latestPreview}
           </div>
-          <p className="mt-1.5 text-xs leading-relaxed whitespace-pre-wrap text-zinc-600 dark:text-zinc-400">
+          <p className="mt-1.5 text-xs leading-relaxed whitespace-pre-wrap text-[#57534E] dark:text-[#9F9E98]">
             {detail.preview}
           </p>
         </section>
       )}
 
-      <section className="rounded-lg border border-zinc-200/80 bg-white p-3.5 dark:border-[#222733] dark:bg-[#13161D]">
-        <div className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">
+      <section className="rounded-xl border border-[#1C1917]/[0.07] bg-white p-3.5 dark:border-white/[0.065] dark:bg-[#191917]">
+        <div className="text-xs font-semibold text-[#1C1917] dark:text-[#F2F1EE]">
           {t.drawer.overview.metadata}
         </div>
         <dl className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
           <div>
-            <dt className="text-[11px] text-zinc-400 dark:text-zinc-500">
+            <dt className="text-[11px] text-[#8C867E] dark:text-[#73726C]">
               {t.drawer.overview.createdOrModified}
             </dt>
-            <dd className="tabular-nums mt-0.5 font-mono text-[11.5px] text-zinc-700 dark:text-zinc-300">
+            <dd className="tabular-nums mt-0.5 font-mono text-[11.5px] text-[#44403C] dark:text-[#D6D3CD]">
               {formatDateTime(detail.lastModifiedAt, locale)}
             </dd>
           </div>
           <div>
-            <dt className="text-[11px] text-zinc-400 dark:text-zinc-500">
+            <dt className="text-[11px] text-[#8C867E] dark:text-[#73726C]">
               {t.drawer.overview.lastUserInput}
             </dt>
-            <dd className="tabular-nums mt-0.5 font-mono text-[11.5px] text-zinc-700 dark:text-zinc-300">
+            <dd className="tabular-nums mt-0.5 font-mono text-[11.5px] text-[#44403C] dark:text-[#D6D3CD]">
               {detail.lastUserInputAt
                 ? formatDateTime(detail.lastUserInputAt, locale)
                 : t.drawer.overview.never}
             </dd>
           </div>
           <div>
-            <dt className="text-[11px] text-zinc-400 dark:text-zinc-500">
+            <dt className="text-[11px] text-[#8C867E] dark:text-[#73726C]">
               {t.drawer.overview.lastReviewed}
             </dt>
-            <dd className="tabular-nums mt-0.5 font-mono text-[11.5px] text-zinc-700 dark:text-zinc-300">
+            <dd className="tabular-nums mt-0.5 font-mono text-[11.5px] text-[#44403C] dark:text-[#D6D3CD]">
               {detail.overlay.reviewedAt
                 ? formatDateTime(detail.overlay.reviewedAt, locale)
                 : t.drawer.overview.never}
             </dd>
           </div>
           <div>
-            <dt className="text-[11px] text-zinc-400 dark:text-zinc-500">
+            <dt className="text-[11px] text-[#8C867E] dark:text-[#73726C]">
               {t.drawer.overview.stepCount}
             </dt>
-            <dd className="tabular-nums mt-0.5 font-mono text-[11.5px] text-zinc-700 dark:text-zinc-300">
+            <dd className="tabular-nums mt-0.5 font-mono text-[11.5px] text-[#44403C] dark:text-[#D6D3CD]">
               {detail.stepCount}
             </dd>
           </div>
         </dl>
 
         {detail.sideQuestions.length > 0 && (
-          <div className="mt-3 border-t border-zinc-100 pt-2.5 dark:border-[#1E2330]">
-            <div className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
+          <div className="mt-3 border-t border-[#1C1917]/[0.06] pt-2.5 dark:border-white/[0.06]">
+            <div className="text-[11px] font-medium text-[#78716C] dark:text-[#8C8B85]">
               {t.drawer.overview.sideQuestionsTitle} ({detail.sideQuestions.length})
             </div>
             <ul className="mt-1.5 space-y-1">
               {detail.sideQuestions.map((sq) => (
                 <li
                   key={sq.id}
-                  className="flex items-center justify-between gap-2 text-[11.5px] text-zinc-600 dark:text-zinc-300"
+                  className="flex items-center justify-between gap-2 text-[11.5px] text-[#44403C] dark:text-[#D6D3CD]"
                 >
                   <span className="truncate">{sq.title || sq.id}</span>
-                  <span className="shrink-0 font-mono text-[10px] text-zinc-400">
+                  <span className="shrink-0 font-mono text-[10px] text-[#8C867E]">
                     {sq.id.slice(0, 8)}
                   </span>
                 </li>
@@ -378,30 +379,28 @@ function SubagentTreeNode({
 }) {
   return (
     <div style={{ marginLeft: depth > 0 ? 16 : 0 }} className="mt-2">
-      <div className="rounded-lg border border-zinc-200/80 bg-zinc-50/60 p-2.5 dark:border-[#222733] dark:bg-[#0F1218]">
+      <div className="rounded-xl border border-[#1C1917]/[0.07] bg-[#FAF9F6] p-2.5 dark:border-white/[0.065] dark:bg-[#141413]">
         <div className="flex items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2">
             {node.isRunning ? (
               <LivePulseDot />
             ) : (
               <span
-                className={`h-2 w-2 shrink-0 rounded-full ${
+                className={`h-1.5 w-1.5 shrink-0 rounded-full ${
                   node.state === 'alive'
-                    ? 'bg-sky-500'
-                    : node.state === 'killed'
-                      ? 'bg-zinc-400/50'
-                      : 'bg-zinc-400'
+                    ? 'bg-[#57534E] dark:bg-[#A1A09A]'
+                    : 'bg-[#C7C2BA] dark:bg-[#4A4945]'
                 }`}
               />
             )}
-            <span className="rounded bg-white px-1.5 py-0.5 font-mono text-[10.5px] font-semibold text-zinc-800 ring-1 ring-zinc-200/80 dark:bg-[#181C25] dark:text-zinc-200 dark:ring-[#2A3040]">
+            <span className="rounded bg-white px-1.5 py-0.5 font-mono text-[10.5px] font-medium text-[#1C1917] ring-1 ring-[#1C1917]/[0.08] dark:bg-[#222220] dark:text-[#E7E5E0] dark:ring-white/[0.08]">
               {node.typeName || node.role || 'subagent'}
             </span>
-            <span className="truncate text-xs font-medium text-zinc-800 dark:text-zinc-200">
+            <span className="truncate text-xs font-medium text-[#1C1917] dark:text-[#F2F1EE]">
               {node.title || node.conversationId.slice(0, 8)}
             </span>
           </div>
-          <div className="tabular-nums flex shrink-0 items-center gap-2 text-[10.5px] text-zinc-400">
+          <div className="tabular-nums flex shrink-0 items-center gap-2 text-[10.5px] text-[#8C867E]">
             <span>
               {node.stepCount} {t.card.steps}
             </span>
@@ -428,40 +427,39 @@ export function AgentsTab({
 
   if (!hasAny) {
     return (
-      <div className="rounded-lg border border-dashed border-zinc-200 py-14 text-center text-xs text-zinc-400 dark:border-[#222733] dark:text-zinc-500">
+      <div className="rounded-xl border border-dashed border-[#1C1917]/[0.1] py-14 text-center text-xs text-[#8C867E] dark:border-white/[0.08] dark:text-[#666560]">
         {t.drawer.agents.noAgents}
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3.5">
       {swarm && (
         <>
-          {/* Swarm Goal */}
-          <section className="rounded-lg border border-zinc-200/80 bg-zinc-50/60 p-3.5 dark:border-[#222733] dark:bg-[#0F1218]">
+          <section className="rounded-xl border border-[#1C1917]/[0.07] bg-white p-3.5 dark:border-white/[0.065] dark:bg-[#191917]">
             <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-                <Network className="h-3.5 w-3.5 text-sky-500" />
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-[#1C1917] dark:text-[#F2F1EE]">
+                <Network className="h-3.5 w-3.5 text-[#8C867E]" />
                 <span>{swarm.title || t.drawer.agents.swarmTitle}</span>
               </div>
-              <span className="font-mono text-[10.5px] text-zinc-400">
+              <span className="font-mono text-[10.5px] text-[#8C867E]">
                 {swarm.swarmId.slice(0, 8)}
               </span>
             </div>
             {(swarm.goalTitle || swarm.goalLine) && (
-              <div className="mt-2 border-t border-zinc-200/70 pt-2 dark:border-[#222733]">
-                <div className="flex items-center gap-1 text-[10.5px] font-semibold text-zinc-500 uppercase dark:text-zinc-400">
-                  <Target className="h-3 w-3 text-sky-500" />
+              <div className="mt-2 border-t border-[#1C1917]/[0.06] pt-2 dark:border-white/[0.06]">
+                <div className="flex items-center gap-1 text-[10.5px] font-semibold text-[#8C867E] uppercase">
+                  <Target className="h-3 w-3" />
                   <span>{t.drawer.agents.swarmGoal}</span>
                 </div>
                 {swarm.goalTitle && (
-                  <div className="mt-1 text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                  <div className="mt-1 text-xs font-semibold text-[#1C1917] dark:text-[#F2F1EE]">
                     {swarm.goalTitle}
                   </div>
                 )}
                 {swarm.goalLine && (
-                  <p className="mt-0.5 text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">
+                  <p className="mt-0.5 text-xs leading-relaxed text-[#57534E] dark:text-[#9F9E98]">
                     {swarm.goalLine}
                   </p>
                 )}
@@ -469,34 +467,33 @@ export function AgentsTab({
             )}
           </section>
 
-          {/* Threads */}
           {swarm.threads.length > 0 && (
-            <section className="rounded-lg border border-zinc-200/80 bg-white p-3.5 dark:border-[#222733] dark:bg-[#13161D]">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-zinc-800 dark:text-zinc-200">
-                <GitBranch className="h-3.5 w-3.5 text-zinc-400" />
+            <section className="rounded-xl border border-[#1C1917]/[0.07] bg-white p-3.5 dark:border-white/[0.065] dark:bg-[#191917]">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-[#1C1917] dark:text-[#F2F1EE]">
+                <GitBranch className="h-3.5 w-3.5 text-[#8C867E]" />
                 <span>{t.drawer.agents.threadsTitle}</span>
               </div>
               <div className="mt-2.5 space-y-2">
                 {swarm.threads.map((thread) => (
                   <div
                     key={thread.id}
-                    className="rounded-md border border-zinc-100 bg-zinc-50/70 p-2.5 dark:border-[#1E2330] dark:bg-[#0F1218]"
+                    className="rounded-lg border border-[#1C1917]/[0.06] bg-[#FAF9F6] p-2.5 dark:border-white/[0.055] dark:bg-[#141413]"
                   >
                     <div className="flex items-center gap-2">
-                      <span className="rounded bg-zinc-200/70 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-zinc-700 dark:bg-[#1E2330] dark:text-zinc-300">
+                      <span className="font-mono text-[10.5px] font-semibold text-[#78716C] dark:text-[#8C8B85]">
                         {thread.id}
                       </span>
-                      <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                      <span className="text-xs font-medium text-[#1C1917] dark:text-[#F2F1EE]">
                         {thread.title}
                       </span>
                     </div>
                     {thread.goal && (
-                      <p className="mt-1 text-[11.5px] leading-relaxed text-zinc-600 dark:text-zinc-400">
+                      <p className="mt-1 text-[11.5px] leading-relaxed text-[#57534E] dark:text-[#9F9E98]">
                         {thread.goal}
                       </p>
                     )}
                     {thread.tasks.length > 0 && (
-                      <ul className="mt-1.5 list-disc space-y-0.5 pl-4 text-[11px] text-zinc-500 dark:text-zinc-400">
+                      <ul className="mt-1.5 list-disc space-y-0.5 pl-4 text-[11px] text-[#78716C] dark:text-[#8C8B85]">
                         {thread.tasks.map((task, idx) => (
                           <li key={idx}>{task}</li>
                         ))}
@@ -508,29 +505,28 @@ export function AgentsTab({
             </section>
           )}
 
-          {/* Worker Roster Table */}
           {swarm.members.length > 0 && (
-            <section className="overflow-hidden rounded-lg border border-zinc-200/80 bg-white dark:border-[#222733] dark:bg-[#13161D]">
-              <div className="border-b border-zinc-100 px-3.5 py-2.5 text-xs font-semibold text-zinc-800 dark:border-[#1E2330] dark:text-zinc-200">
+            <section className="overflow-hidden rounded-xl border border-[#1C1917]/[0.07] bg-white dark:border-white/[0.065] dark:bg-[#191917]">
+              <div className="border-b border-[#1C1917]/[0.06] px-3.5 py-2.5 text-xs font-semibold text-[#1C1917] dark:border-white/[0.06] dark:text-[#F2F1EE]">
                 {t.drawer.agents.rosterTitle} ({swarm.members.length})
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
                   <thead>
-                    <tr className="border-b border-zinc-100 bg-zinc-50/70 text-[10.5px] font-medium text-zinc-500 uppercase dark:border-[#1E2330] dark:bg-[#0F1218] dark:text-zinc-400">
+                    <tr className="border-b border-[#1C1917]/[0.06] bg-[#FAF9F6] text-[10.5px] font-medium text-[#8C867E] uppercase dark:border-white/[0.06] dark:bg-[#141413] dark:text-[#6E6D68]">
                       <th className="py-2 pl-3.5 pr-2">{t.drawer.agents.memberName}</th>
                       <th className="py-2 pr-2">{t.drawer.agents.memberState}</th>
                       <th className="py-2 pr-2">{t.drawer.agents.memberModel}</th>
                       <th className="py-2 pr-3.5">{t.drawer.agents.memberTask}</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-zinc-100 dark:divide-[#1D222E]">
+                  <tbody className="divide-y divide-[#1C1917]/[0.055] dark:divide-white/[0.055]">
                     {swarm.members.map((m) => (
                       <tr key={m.conversationId || m.name}>
-                        <td className="py-2 pl-3.5 pr-2 font-mono font-semibold text-zinc-900 dark:text-zinc-100">
+                        <td className="py-2 pl-3.5 pr-2 font-mono font-semibold text-[#1C1917] dark:text-[#F2F1EE]">
                           @{m.name}
                           {m.role === 'coordinator' && (
-                            <span className="ml-1.5 rounded bg-zinc-900 px-1 py-0.5 text-[9px] text-white uppercase dark:bg-zinc-200 dark:text-zinc-900">
+                            <span className="ml-1.5 rounded bg-[#1C1917] px-1 py-0.5 text-[9px] text-[#F6F5F1] uppercase dark:bg-[#F2F1EE] dark:text-[#111110]">
                               coord
                             </span>
                           )}
@@ -542,10 +538,10 @@ export function AgentsTab({
                             t={t}
                           />
                         </td>
-                        <td className="py-2 pr-2 font-mono text-[11px] text-zinc-500 dark:text-zinc-400">
+                        <td className="py-2 pr-2 font-mono text-[11px] text-[#78716C] dark:text-[#8C8B85]">
                           {m.model ? shortModelName(m.model) : '—'}
                         </td>
-                        <td className="max-w-[240px] truncate py-2 pr-3.5 text-[11.5px] text-zinc-600 dark:text-zinc-400">
+                        <td className="max-w-[240px] truncate py-2 pr-3.5 text-[11.5px] text-[#57534E] dark:text-[#9F9E98]">
                           {m.task || m.phase || '—'}
                         </td>
                       </tr>
@@ -556,45 +552,42 @@ export function AgentsTab({
             </section>
           )}
 
-          {/* Board Messages Feed */}
-          <section className="rounded-lg border border-zinc-200/80 bg-white p-3.5 dark:border-[#222733] dark:bg-[#13161D]">
-            <div className="mb-2.5 flex items-center justify-between text-xs font-semibold text-zinc-800 dark:text-zinc-200">
+          <section className="rounded-xl border border-[#1C1917]/[0.07] bg-white p-3.5 dark:border-white/[0.065] dark:bg-[#191917]">
+            <div className="mb-2.5 flex items-center justify-between text-xs font-semibold text-[#1C1917] dark:text-[#F2F1EE]">
               <span className="flex items-center gap-1.5">
-                <MessageSquare className="h-3.5 w-3.5 text-zinc-400" />
+                <MessageSquare className="h-3.5 w-3.5 text-[#8C867E]" />
                 {t.drawer.agents.boardTitle}
               </span>
-              <span className="tabular-nums font-normal text-zinc-400">
+              <span className="tabular-nums font-normal text-[#8C867E]">
                 {swarm.messages.length}
               </span>
             </div>
             {swarm.messages.length === 0 ? (
-              <p className="text-xs text-zinc-400">{t.drawer.agents.noBoardMessages}</p>
+              <p className="text-xs text-[#969088]">{t.drawer.agents.noBoardMessages}</p>
             ) : (
               <div className="max-h-80 space-y-2 overflow-y-auto pr-1">
                 {swarm.messages.map((msg) => (
                   <div
                     key={msg.seq}
-                    className="rounded-md border border-zinc-100 bg-zinc-50/70 p-2.5 dark:border-[#1E2330] dark:bg-[#0F1218]"
+                    className="rounded-lg border border-[#1C1917]/[0.06] bg-[#FAF9F6] p-2.5 dark:border-white/[0.055] dark:bg-[#141413]"
                   >
                     <div className="flex items-center justify-between gap-2 text-[11px]">
                       <div className="flex items-center gap-1.5">
-                        <span className="tabular-nums font-mono text-zinc-400">
+                        <span className="tabular-nums font-mono text-[#969088]">
                           #{msg.seq}
                         </span>
-                        <span className="rounded bg-white px-1.5 py-0.5 font-mono text-[10.5px] font-semibold text-zinc-800 ring-1 ring-zinc-200/80 dark:bg-[#181C25] dark:text-zinc-200 dark:ring-[#2A3040]">
+                        <span className="font-mono text-[10.5px] font-semibold text-[#1C1917] dark:text-[#F2F1EE]">
                           @{msg.agent}
                         </span>
                         {msg.kind && (
-                          <span className="rounded bg-zinc-200/60 px-1 py-0.5 text-[9.5px] text-zinc-500 dark:bg-[#1E2330] dark:text-zinc-400">
-                            {msg.kind}
-                          </span>
+                          <span className="text-[10px] text-[#8C867E]">· {msg.kind}</span>
                         )}
                       </div>
-                      <span className="tabular-nums font-mono text-[10px] text-zinc-400">
+                      <span className="tabular-nums font-mono text-[10px] text-[#969088]">
                         {msg.time}
                       </span>
                     </div>
-                    <p className="mt-1.5 text-xs leading-relaxed break-words whitespace-pre-wrap text-zinc-700 dark:text-zinc-300">
+                    <p className="mt-1.5 text-xs leading-relaxed break-words whitespace-pre-wrap text-[#44403C] dark:text-[#D6D3CD]">
                       {msg.text}
                     </p>
                   </div>
@@ -605,11 +598,10 @@ export function AgentsTab({
         </>
       )}
 
-      {/* Subagent Tree */}
       {detail.subagents.length > 0 && (
-        <section className="rounded-lg border border-zinc-200/80 bg-white p-3.5 dark:border-[#222733] dark:bg-[#13161D]">
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-zinc-800 dark:text-zinc-200">
-            <Users className="h-3.5 w-3.5 text-zinc-400" />
+        <section className="rounded-xl border border-[#1C1917]/[0.07] bg-white p-3.5 dark:border-white/[0.065] dark:bg-[#191917]">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-[#1C1917] dark:text-[#F2F1EE]">
+            <Users className="h-3.5 w-3.5 text-[#8C867E]" />
             <span>
               {t.drawer.agents.subagentsTitle} ({detail.subagentCount})
             </span>
@@ -684,7 +676,7 @@ export function ArtifactsTab({
 
   if (artifacts.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-zinc-200 py-14 text-center text-xs text-zinc-400 dark:border-[#222733] dark:text-zinc-500">
+      <div className="rounded-xl border border-dashed border-[#1C1917]/[0.1] py-14 text-center text-xs text-[#8C867E] dark:border-white/[0.08] dark:text-[#666560]">
         {t.drawer.artifacts.empty}
       </div>
     );
@@ -700,10 +692,10 @@ export function ArtifactsTab({
   };
 
   return (
-    <div className="grid grid-cols-1 gap-3 lg:grid-cols-[240px_1fr]">
+    <div className="grid grid-cols-1 gap-3 lg:grid-cols-[232px_1fr]">
       {/* Artifact List */}
       <div className="space-y-1.5">
-        <div className="text-[11px] font-semibold text-zinc-500 uppercase dark:text-zinc-400">
+        <div className="text-[10.5px] font-semibold tracking-wider text-[#8C867E] uppercase dark:text-[#6E6D68]">
           {t.drawer.artifacts.listTitle} ({artifacts.length})
         </div>
         {artifacts.map((art) => {
@@ -713,32 +705,31 @@ export function ArtifactsTab({
               key={art.relativePath}
               type="button"
               onClick={() => setSelectedFile(art.relativePath)}
-              className={`w-full rounded-lg border p-2.5 text-left transition-colors ${
+              className={`w-full rounded-xl border p-2.5 text-left transition-colors ${
                 active
-                  ? 'border-sky-500/70 bg-sky-50/70 dark:border-sky-400/50 dark:bg-sky-500/10'
-                  : 'border-zinc-200/80 bg-white hover:border-zinc-300 dark:border-[#222733] dark:bg-[#13161D] dark:hover:border-[#343C4F]'
+                  ? 'border-[#1C1917]/35 bg-white shadow-xs dark:border-[#F2F1EE]/30 dark:bg-[#222220]'
+                  : 'border-[#1C1917]/[0.07] bg-white/70 hover:border-[#1C1917]/[0.16] hover:bg-white dark:border-white/[0.06] dark:bg-[#171715] dark:hover:border-white/[0.13]'
               }`}
             >
               <div className="flex items-start justify-between gap-1.5">
                 <div className="flex min-w-0 items-center gap-1.5">
-                  <FileText className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
-                  <span className="truncate font-mono text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                  <FileText className="h-3.5 w-3.5 shrink-0 text-[#8C867E]" />
+                  <span className="truncate font-mono text-xs font-semibold text-[#1C1917] dark:text-[#F2F1EE]">
                     {art.fileName}
                   </span>
                 </div>
                 {art.requestFeedback && (
-                  <span className="inline-flex shrink-0 items-center gap-0.5 rounded bg-amber-100 px-1.5 py-0.5 text-[9.5px] font-semibold text-amber-800 dark:bg-amber-500/20 dark:text-amber-300">
-                    <FileCheck2 className="h-2.5 w-2.5" />
-                    {t.drawer.artifacts.requestFeedback}
+                  <span className="inline-flex shrink-0 items-center gap-0.5 text-[10px] font-semibold text-[#B45309] dark:text-[#FBBF24]">
+                    <FileCheck2 className="h-3 w-3" />
                   </span>
                 )}
               </div>
               {art.summary && (
-                <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-zinc-500 dark:text-zinc-400">
+                <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-[#78716C] dark:text-[#8C8B85]">
                   {art.summary}
                 </p>
               )}
-              <div className="tabular-nums mt-1.5 flex items-center justify-between text-[10px] text-zinc-400">
+              <div className="tabular-nums mt-1.5 flex items-center justify-between text-[10px] text-[#969088]">
                 <span>{art.updatedAt ? formatDateTime(art.updatedAt, locale) : '—'}</span>
                 <span className="font-mono">
                   {art.sizeBytes > 1024
@@ -751,23 +742,23 @@ export function ArtifactsTab({
         })}
       </div>
 
-      {/* Inline Markdown Viewer */}
-      <div className="flex min-h-[340px] flex-col overflow-hidden rounded-lg border border-zinc-200/80 bg-white dark:border-[#222733] dark:bg-[#13161D]">
+      {/* Inline Editorial Markdown Viewer */}
+      <div className="flex min-h-[340px] flex-col overflow-hidden rounded-xl border border-[#1C1917]/[0.08] bg-white dark:border-white/[0.07] dark:bg-[#191917]">
         {!selectedFile ? (
-          <div className="flex flex-1 items-center justify-center p-6 text-xs text-zinc-400">
+          <div className="flex flex-1 items-center justify-center p-6 text-xs text-[#969088]">
             {t.drawer.artifacts.selectPrompt}
           </div>
         ) : (
           <>
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-100 bg-zinc-50/70 px-3.5 py-2 dark:border-[#1E2330] dark:bg-[#0F1218]">
-              <span className="truncate font-mono text-xs font-semibold text-zinc-800 dark:text-zinc-200">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#1C1917]/[0.07] bg-[#FAF9F6] px-3.5 py-2 dark:border-white/[0.06] dark:bg-[#151513]">
+              <span className="truncate font-mono text-xs font-semibold text-[#1C1917] dark:text-[#E7E5E0]">
                 {selectedFile}
               </span>
               <div className="flex items-center gap-1.5">
                 <button
                   type="button"
                   onClick={() => setRawMode((v) => !v)}
-                  className="inline-flex items-center gap-1 rounded border border-zinc-200 bg-white px-2 py-0.5 text-[11px] font-medium text-zinc-600 hover:text-zinc-900 dark:border-[#2A3040] dark:bg-[#181C25] dark:text-zinc-300"
+                  className="inline-flex items-center gap-1 rounded-md border border-[#1C1917]/[0.1] bg-white px-2 py-0.5 text-[11px] font-medium text-[#57534E] hover:text-[#1C1917] dark:border-white/[0.09] dark:bg-[#222220] dark:text-[#D6D3CD]"
                 >
                   <Code2 className="h-3 w-3" />
                   <span>
@@ -780,16 +771,20 @@ export function ArtifactsTab({
                   type="button"
                   onClick={handleCopy}
                   disabled={!contentRes}
-                  className="inline-flex items-center gap-1 rounded border border-zinc-200 bg-white px-2 py-0.5 text-[11px] font-medium text-zinc-600 hover:text-zinc-900 disabled:opacity-40 dark:border-[#2A3040] dark:bg-[#181C25] dark:text-zinc-300"
+                  className="inline-flex items-center gap-1 rounded-md border border-[#1C1917]/[0.1] bg-white px-2 py-0.5 text-[11px] font-medium text-[#57534E] hover:text-[#1C1917] disabled:opacity-40 dark:border-white/[0.09] dark:bg-[#222220] dark:text-[#D6D3CD]"
                 >
-                  {copied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+                  {copied ? (
+                    <Check className="h-3 w-3 text-[#16A34A]" />
+                  ) : (
+                    <Copy className="h-3 w-3" />
+                  )}
                   <span>{copied ? t.drawer.copied : t.drawer.artifacts.copyContent}</span>
                 </button>
               </div>
             </div>
 
             {contentRes?.truncated && (
-              <div className="flex items-center gap-1.5 border-b border-amber-200/70 bg-amber-50/70 px-3.5 py-1.5 text-[11px] text-amber-800 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-300">
+              <div className="flex items-center gap-1.5 border-b border-[#D97706]/20 bg-[#FFFBEB] px-3.5 py-1.5 text-[11px] text-[#92400E] dark:border-[#F59E0B]/20 dark:bg-[#261E12] dark:text-[#FCD34D]">
                 <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
                 <span>{t.drawer.artifacts.truncatedNotice}</span>
               </div>
@@ -797,21 +792,21 @@ export function ArtifactsTab({
 
             <div className="flex-1 overflow-y-auto p-4">
               {loading ? (
-                <div className="flex items-center gap-2 py-8 text-xs text-zinc-400">
+                <div className="flex items-center gap-2 py-8 text-xs text-[#8C867E]">
                   <Loader2 className="h-4 w-4 animate-spin" />
                   <span>{t.drawer.artifacts.loading}</span>
                 </div>
               ) : error ? (
-                <div className="rounded-md border border-rose-200 bg-rose-50/70 p-3 text-xs text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
+                <div className="rounded-lg border border-[#DC2626]/25 bg-[#FEF2F2] p-3 text-xs text-[#B91C1C] dark:border-[#EF4444]/25 dark:bg-[#2A1616] dark:text-[#FCA5A5]">
                   {t.drawer.artifacts.loadError}: {error}
                 </div>
               ) : contentRes ? (
                 rawMode ? (
-                  <pre className="overflow-x-auto font-mono text-xs leading-relaxed whitespace-pre-wrap text-zinc-800 dark:text-zinc-200">
+                  <pre className="overflow-x-auto font-mono text-xs leading-relaxed whitespace-pre-wrap text-[#1C1917] dark:text-[#E7E5E0]">
                     {contentRes.content}
                   </pre>
                 ) : (
-                  <div className="agmb-prose text-zinc-800 dark:text-zinc-200">
+                  <div className="agmb-prose text-[#292524] dark:text-[#E7E5E0]">
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>
                       {contentRes.content}
                     </ReactMarkdown>
@@ -861,30 +856,26 @@ function TimelineTurnCard({
     user: {
       label: t.drawer.timeline.roleUser,
       Icon: User,
-      badge:
-        'bg-sky-50 text-sky-700 ring-sky-600/20 dark:bg-sky-500/15 dark:text-sky-300 dark:ring-sky-400/25',
-      border: 'border-zinc-200/80 dark:border-[#222733]',
+      badge: 'bg-[#1C1917] text-[#F6F5F1] dark:bg-[#F2F1EE] dark:text-[#111110]',
+      border: 'border-[#1C1917]/[0.075] dark:border-white/[0.065]',
     },
     assistant: {
       label: t.drawer.timeline.roleAssistant,
       Icon: Bot,
-      badge:
-        'bg-zinc-100 text-zinc-700 ring-zinc-500/15 dark:bg-[#1D222E] dark:text-zinc-300 dark:ring-zinc-600/30',
-      border: 'border-zinc-200/80 dark:border-[#222733]',
+      badge: 'bg-[#F2F0EB] text-[#44403C] dark:bg-[#252522] dark:text-[#D6D3CD]',
+      border: 'border-[#1C1917]/[0.075] dark:border-white/[0.065]',
     },
     error: {
       label: t.drawer.timeline.roleError,
       Icon: AlertCircle,
-      badge:
-        'bg-rose-50 text-rose-700 ring-rose-600/20 dark:bg-rose-500/15 dark:text-rose-300 dark:ring-rose-400/25',
-      border: 'border-rose-200/90 dark:border-rose-500/30',
+      badge: 'bg-[#FEF2F2] text-[#B91C1C] dark:bg-[#2A1616] dark:text-[#FCA5A5]',
+      border: 'border-[#DC2626]/25 dark:border-[#EF4444]/30',
     },
     system: {
       label: t.drawer.timeline.roleSystem,
       Icon: Terminal,
-      badge:
-        'bg-zinc-100 text-zinc-500 ring-zinc-500/15 dark:bg-[#181C25] dark:text-zinc-400 dark:ring-zinc-700/30',
-      border: 'border-zinc-200/70 dark:border-[#1E2330]',
+      badge: 'bg-[#F2F0EB] text-[#78716C] dark:bg-[#222220] dark:text-[#8C8B85]',
+      border: 'border-[#1C1917]/[0.065] dark:border-white/[0.055]',
     },
   }[role];
 
@@ -892,38 +883,37 @@ function TimelineTurnCard({
 
   return (
     <div
-      className={`rounded-lg border bg-white p-3 dark:bg-[#13161D] ${roleConfig.border}`}
+      className={`rounded-xl border bg-white p-3 dark:bg-[#191917] ${roleConfig.border}`}
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-1.5">
           <span
-            className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10.5px] font-semibold ring-1 ring-inset ${roleConfig.badge}`}
+            className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] font-semibold ${roleConfig.badge}`}
           >
             <Icon className="h-3 w-3" />
             <span>{roleConfig.label}</span>
           </span>
-          <span className="tabular-nums font-mono text-[10.5px] text-zinc-400">
+          <span className="tabular-nums font-mono text-[10.5px] text-[#969088]">
             {t.drawer.timeline.stepIndex(turn.stepIndex)}
           </span>
           {turn.model && (
-            <span className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] text-zinc-500 dark:bg-[#1B202C] dark:text-zinc-400">
-              {shortModelName(turn.model)}
+            <span className="font-mono text-[10px] text-[#8C867E] dark:text-[#787771]">
+              · {shortModelName(turn.model)}
             </span>
           )}
         </div>
-        <span className="tabular-nums font-mono text-[10.5px] text-zinc-400">
+        <span className="tabular-nums font-mono text-[10.5px] text-[#969088]">
           {formatDateTime(turn.createdAt, locale)}
         </span>
       </div>
 
-      {/* Tool Call Tags */}
       {turn.toolNames.length > 0 && (
         <div className="mt-2 flex flex-wrap items-center gap-1">
-          <Wrench className="h-3 w-3 text-zinc-400" />
+          <Wrench className="h-3 w-3 text-[#969088]" />
           {turn.toolNames.map((tool, i) => (
             <span
               key={`${tool}-${i}`}
-              className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] text-zinc-600 dark:bg-[#1B202C] dark:text-zinc-300"
+              className="rounded bg-[#F2F0EB] px-1.5 py-0.5 font-mono text-[10px] text-[#57534E] dark:bg-[#242421] dark:text-[#A1A09A]"
             >
               {tool}
             </span>
@@ -931,13 +921,12 @@ function TimelineTurnCard({
         </div>
       )}
 
-      {/* Optional Thinking Summary */}
       {turn.thinkingSummary && (
         <div className="mt-2">
           <button
             type="button"
             onClick={() => setShowThinking((v) => !v)}
-            className="inline-flex items-center gap-1 text-[11px] font-medium text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
+            className="inline-flex items-center gap-1 text-[11px] font-medium text-[#78716C] hover:text-[#1C1917] dark:text-[#8C8B85] dark:hover:text-[#F2F1EE]"
           >
             {showThinking ? (
               <ChevronDown className="h-3 w-3" />
@@ -947,20 +936,19 @@ function TimelineTurnCard({
             <span>{t.drawer.timeline.thinking}</span>
           </button>
           {showThinking && (
-            <p className="mt-1 rounded bg-zinc-50 p-2 text-[11px] leading-relaxed whitespace-pre-wrap text-zinc-500 dark:bg-[#0F1218] dark:text-zinc-400">
+            <p className="mt-1 rounded-lg bg-[#FAF9F6] p-2 text-[11px] leading-relaxed whitespace-pre-wrap text-[#78716C] dark:bg-[#141413] dark:text-[#8C8B85]">
               {turn.thinkingSummary}
             </p>
           )}
         </div>
       )}
 
-      {/* Main Text */}
       {visibleBody && (
         <p
           className={`mt-2 text-xs leading-relaxed break-words whitespace-pre-wrap ${
             role === 'error'
-              ? 'font-mono text-rose-700 dark:text-rose-300'
-              : 'text-zinc-700 dark:text-zinc-300'
+              ? 'font-mono text-[#B91C1C] dark:text-[#FCA5A5]'
+              : 'text-[#44403C] dark:text-[#D6D3CD]'
           }`}
         >
           {visibleBody}
@@ -971,7 +959,7 @@ function TimelineTurnCard({
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
-          className="mt-1.5 text-[11px] font-medium text-sky-600 hover:underline dark:text-sky-400"
+          className="mt-1.5 text-[11px] font-medium text-[#1C1917] underline underline-offset-2 dark:text-[#F2F1EE]"
         >
           {expanded ? t.drawer.timeline.collapse : t.drawer.timeline.expand}
         </button>
@@ -991,7 +979,7 @@ export function TimelineTab({
 }) {
   if (timeline.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-zinc-200 py-14 text-center text-xs text-zinc-400 dark:border-[#222733] dark:text-zinc-500">
+      <div className="rounded-xl border border-dashed border-[#1C1917]/[0.1] py-14 text-center text-xs text-[#8C867E] dark:border-white/[0.08] dark:text-[#666560]">
         {t.drawer.timeline.empty}
       </div>
     );

@@ -38,18 +38,18 @@ export function ToastHost({
                 : Info;
         const iconColor =
           toast.tone === 'error'
-            ? 'text-rose-500'
+            ? 'text-[#DC2626] dark:text-[#F87171]'
             : toast.tone === 'warning'
-              ? 'text-amber-500'
+              ? 'text-[#D97706] dark:text-[#FBBF24]'
               : toast.tone === 'success'
-                ? 'text-emerald-500'
-                : 'text-sky-500';
+                ? 'text-[#16A34A] dark:text-[#4ADE80]'
+                : 'text-[#57534E] dark:text-[#A1A09A]';
 
         return (
           <div
             key={toast.id}
             role="status"
-            className="agmb-toast-enter pointer-events-auto flex items-start gap-2.5 rounded-xl border border-zinc-200/90 bg-white/95 px-3.5 py-2.5 shadow-[0_12px_32px_-8px_rgba(15,23,42,0.18)] backdrop-blur-md dark:border-[#2A3142] dark:bg-[#151922]/96 dark:shadow-[0_16px_36px_-10px_rgba(0,0,0,0.65)]"
+            className="agmb-toast-enter pointer-events-auto flex items-start gap-2.5 rounded-xl border border-[#1C1917]/[0.11] bg-white/96 px-3.5 py-2.5 shadow-[0_14px_34px_-10px_rgba(28,25,23,0.22)] backdrop-blur-md dark:border-white/[0.11] dark:bg-[#1E1E1C]/96 dark:shadow-[0_18px_40px_-10px_rgba(0,0,0,0.7)]"
           >
             <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${iconColor}`} />
             <div
@@ -61,11 +61,11 @@ export function ToastHost({
                 }
               }}
             >
-              <div className="text-xs leading-snug font-medium text-zinc-900 dark:text-zinc-100">
+              <div className="text-xs leading-snug font-medium text-[#1C1917] dark:text-[#F2F1EE]">
                 {toast.title}
               </div>
               {toast.message && (
-                <div className="mt-0.5 line-clamp-2 text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400">
+                <div className="mt-0.5 line-clamp-2 text-[11px] leading-relaxed text-[#78716C] dark:text-[#9F9E98]">
                   {toast.message}
                 </div>
               )}
@@ -78,7 +78,7 @@ export function ToastHost({
                   toast.action?.onClick();
                   onDismiss(toast.id);
                 }}
-                className="inline-flex shrink-0 items-center gap-1 rounded-md border border-zinc-200 bg-zinc-50 px-2 py-1 text-[11px] font-semibold text-zinc-800 transition-colors hover:border-zinc-300 hover:bg-zinc-100 dark:border-[#2F374A] dark:bg-[#1E2432] dark:text-zinc-100 dark:hover:border-sky-400/50 dark:hover:bg-[#262E40]"
+                className="inline-flex shrink-0 items-center gap-1 rounded-md bg-[#1C1917] px-2 py-1 text-[11px] font-medium text-[#F6F5F1] transition-opacity hover:opacity-85 dark:bg-[#F2F1EE] dark:text-[#111110]"
               >
                 <RotateCcw className="h-3 w-3" />
                 <span>{toast.action.label}</span>
@@ -88,7 +88,7 @@ export function ToastHost({
             <button
               type="button"
               onClick={() => onDismiss(toast.id)}
-              className="rounded-md p-0.5 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+              className="rounded-md p-0.5 text-[#969088] transition-colors hover:bg-[#1C1917]/[0.06] hover:text-[#1C1917] dark:hover:bg-white/[0.08] dark:hover:text-[#F2F1EE]"
               aria-label="Dismiss"
             >
               <X className="h-3.5 w-3.5" />

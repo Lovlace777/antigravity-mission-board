@@ -12,7 +12,7 @@ export interface ServerConfig {
   defaultStaleAfterHours: number;
 }
 
-export const APP_VERSION = '1.1.0';
+export const APP_VERSION = '2.0.0';
 
 export function resolveConfig(argv: string[] = process.argv, env: NodeJS.ProcessEnv = process.env): ServerConfig {
   const demoFlag = argv.includes('--demo');

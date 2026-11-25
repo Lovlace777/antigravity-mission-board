@@ -1,0 +1,65 @@
+appId: com.antigravity.mission-board
+productName: Antigravity Mission Board
+copyright: Copyright © Antigravity Mission Board Contributors
+directories:
+  output: release
+  buildResources: assets
+
+files:
+  - package.json
+  - src/**/*
+  - assets/**/*
+  - "!scripts/**"
+  - "!release/**"
+  - "!dist/**"
+
+extraResources:
+  - from: ../server/dist
+    to: server/dist
+  - from: ../server/node_modules
+    to: server/node_modules
+  - from: ../server/package.json
+    to: server/package.json
+  - from: ../web/dist
+    to: web/dist
+
+asar: true
+
+win:
+  icon: assets/icon.ico
+  target:
+    - target: portable
+      arch:
+        - x64
+    - target: nsis
+      arch:
+        - x64
+
+portable:
+  artifactName: Antigravity-Mission-Board-${version}-portable.${ext}
+
+nsis:
+  oneClick: true
+  perMachine: false
+  allowToChangeInstallationDirectory: false
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Antigravity Mission Board
+  artifactName: Antigravity-Mission-Board-${version}-setup.${ext}
+
+mac:
+  icon: assets/icon.png
+  category: public.app-category.developer-tools
+  target:
+    - target: dmg
+      arch:
+        - arm64
+        - x64
+
+linux:
+  icon: assets/icon.png
+  category: Development
+  target:
+    - target: AppImage
+      arch:
+        - x64

@@ -5,7 +5,6 @@ import {
   CheckCheck,
   CornerDownLeft,
   Filter,
-  Folder,
   Kanban,
   Keyboard,
   Languages,
@@ -107,7 +106,6 @@ export function CommandPalette({
     }
   }, [open, activeSearchQuery]);
 
-  // Debounced server FTS5 search while palette is open
   useEffect(() => {
     if (!open) return;
     const trimmed = query.trim();
@@ -126,9 +124,7 @@ export function CommandPalette({
             setServerResults(res.results);
           }
         })
-        .catch(() => {
-          // ignore aborts / transient failures; local matching remains instant
-        })
+        .catch(() => {})
         .finally(() => {
           if (!controller.signal.aborted) {
             setSearchingServer(false);
@@ -160,14 +156,12 @@ export function CommandPalette({
       });
     }
 
-    // Conversations (local + FTS merged)
     const serverById = new Map<string, SearchResult>();
     for (const sr of serverResults) serverById.set(sr.conversationId, sr);
 
     const matchedCards: Array<{ card: ConversationCard; matchedIn?: string[]; score: number }> = [];
     for (const card of conversations) {
       if (!q) {
-        // Show top urgent/running/recent conversations when empty
         const score =
           (card.isRunning ? 300 : 0) +
           (card.lane === 'attention' ? 200 : 0) +
@@ -221,7 +215,6 @@ export function CommandPalette({
       });
     }
 
-    // Quick Commands
     const allCommands: Array<PaletteEntry & { keywords: string }> = [
       {
         id: 'cmd:kanban',
@@ -294,9 +287,7 @@ export function CommandPalette({
         kind: 'command',
         label: t.commandPalette.cmds.toggleDensity,
         subtitle:
-          density === 'comfortable'
-            ? t.density.compact
-            : t.density.comfortable,
+          density === 'comfortable' ? t.density.compact : t.density.comfortable,
         Icon: Rows3,
         keywords: 'density compact comfortable cards 密度 紧凑 舒适',
         run: () => {
@@ -369,7 +360,6 @@ export function CommandPalette({
         cmd.label.toLowerCase().includes(q) ||
         cmd.keywords.toLowerCase().includes(q)
       ) {
-        // Slightly deprioritize current view
         if (
           !q &&
           ((cmd.id === 'cmd:kanban' && viewMode === 'kanban') ||
@@ -382,7 +372,6 @@ export function CommandPalette({
       }
     }
 
-    // Place board-filter action AFTER direct Conversation & Command matches so Enter executes top match
     if (q) {
       result.push({
         id: 'action:filter-board',
@@ -423,7 +412,6 @@ export function CommandPalette({
     onOpenShortcuts,
   ]);
 
-  // Clamp activeIndex whenever entries change
   useEffect(() => {
     setActiveIndex((prev) => {
       if (entries.length === 0) return 0;
@@ -431,7 +419,6 @@ export function CommandPalette({
     });
   }, [entries.length]);
 
-  // Scroll active item smoothly into view
   useEffect(() => {
     if (!open || !listRef.current) return;
     const activeEl = listRef.current.querySelector<HTMLElement>(
@@ -440,7 +427,6 @@ export function CommandPalette({
     activeEl?.scrollIntoView({ block: 'nearest' });
   }, [activeIndex, open]);
 
-  // Keyboard navigation inside Command Palette
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (e: KeyboardEvent) => {
@@ -460,9 +446,7 @@ export function CommandPalette({
       } else if (e.key === 'Enter') {
         e.preventDefault();
         const chosen = entries[activeIndex];
-        if (chosen) {
-          chosen.run();
-        }
+        if (chosen) chosen.run();
       }
     };
     window.addEventListener('keydown', onKeyDown);
@@ -481,17 +465,15 @@ export function CommandPalette({
       aria-modal="true"
       aria-label="Command Palette"
     >
-      {/* Backdrop */}
       <div
-        className="agmb-backdrop-enter fixed inset-0 bg-zinc-950/40 backdrop-blur-[3px] dark:bg-black/65"
+        className="agmb-backdrop-enter fixed inset-0 bg-[#1C1917]/30 backdrop-blur-[2px] dark:bg-black/65"
         onClick={onClose}
       />
 
-      {/* Palette Modal */}
-      <div className="agmb-modal-enter relative z-10 flex w-full max-w-[620px] flex-col overflow-hidden rounded-2xl border border-zinc-200/90 bg-white/98 shadow-[0_24px_64px_-12px_rgba(15,23,42,0.28)] backdrop-blur-xl dark:border-[#2A3142] dark:bg-[#12161F]/98 dark:shadow-[0_28px_72px_-12px_rgba(0,0,0,0.75)]">
-        {/* Search Input Header */}
-        <div className="flex items-center gap-2.5 border-b border-zinc-200/80 px-4 py-3 dark:border-[#202634]">
-          <Search className="h-4 w-4 shrink-0 text-zinc-400" />
+      <div className="agmb-modal-enter relative z-10 flex w-full max-w-[610px] flex-col overflow-hidden rounded-2xl border border-[#1C1917]/[0.12] bg-white shadow-[0_24px_64px_-12px_rgba(28,25,23,0.25)] dark:border-white/[0.11] dark:bg-[#191917] dark:shadow-[0_28px_72px_-12px_rgba(0,0,0,0.8)]">
+        {/* Input */}
+        <div className="flex items-center gap-2.5 border-b border-[#1C1917]/[0.075] px-4 py-3 dark:border-white/[0.07]">
+          <Search className="h-4 w-4 shrink-0 text-[#969088]" />
           <input
             ref={inputRef}
             type="text"
@@ -501,11 +483,11 @@ export function CommandPalette({
               setActiveIndex(0);
             }}
             placeholder={t.commandPalette.placeholder}
-            className="w-full bg-transparent text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none dark:text-zinc-50 dark:placeholder:text-zinc-500"
+            className="w-full bg-transparent text-sm text-[#1C1917] placeholder:text-[#969088] focus:outline-none dark:text-[#F2F1EE] dark:placeholder:text-[#666560]"
           />
           {searchingServer && (
-            <span className="inline-flex shrink-0 items-center gap-1 text-[11px] text-zinc-400">
-              <Loader2 className="h-3.5 w-3.5 animate-spin text-sky-500" />
+            <span className="inline-flex shrink-0 items-center gap-1 text-[11px] text-[#8C867E]">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
               <span className="hidden sm:inline">{t.commandPalette.ftsSearching}</span>
             </span>
           )}
@@ -517,24 +499,21 @@ export function CommandPalette({
                 setActiveIndex(0);
                 inputRef.current?.focus();
               }}
-              className="rounded-md p-1 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-[#1E2432] dark:hover:text-zinc-200"
+              className="rounded-md p-1 text-[#8C867E] transition-colors hover:bg-[#1C1917]/[0.06] hover:text-[#1C1917] dark:hover:bg-white/[0.08] dark:hover:text-[#F2F1EE]"
               aria-label="Clear query"
             >
               <X className="h-3.5 w-3.5" />
             </button>
           )}
-          <kbd className="hidden shrink-0 rounded border border-zinc-200 bg-zinc-50 px-1.5 py-0.5 font-mono text-[10px] text-zinc-400 sm:inline-block dark:border-[#2A3142] dark:bg-[#191E2A] dark:text-zinc-500">
+          <kbd className="hidden shrink-0 rounded border border-[#1C1917]/[0.09] bg-[#F6F5F1] px-1.5 py-0.5 font-mono text-[10px] text-[#8C867E] sm:inline-block dark:border-white/[0.09] dark:bg-[#232320] dark:text-[#787771]">
             ESC
           </kbd>
         </div>
 
-        {/* Results List */}
-        <div
-          ref={listRef}
-          className="max-h-[440px] overflow-y-auto p-2"
-        >
+        {/* Results */}
+        <div ref={listRef} className="max-h-[440px] overflow-y-auto p-2">
           {entries.length === 0 ? (
-            <div className="py-12 text-center text-xs text-zinc-400 dark:text-zinc-500">
+            <div className="py-12 text-center text-xs text-[#969088] dark:text-[#666560]">
               {t.commandPalette.empty}
             </div>
           ) : (
@@ -552,12 +531,12 @@ export function CommandPalette({
                   key={entry.id}
                   className={
                     showFilterDivider
-                      ? 'mt-1.5 border-t border-zinc-100 pt-1.5 dark:border-[#1E2432]'
+                      ? 'mt-1.5 border-t border-[#1C1917]/[0.07] pt-1.5 dark:border-white/[0.07]'
                       : undefined
                   }
                 >
                   {showSectionHeader && (
-                    <div className="mt-2 mb-1 px-2.5 text-[10.5px] font-semibold tracking-wider text-zinc-400 uppercase first:mt-0.5 dark:text-zinc-500">
+                    <div className="mt-2 mb-1 px-2.5 text-[10.5px] font-semibold tracking-wider text-[#969088] uppercase first:mt-0.5 dark:text-[#666560]">
                       {entry.section === 'conversations'
                         ? hasQuery
                           ? t.commandPalette.conversationsSection
@@ -573,18 +552,17 @@ export function CommandPalette({
                     onClick={() => entry.run()}
                     className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors ${
                       isActive
-                        ? 'bg-sky-50/90 text-zinc-950 dark:bg-sky-500/15 dark:text-zinc-50'
-                        : 'text-zinc-700 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-[#181D28]'
+                        ? 'bg-[#EFECE6] text-[#1C1917] dark:bg-[#262623] dark:text-[#F2F1EE]'
+                        : 'text-[#44403C] hover:bg-[#F6F5F1] dark:text-[#D6D3CD] dark:hover:bg-[#20201D]'
                     }`}
                   >
-                    {/* Leading Icon or Status Dot */}
                     {entry.kind === 'conversation' && entry.card ? (
                       <div className="flex h-5 w-5 shrink-0 items-center justify-center">
                         {entry.card.isRunning ? (
                           <LivePulseDot />
                         ) : (
                           <span
-                            className={`h-2 w-2 rounded-full ${laneAccentDot(entry.card.lane)}`}
+                            className={`h-1.5 w-1.5 rounded-full ${laneAccentDot(entry.card.lane)}`}
                           />
                         )}
                       </div>
@@ -592,15 +570,14 @@ export function CommandPalette({
                       <div
                         className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${
                           isActive
-                            ? 'bg-sky-500/15 text-sky-600 dark:bg-sky-400/20 dark:text-sky-300'
-                            : 'bg-zinc-100 text-zinc-500 dark:bg-[#1B202C] dark:text-zinc-400'
+                            ? 'bg-[#1C1917] text-[#F6F5F1] dark:bg-[#F2F1EE] dark:text-[#111110]'
+                            : 'bg-[#F2F0EB] text-[#78716C] dark:bg-[#242421] dark:text-[#9F9E98]'
                         }`}
                       >
                         <Icon className="h-3.5 w-3.5" />
                       </div>
                     ) : null}
 
-                    {/* Center Text */}
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
                         <span className="truncate text-xs font-medium">
@@ -610,40 +587,38 @@ export function CommandPalette({
                           <PriorityBadge priority={entry.card.overlay.priority} compact />
                         )}
                         {entry.matchedIn && entry.matchedIn.length > 0 && (
-                          <span className="shrink-0 rounded bg-sky-500/12 px-1 py-0.5 text-[9.5px] font-medium text-sky-700 dark:text-sky-300">
-                            {entry.matchedIn[0]}
+                          <span className="shrink-0 font-mono text-[10px] text-[#78716C] dark:text-[#8C8B85]">
+                            · {entry.matchedIn[0]}
                           </span>
                         )}
                       </div>
                       {entry.subtitle && (
-                        <div className="mt-0.5 truncate text-[11px] text-zinc-400 dark:text-zinc-500">
+                        <div className="mt-0.5 truncate text-[11px] text-[#8C867E] dark:text-[#787771]">
                           {entry.subtitle}
                         </div>
                       )}
                     </div>
 
-                    {/* Trailing Meta / Shortcut */}
                     {entry.kind === 'conversation' && entry.card ? (
-                      <div className="flex shrink-0 items-center gap-1.5">
+                      <div className="flex shrink-0 items-center gap-2">
                         {entry.card.workspace && (
-                          <span className="hidden max-w-[115px] items-center gap-1 truncate rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] text-zinc-500 sm:inline-flex dark:bg-[#1C2230] dark:text-zinc-400">
-                            <Folder className="h-2.5 w-2.5 shrink-0" />
-                            <span className="truncate">{entry.card.workspace}</span>
+                          <span className="hidden max-w-[115px] truncate font-mono text-[10.5px] text-[#8C867E] sm:inline dark:text-[#787771]">
+                            {entry.card.workspace}
                           </span>
                         )}
-                        <span className="tabular-nums text-[10.5px] text-zinc-400 dark:text-zinc-500">
+                        <span className="tabular-nums text-[10.5px] text-[#969088] dark:text-[#666560]">
                           {formatRelativeTime(entry.card.lastModifiedAt, t)}
                         </span>
                         {isActive && (
-                          <CornerDownLeft className="h-3.5 w-3.5 text-sky-500" />
+                          <CornerDownLeft className="h-3.5 w-3.5 text-[#57534E] dark:text-[#A1A09A]" />
                         )}
                       </div>
                     ) : entry.shortcut ? (
-                      <kbd className="shrink-0 rounded border border-zinc-200 bg-zinc-50 px-1.5 py-0.5 font-mono text-[10px] text-zinc-500 dark:border-[#2A3142] dark:bg-[#1A202D] dark:text-zinc-400">
+                      <kbd className="shrink-0 rounded border border-[#1C1917]/[0.1] bg-white px-1.5 py-0.5 font-mono text-[10px] text-[#78716C] dark:border-white/[0.1] dark:bg-[#1D1D1B] dark:text-[#9F9E98]">
                         {entry.shortcut}
                       </kbd>
                     ) : isActive ? (
-                      <CornerDownLeft className="h-3.5 w-3.5 shrink-0 text-sky-500" />
+                      <CornerDownLeft className="h-3.5 w-3.5 shrink-0 text-[#57534E] dark:text-[#A1A09A]" />
                     ) : null}
                   </button>
                 </div>
@@ -652,23 +627,23 @@ export function CommandPalette({
           )}
         </div>
 
-        {/* Footer Key Hints */}
-        <div className="flex items-center justify-between border-t border-zinc-100 bg-zinc-50/70 px-4 py-2 text-[10.5px] text-zinc-400 dark:border-[#1E2432] dark:bg-[#0E1118] dark:text-zinc-500">
+        {/* Footer */}
+        <div className="flex items-center justify-between border-t border-[#1C1917]/[0.07] bg-[#F6F5F1]/80 px-4 py-2 text-[10.5px] text-[#8C867E] dark:border-white/[0.06] dark:bg-[#141413] dark:text-[#6E6D68]">
           <div className="flex items-center gap-3">
             <span className="inline-flex items-center gap-1">
-              <kbd className="rounded border border-zinc-200 bg-white px-1 py-0.5 font-mono text-[9.5px] dark:border-[#2A3142] dark:bg-[#171C26]">
+              <kbd className="rounded border border-[#1C1917]/[0.09] bg-white px-1 py-0.5 font-mono text-[9.5px] dark:border-white/[0.09] dark:bg-[#1E1E1C]">
                 ↑↓
               </kbd>
               <span>{t.commandPalette.navigateHint}</span>
             </span>
             <span className="inline-flex items-center gap-1">
-              <kbd className="rounded border border-zinc-200 bg-white px-1 py-0.5 font-mono text-[9.5px] dark:border-[#2A3142] dark:bg-[#171C26]">
+              <kbd className="rounded border border-[#1C1917]/[0.09] bg-white px-1 py-0.5 font-mono text-[9.5px] dark:border-white/[0.09] dark:bg-[#1E1E1C]">
                 ↵
               </kbd>
               <span>{t.commandPalette.selectHint}</span>
             </span>
             <span className="inline-flex items-center gap-1">
-              <kbd className="rounded border border-zinc-200 bg-white px-1 py-0.5 font-mono text-[9.5px] dark:border-[#2A3142] dark:bg-[#171C26]">
+              <kbd className="rounded border border-[#1C1917]/[0.09] bg-white px-1 py-0.5 font-mono text-[9.5px] dark:border-white/[0.09] dark:bg-[#1E1E1C]">
                 Esc
               </kbd>
               <span>{t.commandPalette.closeHint}</span>

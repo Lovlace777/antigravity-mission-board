@@ -5,22 +5,30 @@
 @layer base {
   :root {
     color-scheme: light;
-    --surface-bg: #F6F7F9;
+    --surface-bg: #F6F5F1;
+    --surface-well: #EFECE6;
     --surface-card: #FFFFFF;
     --surface-elevated: #FFFFFF;
-    --surface-subtle: #EFF1F5;
-    --border-hairline: #E4E7EC;
-    --border-strong: #CFD5E0;
+    --surface-subtle: #F0EEE8;
+    --border-hairline: rgba(28, 25, 23, 0.085);
+    --border-strong: rgba(28, 25, 23, 0.16);
+    --ink-primary: #1C1917;
+    --ink-secondary: #57534E;
+    --ink-muted: #969088;
   }
 
   .dark {
     color-scheme: dark;
-    --surface-bg: #0A0C10;
-    --surface-card: #12151C;
-    --surface-elevated: #171B24;
-    --surface-subtle: #0F1218;
-    --border-hairline: #212633;
-    --border-strong: #2E3647;
+    --surface-bg: #111110;
+    --surface-well: #171715;
+    --surface-card: #1D1D1B;
+    --surface-elevated: #222220;
+    --surface-subtle: #181816;
+    --border-hairline: rgba(255, 255, 255, 0.075);
+    --border-strong: rgba(255, 255, 255, 0.15);
+    --ink-primary: #F2F1EE;
+    --ink-secondary: #A1A09A;
+    --ink-muted: #666560;
   }
 
   html,
@@ -53,33 +61,69 @@
   }
 }
 
+/* Frameless transparent canvas for Electron Floating Desktop Widget */
+html.widget-mode.desktop-electron,
+html.widget-mode.desktop-electron body,
+html.widget-mode.desktop-electron #root {
+  background: transparent !important;
+  background-color: transparent !important;
+  overflow: hidden !important;
+}
+
+html.widget-mode,
+html.widget-mode body {
+  overflow: hidden;
+}
+
 .tabular-nums {
   font-variant-numeric: tabular-nums;
 }
 
-/* Ultra-subtle ambient depth on main mission canvas (zero neon clutter) */
-.agmb-ambient-bg {
-  background-color: #F6F7F9;
-  background-image:
-    radial-gradient(ellipse 80% 42% at 50% -12%, rgba(14, 165, 233, 0.045), transparent 72%),
-    radial-gradient(ellipse 55% 32% at 15% 0%, rgba(100, 116, 139, 0.035), transparent 70%);
+/* Calm editorial warm-paper / warm-obsidian canvas (zero blue-cyan wash) */
+.agmb-canvas {
+  background-color: #F6F5F1;
 }
 
-.dark .agmb-ambient-bg {
-  background-color: #0A0C10;
-  background-image:
-    radial-gradient(ellipse 75% 40% at 50% -14%, rgba(56, 189, 248, 0.042), transparent 70%),
-    radial-gradient(ellipse 48% 28% at 85% -4%, rgba(148, 163, 184, 0.032), transparent 68%);
+.dark .agmb-canvas {
+  background-color: #111110;
 }
 
-/* Refined custom thin scrollbars */
+/* Tactile card surface helpers */
+.agmb-card {
+  background-color: #FFFFFF;
+  border: 1px solid rgba(28, 25, 23, 0.078);
+  box-shadow: 0 1px 2px rgba(28, 25, 23, 0.038);
+}
+
+.agmb-card:hover {
+  border-color: rgba(28, 25, 23, 0.15);
+  box-shadow: 0 8px 20px -8px rgba(28, 25, 23, 0.12);
+}
+
+.dark .agmb-card {
+  background-color: #1D1D1B;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.035),
+    0 1px 2px rgba(0, 0, 0, 0.25);
+}
+
+.dark .agmb-card:hover {
+  background-color: #222220;
+  border-color: rgba(255, 255, 255, 0.135);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 10px 24px -10px rgba(0, 0, 0, 0.55);
+}
+
+/* Subtle custom thin scrollbars (warm stone tone) */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(113, 113, 122, 0.25) transparent;
+  scrollbar-color: rgba(120, 113, 108, 0.24) transparent;
 }
 
 .dark * {
-  scrollbar-color: rgba(161, 161, 170, 0.22) transparent;
+  scrollbar-color: rgba(168, 162, 158, 0.2) transparent;
 }
 
 ::-webkit-scrollbar {
@@ -92,47 +136,47 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(113, 113, 122, 0.24);
+  background: rgba(120, 113, 108, 0.24);
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(113, 113, 122, 0.46);
+  background: rgba(120, 113, 108, 0.44);
 }
 
 .dark ::-webkit-scrollbar-thumb {
-  background: rgba(161, 161, 170, 0.18);
+  background: rgba(168, 162, 158, 0.18);
 }
 
 .dark ::-webkit-scrollbar-thumb:hover {
-  background: rgba(161, 161, 170, 0.34);
+  background: rgba(168, 162, 158, 0.34);
 }
 
-/* Subtle live radar pulse halo */
+/* Quiet breathing live indicator (Running only) */
 @keyframes agmb-pulse-ring {
   0% {
     transform: scale(0.9);
-    opacity: 0.72;
+    opacity: 0.65;
   }
   70% {
-    transform: scale(2.35);
+    transform: scale(2.4);
     opacity: 0;
   }
   100% {
-    transform: scale(2.35);
+    transform: scale(2.4);
     opacity: 0;
   }
 }
 
 .live-pulse-ring {
-  animation: agmb-pulse-ring 2.1s cubic-bezier(0.22, 0.61, 0.36, 1) infinite;
+  animation: agmb-pulse-ring 2.2s cubic-bezier(0.22, 0.61, 0.36, 1) infinite;
 }
 
 /* Smooth Drawer, Palette & Toast entrances */
 @keyframes agmb-drawer-in {
   from {
-    transform: translateX(28px);
-    opacity: 0.85;
+    transform: translateX(24px);
+    opacity: 0.88;
   }
   to {
     transform: translateX(0);
@@ -152,7 +196,7 @@
 @keyframes agmb-modal-in {
   from {
     opacity: 0;
-    transform: translateY(-6px) scale(0.985);
+    transform: translateY(-5px) scale(0.988);
   }
   to {
     opacity: 1;
@@ -163,7 +207,7 @@
 @keyframes agmb-toast-in {
   from {
     opacity: 0;
-    transform: translateY(8px) scale(0.98);
+    transform: translateY(8px) scale(0.985);
   }
   to {
     opacity: 1;
@@ -176,27 +220,27 @@
 }
 
 .agmb-backdrop-enter {
-  animation: agmb-backdrop-in 160ms ease-out both;
+  animation: agmb-backdrop-in 150ms ease-out both;
 }
 
 .agmb-modal-enter {
-  animation: agmb-modal-in 170ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: agmb-modal-in 160ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .agmb-toast-enter {
-  animation: agmb-toast-in 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: agmb-toast-in 170ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-/* Flagship Markdown Viewer styles (Artifacts Tab) */
+/* Editorial Markdown Viewer styles (Warm Stone & Ink) */
 .agmb-prose {
-  font-size: 0.85rem;
-  line-height: 1.7;
+  font-size: 0.855rem;
+  line-height: 1.72;
   color: inherit;
 }
 
 .agmb-prose h1 {
   font-size: 1.2rem;
-  font-weight: 650;
+  font-weight: 600;
   letter-spacing: -0.022em;
   margin-top: 1.35rem;
   margin-bottom: 0.7rem;
@@ -212,7 +256,7 @@
 
 .agmb-prose h2 {
   font-size: 0.98rem;
-  font-weight: 620;
+  font-weight: 600;
   letter-spacing: -0.015em;
   margin-top: 1.35rem;
   margin-bottom: 0.5rem;
@@ -223,11 +267,11 @@
   font-weight: 600;
   margin-top: 1.05rem;
   margin-bottom: 0.35rem;
-  color: #3f3f46;
+  color: #44403C;
 }
 
 .dark .agmb-prose h3 {
-  color: #d4d4d8;
+  color: #D6D3CD;
 }
 
 .agmb-prose p {
@@ -236,12 +280,12 @@
 }
 
 .agmb-prose strong {
-  font-weight: 620;
-  color: #09090b;
+  font-weight: 600;
+  color: #1C1917;
 }
 
 .dark .agmb-prose strong {
-  color: #fafafa;
+  color: #FAFAF9;
 }
 
 .agmb-prose ul,
@@ -272,13 +316,13 @@
 
 .agmb-prose li:has(input[type="checkbox"]) {
   position: relative;
-  padding: 0.22rem 0.5rem 0.22rem 1.8rem;
+  padding: 0.24rem 0.5rem 0.24rem 1.8rem;
   border-radius: 6px;
   transition: background-color 120ms ease;
 }
 
 .agmb-prose li:has(input[type="checkbox"]):hover {
-  background: rgba(113, 113, 122, 0.06);
+  background: rgba(120, 113, 108, 0.06);
 }
 
 .agmb-prose li:has(input[type="checkbox"]) input[type="checkbox"] {
@@ -289,8 +333,12 @@
   width: 0.875rem;
   height: 0.875rem;
   border-radius: 3px;
-  accent-color: #10b981;
+  accent-color: #1C1917;
   cursor: default;
+}
+
+.dark .agmb-prose li:has(input[type="checkbox"]) input[type="checkbox"] {
+  accent-color: #22C55E;
 }
 
 .agmb-prose li:has(input[type="checkbox"]) > p {
@@ -300,15 +348,16 @@
 .agmb-prose blockquote {
   margin: 0.85rem 0;
   padding: 0.55rem 0.9rem;
-  border-left: 3px solid #0ea5e9;
-  background: rgba(14, 165, 233, 0.055);
+  border-left: 2px solid #78716C;
+  background: rgba(120, 113, 108, 0.055);
   border-radius: 0 8px 8px 0;
-  color: #3f3f46;
+  color: #44403C;
 }
 
 .dark .agmb-prose blockquote {
-  background: rgba(56, 189, 248, 0.075);
-  color: #cbd5e1;
+  border-left-color: #A1A09A;
+  background: rgba(255, 255, 255, 0.04);
+  color: #D6D3CD;
 }
 
 .agmb-prose blockquote p:last-child {
@@ -319,47 +368,45 @@
   font-size: 0.79rem;
   padding: 0.14rem 0.38rem;
   border-radius: 5px;
-  border: 1px solid rgba(113, 113, 122, 0.16);
-  background: rgba(113, 113, 122, 0.08);
-  color: #0f172a;
+  border: 1px solid rgba(28, 25, 23, 0.09);
+  background: #F2F0EB;
+  color: #1C1917;
 }
 
 .dark .agmb-prose code {
-  border-color: rgba(148, 163, 184, 0.14);
-  background: rgba(148, 163, 184, 0.09);
-  color: #e2e8f0;
+  border-color: rgba(255, 255, 255, 0.09);
+  background: #252522;
+  color: #F2F1EE;
 }
 
 .agmb-prose pre {
   margin: 0.85rem 0;
-  padding: 0.85rem 1rem;
+  padding: 0.9rem 1.05rem;
   border-radius: 10px;
   overflow-x: auto;
   border: 1px solid var(--border-hairline);
-  background: #F4F6F9;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  background: #F4F2ED;
 }
 
 .dark .agmb-prose pre {
-  border-color: #252C3B;
-  background: #0B0E14;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.08);
+  background: #141413;
 }
 
 .agmb-prose pre code {
   padding: 0;
   border: 0;
   background: transparent;
-  font-size: 0.77rem;
+  font-size: 0.775rem;
   line-height: 1.62;
-  color: #1e293b;
+  color: #292524;
 }
 
 .dark .agmb-prose pre code {
-  color: #dbeafe;
+  color: #E7E5E0;
 }
 
-/* Crisp Markdown Tables */
+/* Crisp Editorial Markdown Tables */
 .agmb-prose table {
   width: 100%;
   border-collapse: separate;
@@ -376,14 +423,14 @@
   font-weight: 600;
   font-size: 0.74rem;
   letter-spacing: 0.01em;
-  background: var(--surface-subtle);
-  color: #3f3f46;
+  background: #F4F2ED;
+  color: #44403C;
   border-bottom: 1px solid var(--border-hairline);
 }
 
 .dark .agmb-prose thead th {
-  background: #141923;
-  color: #cbd5e1;
+  background: #181816;
+  color: #D6D3CD;
 }
 
 .agmb-prose th,
@@ -407,7 +454,7 @@
 }
 
 .agmb-prose tbody tr:nth-child(even) {
-  background: rgba(113, 113, 122, 0.03);
+  background: rgba(28, 25, 23, 0.02);
 }
 
 .dark .agmb-prose tbody tr:nth-child(even) {
@@ -415,13 +462,15 @@
 }
 
 .agmb-prose a {
-  color: #0284c7;
+  color: #1C1917;
   text-decoration: underline;
+  text-decoration-color: rgba(28, 25, 23, 0.35);
   text-underline-offset: 2px;
 }
 
 .dark .agmb-prose a {
-  color: #38bdf8;
+  color: #F2F1EE;
+  text-decoration-color: rgba(242, 241, 238, 0.35);
 }
 
 .agmb-prose hr {

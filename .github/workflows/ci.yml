@@ -39,3 +39,6 @@ jobs:
 
       - name: Build web
         run: npm --prefix web run build
+
+      - name: Check desktop syntax
+        run: npm --prefix desktop run check

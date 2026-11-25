@@ -24,6 +24,7 @@ import {
 } from './api';
 import { CommandPalette } from './components/CommandPalette';
 import { DetailDrawer, type DrawerTab } from './components/DetailDrawer';
+import { FloatingWidget } from './components/FloatingWidget';
 import { KanbanBoard } from './components/KanbanBoard';
 import { MatrixView } from './components/MatrixView';
 import { RadarStrip, type RadarFilter } from './components/RadarStrip';
@@ -37,6 +38,12 @@ import {
   type ThemeMode,
   type ViewMode,
 } from './components/TopBar';
+import {
+  getDesktopBridge,
+  isWidgetModeUrl,
+  parseHashConversationId,
+  type DesktopState,
+} from './desktopBridge';
 import {
   dictionaries,
   loadSavedLocale,
@@ -189,7 +196,9 @@ function shortenTitle(title: string, fallback: string): string {
   return clean.length > 26 ? `${clean.slice(0, 26)}…` : clean;
 }
 
-export function App() {
+function MissionBoardApp() {
+  const desktopBridge = getDesktopBridge();
+
   // Preferences
   const [locale, setLocale] = useState<Locale>(loadSavedLocale);
   const [theme, setTheme] = useState<ThemeMode>(loadInitialTheme);
@@ -204,6 +213,7 @@ export function App() {
   const [notificationPermission, setNotificationPermission] = useState<
     NotificationPermission | 'unsupported'
   >(getNotificationPermission);
+  const [desktopState, setDesktopState] = useState<DesktopState | null>(null);
 
   const t = dictionaries[locale];
 
@@ -225,16 +235,16 @@ export function App() {
   const [selectedTag, setSelectedTag] = useState('');
   const [radarFilter, setRadarFilter] = useState<RadarFilter>(null);
 
-  // Overlays: Detail Drawer, Command Palette, Shortcuts Modal
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Overlays
+  const [selectedId, setSelectedId] = useState<string | null>(() =>
+    parseHashConversationId(),
+  );
   const [drawerInitialTab, setDrawerInitialTab] = useState<DrawerTab>('overview');
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [shortcutsModalOpen, setShortcutsModalOpen] = useState(false);
 
   // Toasts
   const [toasts, setToasts] = useState<ToastItem[]>([]);
-
-  // Periodic tick to keep relative timestamps fresh
   const [, setRelativeClockTick] = useState(0);
 
   const seenNotificationsRef = useRef<Set<string>>(new Set());
@@ -246,7 +256,7 @@ export function App() {
   soundEnabledRef.current = soundEnabled;
   localeRef.current = locale;
 
-  // Apply dark mode class to <html>
+  // Apply dark mode class + sync Electron nativeTheme
   useEffect(() => {
     const root = document.documentElement;
     if (theme === 'dark') {
@@ -259,7 +269,8 @@ export function App() {
     } catch {
       // ignore
     }
-  }, [theme]);
+    desktopBridge?.setTheme?.(theme);
+  }, [theme, desktopBridge]);
 
   useEffect(() => {
     document.documentElement.lang = locale === 'zh' ? 'zh-CN' : 'en';
@@ -282,7 +293,66 @@ export function App() {
     }
   }, [kanbanSort]);
 
-  // 30s ticker for relative timestamps
+  // Cross-window storage sync (e.g. toggling theme in Floating Widget)
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === 'agmb_theme' && (e.newValue === 'light' || e.newValue === 'dark')) {
+        setTheme(e.newValue);
+      }
+      if (e.key === 'agmb_locale' && (e.newValue === 'zh' || e.newValue === 'en')) {
+        setLocale(e.newValue);
+      }
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
+
+  // Desktop IPC Bridge: state, deep-link open conversation, and URL #conv=<id>
+  useEffect(() => {
+    const onHashChange = () => {
+      const id = parseHashConversationId();
+      if (id) {
+        setDrawerInitialTab('overview');
+        setSelectedId(id);
+      }
+    };
+    window.addEventListener('hashchange', onHashChange);
+
+    if (!desktopBridge) {
+      return () => window.removeEventListener('hashchange', onHashChange);
+    }
+
+    desktopBridge
+      .getDesktopState()
+      .then((st) => setDesktopState(st))
+      .catch(() => {});
+
+    const unsubState = desktopBridge.onDesktopStateChange((st) =>
+      setDesktopState(st),
+    );
+    const unsubOpen = desktopBridge.onOpenConversation((id) => {
+      if (id) {
+        setDrawerInitialTab('overview');
+        setSelectedId(id);
+      }
+    });
+
+    return () => {
+      window.removeEventListener('hashchange', onHashChange);
+      unsubState();
+      unsubOpen();
+    };
+  }, [desktopBridge]);
+
+  // Sync live running & attention counts to Electron System Tray
+  useEffect(() => {
+    if (!board || !desktopBridge) return;
+    desktopBridge.updateTraySummary({
+      running: board.stats.runningCount,
+      attention: board.stats.attentionCount,
+    });
+  }, [board, desktopBridge]);
+
   useEffect(() => {
     const timer = setInterval(() => setRelativeClockTick((n) => n + 1), 30_000);
     return () => clearInterval(timer);
@@ -309,7 +379,6 @@ export function App() {
     [],
   );
 
-  // Initial fetch + manual refresh
   const loadBoardData = useCallback(
     async (manual = false) => {
       if (manual) setIsRefreshing(true);
@@ -342,7 +411,6 @@ export function App() {
     void loadBoardData(false);
   }, [loadBoardData]);
 
-  // Handle incoming SSE Notification
   const handleSseNotification = useCallback(
     (notif: BoardNotification) => {
       if (seenNotificationsRef.current.has(notif.id)) return;
@@ -397,14 +465,13 @@ export function App() {
             browserNotif.close();
           };
         } catch {
-          // ignore desktop notification failure
+          // ignore
         }
       }
     },
     [pushToast, handleOpenConversation],
   );
 
-  // SSE Live Subscription
   useEffect(() => {
     const unsubscribe = subscribeBoardEvents({
       onStatusChange: (status) => {
@@ -426,7 +493,6 @@ export function App() {
     return unsubscribe;
   }, [handleSseNotification]);
 
-  // Debounced Server FTS Search when board search filter is active
   useEffect(() => {
     const q = searchQuery.trim();
     if (!q) {
@@ -442,9 +508,7 @@ export function App() {
         .then((res) => {
           setServerMatchIds(new Set(res.results.map((r) => r.conversationId)));
         })
-        .catch(() => {
-          // ignore abort or transient search error; instant client filter still works
-        })
+        .catch(() => {})
         .finally(() => {
           if (!controller.signal.aborted) {
             setIsSearchingServer(false);
@@ -458,7 +522,6 @@ export function App() {
     };
   }, [searchQuery]);
 
-  // Global Keyboard Shortcuts: Ctrl+K, /, 1, 2, 3, R, ?
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
@@ -502,7 +565,6 @@ export function App() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [commandPaletteOpen, shortcutsModalOpen, selectedId, loadBoardData]);
 
-  // Toggle Desktop Notifications
   const handleToggleNotifications = useCallback(async () => {
     if (typeof window === 'undefined' || !('Notification' in window)) {
       setNotificationPermission('unsupported');
@@ -545,7 +607,6 @@ export function App() {
     });
   }, []);
 
-  // Optimistic Overlay Patch
   const handlePatchOverlay = useCallback(
     async (id: string, patch: OverlayPatch) => {
       let snapshot: BoardResponse | null = null;
@@ -728,7 +789,6 @@ export function App() {
     [handlePatchOverlay, loadBoardData, pushToast],
   );
 
-  // Batch Mark All Needs Attention Read + Instant Undo
   const handleMarkAllAttentionRead = useCallback(
     async (cards: ConversationCard[]) => {
       if (cards.length === 0) return;
@@ -805,7 +865,35 @@ export function App() {
     [loadBoardData],
   );
 
-  // Tag usage counts for intelligent top-6 tag prioritization
+  const handleSetDesktopAutoStart = useCallback(
+    async (value: boolean) => {
+      if (!desktopBridge) return;
+      const applied = await desktopBridge.setAutoStart(value);
+      setDesktopState((prev) => (prev ? { ...prev, autoStart: applied } : prev));
+    },
+    [desktopBridge],
+  );
+
+  const handleSetDesktopAlwaysOnTop = useCallback(
+    async (value: boolean) => {
+      if (!desktopBridge) return;
+      const applied = await desktopBridge.setAlwaysOnTop(value);
+      setDesktopState((prev) => (prev ? { ...prev, alwaysOnTop: applied } : prev));
+    },
+    [desktopBridge],
+  );
+
+  const handleSetDesktopWidgetVisible = useCallback(
+    async (value: boolean) => {
+      if (!desktopBridge) return;
+      const applied = await desktopBridge.setWidgetVisible(value);
+      setDesktopState((prev) =>
+        prev ? { ...prev, widgetVisible: applied } : prev,
+      );
+    },
+    [desktopBridge],
+  );
+
   const tagCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     if (!board) return counts;
@@ -817,7 +905,6 @@ export function App() {
     return counts;
   }, [board]);
 
-  // Filtered Conversations
   const filteredConversations = useMemo(() => {
     if (!board) return [];
     const q = searchQuery.trim().toLowerCase();
@@ -875,13 +962,11 @@ export function App() {
     radarFilter,
   ]);
 
-  // Attention cards currently visible for Mark All Read command
   const attentionLaneCards = useMemo(
     () => filteredConversations.filter((c) => c.lane === 'attention'),
     [filteredConversations],
   );
 
-  // Ordered conversation IDs for Drawer Prev / Next triage
   const navigableIds = useMemo(
     () => filteredConversations.map((c) => c.id),
     [filteredConversations],
@@ -922,7 +1007,7 @@ export function App() {
   };
 
   return (
-    <div className="agmb-ambient-bg flex min-h-screen flex-col text-zinc-900 dark:text-zinc-100">
+    <div className="agmb-canvas flex min-h-screen flex-col text-[#1C1917] dark:text-[#F2F1EE]">
       <TopBar
         mode={board?.mode ?? 'live'}
         health={health}
@@ -958,6 +1043,10 @@ export function App() {
         onToggleSound={handleToggleSound}
         settings={defaultSettings}
         onSaveSettings={handleSaveSettings}
+        desktopState={desktopState}
+        onSetDesktopAutoStart={handleSetDesktopAutoStart}
+        onSetDesktopAlwaysOnTop={handleSetDesktopAlwaysOnTop}
+        onSetDesktopWidgetVisible={handleSetDesktopWidgetVisible}
         onOpenShortcuts={() => setShortcutsModalOpen(true)}
         theme={theme}
         onToggleTheme={() => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))}
@@ -966,10 +1055,9 @@ export function App() {
         t={t}
       />
 
-      <main className="mx-auto flex w-full max-w-[1760px] flex-1 flex-col gap-3.5 px-4 py-3.5 sm:px-5">
-        {/* Connection Error Banner */}
+      <main className="mx-auto flex w-full max-w-[1760px] flex-1 flex-col gap-3 px-4 py-3 sm:px-5">
         {loadError && !board && (
-          <div className="flex items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50/80 px-4 py-3 text-xs text-rose-800 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200">
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-[#DC2626]/25 bg-[#FEF2F2] px-4 py-3 text-xs text-[#B91C1C] dark:border-[#EF4444]/25 dark:bg-[#2A1616] dark:text-[#FCA5A5]">
             <div className="flex items-center gap-2">
               <AlertCircle className="h-4 w-4 shrink-0" />
               <span>
@@ -979,7 +1067,7 @@ export function App() {
             <button
               type="button"
               onClick={() => void loadBoardData(true)}
-              className="inline-flex items-center gap-1 rounded-md border border-rose-300 bg-white px-2.5 py-1 font-medium text-rose-700 hover:bg-rose-50 dark:border-rose-500/40 dark:bg-rose-950/40 dark:text-rose-200"
+              className="inline-flex items-center gap-1 rounded-lg border border-[#DC2626]/30 bg-white px-2.5 py-1 font-medium text-[#B91C1C] hover:bg-[#FEF2F2] dark:border-[#EF4444]/35 dark:bg-[#1E1212] dark:text-[#FCA5A5]"
             >
               <RefreshCw className="h-3 w-3" />
               <span>{t.errors.retry}</span>
@@ -987,29 +1075,20 @@ export function App() {
           </div>
         )}
 
-        {/* Loading Skeleton */}
         {loading && !board ? (
-          <div className="animate-pulse space-y-4">
-            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="h-[68px] rounded-xl border border-zinc-200/80 bg-white dark:border-[#212633] dark:bg-[#12151C]"
-                />
-              ))}
-            </div>
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+          <div className="animate-pulse space-y-3">
+            <div className="h-10 rounded-xl border border-[#1C1917]/[0.07] bg-white dark:border-white/[0.06] dark:bg-[#171715]" />
+            <div className="grid grid-cols-1 gap-3.5 md:grid-cols-4">
               {Array.from({ length: 4 }).map((_, i) => (
                 <div
                   key={i}
-                  className="h-[520px] rounded-xl border border-zinc-200/80 bg-zinc-100/60 dark:border-[#1D2230] dark:bg-[#0E1117]"
+                  className="h-[540px] rounded-2xl border border-[#1C1917]/[0.05] bg-[#EFECE6]/70 dark:border-white/[0.045] dark:bg-[#171715]"
                 />
               ))}
             </div>
           </div>
         ) : board ? (
           <>
-            {/* Attention Radar KPI Strip */}
             <RadarStrip
               stats={board.stats}
               activeFilter={radarFilter}
@@ -1017,7 +1096,6 @@ export function App() {
               t={t}
             />
 
-            {/* Main Active View */}
             {viewMode === 'kanban' && (
               <KanbanBoard
                 conversations={filteredConversations}
@@ -1061,7 +1139,6 @@ export function App() {
         ) : null}
       </main>
 
-      {/* Slide-over Detail Drawer */}
       <DetailDrawer
         conversationId={selectedId}
         initialTab={drawerInitialTab}
@@ -1089,7 +1166,6 @@ export function App() {
         t={t}
       />
 
-      {/* Floating Command Palette (Ctrl+K / /) */}
       <CommandPalette
         open={commandPaletteOpen}
         onClose={() => setCommandPaletteOpen(false)}
@@ -1118,14 +1194,12 @@ export function App() {
         t={t}
       />
 
-      {/* Keyboard Shortcuts Modal (?) */}
       <ShortcutsModal
         open={shortcutsModalOpen}
         onClose={() => setShortcutsModalOpen(false)}
         t={t}
       />
 
-      {/* Floating Toasts with Undo */}
       <ToastHost
         toasts={toasts}
         onDismiss={dismissToast}
@@ -1133,6 +1207,13 @@ export function App() {
       />
     </div>
   );
+}
+
+export function App() {
+  if (isWidgetModeUrl()) {
+    return <FloatingWidget />;
+  }
+  return <MissionBoardApp />;
 }
 
 export default App;

@@ -89,7 +89,6 @@ export function DetailDrawer({
   const [error, setError] = useState<string | null>(null);
   const [copiedField, setCopiedField] = useState<'id' | 'path' | null>(null);
 
-  // Follow-up panel collapsed by default into sleek 1-line bar so Overview/Tabs get prime viewport!
   const [followUpExpanded, setFollowUpExpanded] = useState(false);
   const [tagInput, setTagInput] = useState('');
   const [notesDraft, setNotesDraft] = useState('');
@@ -141,7 +140,6 @@ export function DetailDrawer({
     };
   }, [conversationId]);
 
-  // Keep detail's live overlay & summary in sync with SSE board updates
   useEffect(() => {
     if (!cardFromBoard) return;
     setDetail((prev) => {
@@ -153,7 +151,6 @@ export function DetailDrawer({
     });
   }, [cardFromBoard]);
 
-  // Keyboard shortcuts inside Drawer: Esc to close, ArrowLeft / ArrowRight for Prev / Next
   useEffect(() => {
     if (!conversationId) return;
     const onKeyDown = (e: KeyboardEvent) => {
@@ -273,16 +270,15 @@ export function DetailDrawer({
       aria-modal="true"
       aria-label={activeCard?.title || 'Conversation detail'}
     >
-      {/* Subtle Blurred Backdrop */}
       <div
-        className="agmb-backdrop-enter fixed inset-0 bg-zinc-950/32 backdrop-blur-[2px] dark:bg-black/58"
+        className="agmb-backdrop-enter fixed inset-0 bg-[#1C1917]/28 backdrop-blur-[2px] dark:bg-black/60"
         onClick={onClose}
       />
 
-      {/* Slide-over Panel */}
-      <div className="agmb-drawer-enter relative z-10 flex h-full w-full max-w-[800px] flex-col border-l border-zinc-200/90 bg-[#F6F7F9] shadow-2xl dark:border-[#242A37] dark:bg-[#0B0E14]">
+      {/* Warm Editorial Slide-over Panel */}
+      <div className="agmb-drawer-enter relative z-10 flex h-full w-full max-w-[800px] flex-col border-l border-[#1C1917]/[0.09] bg-[#F6F5F1] shadow-2xl dark:border-white/[0.08] dark:bg-[#121210]">
         {/* Sticky Header */}
-        <div className="shrink-0 border-b border-zinc-200/85 bg-white px-5 pt-3.5 pb-3 dark:border-[#202634] dark:bg-[#11151D]">
+        <div className="shrink-0 border-b border-[#1C1917]/[0.075] bg-white px-5 pt-3.5 pb-3 dark:border-white/[0.07] dark:bg-[#181816]">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
@@ -294,7 +290,7 @@ export function DetailDrawer({
                   />
                 )}
                 {activeCard?.isRunning && activeCard.lane !== 'running' && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/12 px-2 py-0.5 text-[10.5px] font-semibold text-emerald-700 dark:text-emerald-300">
+                  <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-[#15803D] dark:text-[#4ADE80]">
                     <LivePulseDot />
                     {t.card.runningNow}
                   </span>
@@ -303,25 +299,24 @@ export function DetailDrawer({
                   <AttentionReasonBadge key={r} reason={r} t={t} />
                 ))}
               </div>
-              <h2 className="mt-1.5 text-[15px] leading-snug font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+              <h2 className="mt-1.5 text-[15px] leading-snug font-semibold tracking-[-0.015em] text-[#1C1917] dark:text-[#F2F1EE]">
                 {activeCard?.title || t.card.untitled}
               </h2>
 
-              {/* Copyable Workspace Path & Conversation ID */}
-              <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] text-zinc-500 dark:text-zinc-400">
+              <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] text-[#78716C] dark:text-[#8C8B85]">
                 {activeCard?.workspacePath && (
                   <button
                     type="button"
                     onClick={() => handleCopy('path', activeCard.workspacePath)}
                     title={t.drawer.copyPath}
-                    className="inline-flex max-w-[360px] items-center gap-1 rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10.5px] text-zinc-600 transition-colors hover:bg-zinc-200 dark:bg-[#1A202D] dark:text-zinc-300 dark:hover:bg-[#232B3C]"
+                    className="inline-flex max-w-[360px] items-center gap-1 rounded-md bg-[#F2F0EB] px-1.5 py-0.5 font-mono text-[10.5px] text-[#57534E] transition-colors hover:bg-[#E7E4DC] dark:bg-[#222220] dark:text-[#A1A09A] dark:hover:bg-[#2B2B28]"
                   >
-                    <Folder className="h-3 w-3 shrink-0 text-zinc-400" />
+                    <Folder className="h-3 w-3 shrink-0 opacity-65" />
                     <span className="truncate">{activeCard.workspacePath}</span>
                     {copiedField === 'path' ? (
-                      <Check className="h-3 w-3 shrink-0 text-emerald-500" />
+                      <Check className="h-3 w-3 shrink-0 text-[#16A34A]" />
                     ) : (
-                      <Copy className="h-2.5 w-2.5 shrink-0 opacity-60" />
+                      <Copy className="h-2.5 w-2.5 shrink-0 opacity-55" />
                     )}
                   </button>
                 )}
@@ -330,14 +325,14 @@ export function DetailDrawer({
                   type="button"
                   onClick={() => handleCopy('id', conversationId)}
                   title={t.drawer.copyId}
-                  className="inline-flex items-center gap-1 rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10.5px] text-zinc-500 transition-colors hover:bg-zinc-200 dark:bg-[#1A202D] dark:text-zinc-400 dark:hover:bg-[#232B3C]"
+                  className="inline-flex items-center gap-1 rounded-md bg-[#F2F0EB] px-1.5 py-0.5 font-mono text-[10.5px] text-[#78716C] transition-colors hover:bg-[#E7E4DC] dark:bg-[#222220] dark:text-[#8C8B85] dark:hover:bg-[#2B2B28]"
                 >
                   <Hash className="h-2.5 w-2.5" />
                   <span>{conversationId.slice(0, 12)}</span>
                   {copiedField === 'id' ? (
-                    <Check className="h-3 w-3 text-emerald-500" />
+                    <Check className="h-3 w-3 text-[#16A34A]" />
                   ) : (
-                    <Copy className="h-2.5 w-2.5 opacity-60" />
+                    <Copy className="h-2.5 w-2.5 opacity-55" />
                   )}
                 </button>
               </div>
@@ -346,18 +341,18 @@ export function DetailDrawer({
             {/* Prev / Next Triage Navigation + Close */}
             <div className="flex shrink-0 items-center gap-1">
               {totalCount > 1 && currentIndex >= 0 && (
-                <div className="mr-1 inline-flex items-center rounded-md border border-zinc-200/80 bg-zinc-50/80 p-0.5 dark:border-[#242B3B] dark:bg-[#161B25]">
+                <div className="mr-1 inline-flex items-center rounded-lg border border-[#1C1917]/[0.09] bg-[#F6F5F1] p-0.5 dark:border-white/[0.08] dark:bg-[#20201D]">
                   <button
                     type="button"
                     onClick={onPrev}
                     disabled={!hasPrev}
                     title={t.drawer.prevConversation}
                     aria-label={t.drawer.prevConversation}
-                    className="rounded p-1 text-zinc-500 transition-colors hover:bg-white hover:text-zinc-900 disabled:opacity-30 dark:text-zinc-400 dark:hover:bg-[#222938] dark:hover:text-zinc-100"
+                    className="rounded p-1 text-[#57534E] transition-colors hover:bg-white hover:text-[#1C1917] disabled:opacity-30 dark:text-[#9F9E98] dark:hover:bg-[#2B2B28] dark:hover:text-[#F2F1EE]"
                   >
                     <ChevronLeft className="h-3.5 w-3.5" />
                   </button>
-                  <span className="tabular-nums px-1.5 font-mono text-[10.5px] text-zinc-500 dark:text-zinc-400">
+                  <span className="tabular-nums px-1.5 font-mono text-[10.5px] text-[#78716C] dark:text-[#8C8B85]">
                     {currentIndex + 1}/{totalCount}
                   </span>
                   <button
@@ -366,7 +361,7 @@ export function DetailDrawer({
                     disabled={!hasNext}
                     title={t.drawer.nextConversation}
                     aria-label={t.drawer.nextConversation}
-                    className="rounded p-1 text-zinc-500 transition-colors hover:bg-white hover:text-zinc-900 disabled:opacity-30 dark:text-zinc-400 dark:hover:bg-[#222938] dark:hover:text-zinc-100"
+                    className="rounded p-1 text-[#57534E] transition-colors hover:bg-white hover:text-[#1C1917] disabled:opacity-30 dark:text-[#9F9E98] dark:hover:bg-[#2B2B28] dark:hover:text-[#F2F1EE]"
                   >
                     <ChevronRight className="h-3.5 w-3.5" />
                   </button>
@@ -378,7 +373,7 @@ export function DetailDrawer({
                 onClick={onClose}
                 title={t.drawer.close}
                 aria-label={t.drawer.close}
-                className="rounded-md p-1.5 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-800 dark:hover:bg-[#1E2330] dark:hover:text-zinc-200"
+                className="rounded-lg p-1.5 text-[#8C867E] transition-colors hover:bg-[#1C1917]/[0.06] hover:text-[#1C1917] dark:hover:bg-white/[0.08] dark:hover:text-[#F2F1EE]"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -387,45 +382,42 @@ export function DetailDrawer({
 
           {/* Action Controls Bar */}
           {activeCard && overlay && (
-            <div className="mt-2.5 flex flex-wrap items-center gap-2 border-t border-zinc-100 pt-2.5 dark:border-[#1D2330]">
-              {/* Pin */}
+            <div className="mt-2.5 flex flex-wrap items-center gap-2 border-t border-[#1C1917]/[0.06] pt-2.5 dark:border-white/[0.06]">
               <button
                 type="button"
                 onClick={() =>
                   void onPatchOverlay(activeCard.id, { pinned: !overlay.pinned })
                 }
-                className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
+                className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors ${
                   overlay.pinned
-                    ? 'border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/15 dark:text-amber-300'
-                    : 'border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:text-zinc-900 dark:border-[#262C3B] dark:bg-[#171C26] dark:text-zinc-300'
+                    ? 'border-[#1C1917] bg-[#1C1917] text-[#F6F5F1] dark:border-[#F2F1EE] dark:bg-[#F2F1EE] dark:text-[#111110]'
+                    : 'border-[#1C1917]/[0.1] bg-white text-[#57534E] hover:border-[#1C1917]/25 hover:text-[#1C1917] dark:border-white/[0.09] dark:bg-[#20201D] dark:text-[#D6D3CD]'
                 }`}
               >
                 <Pin className={`h-3.5 w-3.5 ${overlay.pinned ? 'fill-current' : ''}`} />
                 <span>{overlay.pinned ? t.card.unpin : t.card.pin}</span>
               </button>
 
-              {/* Mark Reviewed */}
               <button
                 type="button"
                 onClick={() => void onMarkReviewed(activeCard)}
-                className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
+                className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors ${
                   activeCard.attentionReasons.length > 0
-                    ? 'border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-500/40 dark:bg-emerald-500/15 dark:text-emerald-300'
-                    : 'border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:text-zinc-900 dark:border-[#262C3B] dark:bg-[#171C26] dark:text-zinc-300'
+                    ? 'border-[#16A34A]/35 bg-[#F0FDF4] text-[#15803D] hover:bg-[#DCFCE7] dark:border-[#22C55E]/35 dark:bg-[#14261B] dark:text-[#4ADE80]'
+                    : 'border-[#1C1917]/[0.1] bg-white text-[#57534E] hover:border-[#1C1917]/25 hover:text-[#1C1917] dark:border-white/[0.09] dark:bg-[#20201D] dark:text-[#D6D3CD]'
                 }`}
               >
                 <CheckCheck className="h-3.5 w-3.5" />
                 <span>{t.card.markReviewed}</span>
               </button>
 
-              {/* Priority selector */}
               <select
                 value={overlay.priority ?? ''}
                 onChange={(e) =>
                   handlePriorityChange((e.target.value || null) as Priority)
                 }
                 aria-label={t.priority.label}
-                className="h-7 rounded-md border border-zinc-200 bg-white px-2 text-xs font-medium text-zinc-700 focus:border-sky-500 focus:outline-none dark:border-[#262C3B] dark:bg-[#171C26] dark:text-zinc-200"
+                className="h-7 rounded-lg border border-[#1C1917]/[0.1] bg-white px-2 text-xs font-medium text-[#44403C] focus:border-[#1C1917]/40 focus:outline-none dark:border-white/[0.09] dark:bg-[#20201D] dark:text-[#D6D3CD]"
               >
                 <option value="">
                   {t.priority.label}: {t.priority.none}
@@ -435,13 +427,12 @@ export function DetailDrawer({
                 <option value="p2">{t.priority.p2}</option>
               </select>
 
-              {/* Manual Lane Selector + Reset */}
               <div className="ml-auto flex items-center gap-1.5">
                 <select
                   value={activeCard.lane}
                   onChange={(e) => handleLaneChange(e.target.value as LaneId)}
                   aria-label={t.drawer.laneControl}
-                  className="h-7 rounded-md border border-zinc-200 bg-white px-2 text-xs font-medium text-zinc-700 focus:border-sky-500 focus:outline-none dark:border-[#262C3B] dark:bg-[#171C26] dark:text-zinc-200"
+                  className="h-7 rounded-lg border border-[#1C1917]/[0.1] bg-white px-2 text-xs font-medium text-[#44403C] focus:border-[#1C1917]/40 focus:outline-none dark:border-white/[0.09] dark:bg-[#20201D] dark:text-[#D6D3CD]"
                 >
                   {LANE_ORDER.map((laneId) => (
                     <option key={laneId} value={laneId}>
@@ -458,7 +449,7 @@ export function DetailDrawer({
                       void onPatchOverlay(activeCard.id, { manualLane: null })
                     }
                     title={t.drawer.autoLaneNote(t.lanes[activeCard.autoLane])}
-                    className="inline-flex h-7 items-center gap-1 rounded-md border border-zinc-200 bg-zinc-50 px-2 text-[11px] font-medium text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:border-[#262C3B] dark:bg-[#1A1F2B] dark:text-zinc-300"
+                    className="inline-flex h-7 items-center gap-1 rounded-lg border border-[#1C1917]/[0.1] bg-[#FAF9F6] px-2 text-[11px] font-medium text-[#57534E] transition-colors hover:bg-[#EFECE6] hover:text-[#1C1917] dark:border-white/[0.09] dark:bg-[#20201D] dark:text-[#D6D3CD]"
                   >
                     <RotateCcw className="h-3 w-3" />
                     <span>{t.lanes.resetAutoLane}</span>
@@ -471,9 +462,9 @@ export function DetailDrawer({
 
         {/* Scrollable Content */}
         <div className="flex-1 overflow-y-auto px-5 py-3.5">
-          {/* Sleek 1-line Interactive Personal Follow-up Bar (collapsed by default) */}
+          {/* Collapsed 1-line Personal Follow-up Bar */}
           {overlay && (
-            <section className="mb-3.5 rounded-xl border border-zinc-200/85 bg-white transition-colors dark:border-[#212633] dark:bg-[#12151C]">
+            <section className="mb-3.5 rounded-xl border border-[#1C1917]/[0.075] bg-white transition-colors dark:border-white/[0.065] dark:bg-[#191917]">
               <div
                 role="button"
                 tabIndex={0}
@@ -484,23 +475,18 @@ export function DetailDrawer({
                     setFollowUpExpanded((v) => !v);
                   }
                 }}
-                className="flex cursor-pointer items-center justify-between gap-2 px-3 py-2 text-left transition-colors hover:bg-zinc-50/70 dark:hover:bg-[#161B25]"
+                className="flex cursor-pointer items-center justify-between gap-2 px-3 py-2 text-left transition-colors hover:bg-[#FAF9F6] dark:hover:bg-[#1F1F1D]"
               >
                 <div className="flex min-w-0 flex-1 items-center gap-2">
-                  <StickyNote className="h-3.5 w-3.5 shrink-0 text-sky-500" />
+                  <StickyNote className="h-3.5 w-3.5 shrink-0 text-[#8C867E]" />
 
                   {currentTags.length > 0 && (
-                    <div className="flex shrink-0 items-center gap-1">
+                    <div className="flex shrink-0 items-center gap-1.5 text-[11px] text-[#57534E] dark:text-[#A1A09A]">
                       {currentTags.slice(0, 3).map((tag) => (
-                        <span
-                          key={tag}
-                          className="rounded-full bg-sky-500/10 px-1.5 py-0.5 text-[10.5px] font-medium text-sky-700 dark:bg-sky-500/14 dark:text-sky-300"
-                        >
-                          #{tag}
-                        </span>
+                        <span key={tag}>#{tag}</span>
                       ))}
                       {currentTags.length > 3 && (
-                        <span className="tabular-nums rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-500 dark:bg-[#1E2432] dark:text-zinc-400">
+                        <span className="tabular-nums text-[10px] text-[#969088]">
                           +{currentTags.length - 3}
                         </span>
                       )}
@@ -508,11 +494,12 @@ export function DetailDrawer({
                   )}
 
                   {noteSnippet ? (
-                    <span className="min-w-0 flex-1 truncate text-[11.5px] text-zinc-600 dark:text-zinc-400">
+                    <span className="min-w-0 flex-1 truncate text-[11.5px] text-[#78716C] dark:text-[#9F9E98]">
+                      {currentTags.length > 0 ? '· ' : ''}
                       {noteSnippet}
                     </span>
                   ) : currentTags.length === 0 && !followUpDateVal ? (
-                    <span className="min-w-0 flex-1 truncate text-[11.5px] text-zinc-400 dark:text-zinc-500">
+                    <span className="min-w-0 flex-1 truncate text-[11.5px] text-[#969088] dark:text-[#666560]">
                       {t.drawer.addFollowUpHint}
                     </span>
                   ) : (
@@ -521,19 +508,19 @@ export function DetailDrawer({
 
                   {followUpDateVal && (
                     <span
-                      className={`tabular-nums inline-flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 font-mono text-[10px] font-medium ${
+                      className={`tabular-nums inline-flex shrink-0 items-center gap-1 font-mono text-[10.5px] font-medium ${
                         followUpOverdue
-                          ? 'bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300'
-                          : 'bg-zinc-100 text-zinc-600 dark:bg-[#1E2432] dark:text-zinc-300'
+                          ? 'text-[#DC2626] dark:text-[#F87171]'
+                          : 'text-[#78716C] dark:text-[#A1A09A]'
                       }`}
                     >
-                      <CalendarClock className="h-2.5 w-2.5" />
+                      <CalendarClock className="h-3 w-3" />
                       {followUpDateVal}
                     </span>
                   )}
                 </div>
 
-                <span className="inline-flex shrink-0 items-center gap-1 rounded-md border border-zinc-200/80 bg-zinc-50 px-2 py-0.5 text-[10.5px] font-medium text-zinc-600 dark:border-[#283042] dark:bg-[#181D27] dark:text-zinc-300">
+                <span className="inline-flex shrink-0 items-center gap-1 rounded-md border border-[#1C1917]/[0.09] bg-[#FAF9F6] px-2 py-0.5 text-[10.5px] font-medium text-[#57534E] dark:border-white/[0.08] dark:bg-[#222220] dark:text-[#D6D3CD]">
                   <Pencil className="h-2.5 w-2.5" />
                   <span>
                     {followUpExpanded ? t.drawer.doneEditing : t.drawer.editFollowUp}
@@ -542,16 +529,15 @@ export function DetailDrawer({
               </div>
 
               {followUpExpanded && (
-                <div className="space-y-3 border-t border-zinc-100 px-3.5 py-3 dark:border-[#1E2330]">
-                  {/* Tags Editor */}
+                <div className="space-y-3 border-t border-[#1C1917]/[0.06] px-3.5 py-3 dark:border-white/[0.06]">
                   <div>
                     <div className="flex items-center justify-between">
-                      <label className="flex items-center gap-1 text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
+                      <label className="flex items-center gap-1 text-[11px] font-medium text-[#78716C] dark:text-[#8C8B85]">
                         <Tag className="h-3 w-3" />
                         <span>{t.drawer.tagsLabel}</span>
                       </label>
                       {currentTags.length > 0 && (
-                        <span className="tabular-nums text-[10.5px] text-zinc-400">
+                        <span className="tabular-nums text-[10.5px] text-[#969088]">
                           {t.drawer.tagsCount(currentTags.length)}
                         </span>
                       )}
@@ -560,13 +546,13 @@ export function DetailDrawer({
                       {currentTags.map((tag) => (
                         <span
                           key={tag}
-                          className="inline-flex items-center gap-1 rounded-full bg-sky-50 py-0.5 pr-1.5 pl-2 text-[11px] font-medium text-sky-700 ring-1 ring-inset ring-sky-600/20 dark:bg-sky-500/12 dark:text-sky-300 dark:ring-sky-400/25"
+                          className="inline-flex items-center gap-1 rounded-md border border-[#1C1917]/[0.1] bg-[#FAF9F6] py-0.5 pr-1.5 pl-2 text-[11px] font-medium text-[#44403C] dark:border-white/[0.09] dark:bg-[#222220] dark:text-[#D6D3CD]"
                         >
                           <span>#{tag}</span>
                           <button
                             type="button"
                             onClick={() => handleRemoveTag(tag)}
-                            className="rounded-full p-0.5 hover:bg-sky-200/60 dark:hover:bg-sky-500/30"
+                            className="rounded p-0.5 hover:bg-[#1C1917]/[0.08] dark:hover:bg-white/[0.1]"
                             aria-label={`Remove ${tag}`}
                           >
                             <X className="h-2.5 w-2.5" />
@@ -585,13 +571,13 @@ export function DetailDrawer({
                             }
                           }}
                           placeholder={t.drawer.addTagPlaceholder}
-                          className="h-6.5 w-36 rounded-md border border-zinc-200 bg-zinc-50 px-2 text-[11px] text-zinc-800 placeholder:text-zinc-400 focus:border-sky-500 focus:bg-white focus:outline-none dark:border-[#262C3B] dark:bg-[#0E1117] dark:text-zinc-200"
+                          className="h-6.5 w-36 rounded-md border border-[#1C1917]/[0.1] bg-[#FAF9F6] px-2 text-[11px] text-[#1C1917] placeholder:text-[#969088] focus:border-[#1C1917]/40 focus:bg-white focus:outline-none dark:border-white/[0.09] dark:bg-[#141413] dark:text-[#F2F1EE]"
                         />
                         {tagInput.trim() && (
                           <button
                             type="button"
                             onClick={() => handleAddTag(tagInput)}
-                            className="inline-flex h-6.5 items-center gap-0.5 rounded-md bg-zinc-900 px-2 text-[11px] font-medium text-white dark:bg-zinc-100 dark:text-zinc-900"
+                            className="inline-flex h-6.5 items-center gap-0.5 rounded-md bg-[#1C1917] px-2 text-[11px] font-medium text-[#F6F5F1] dark:bg-[#F2F1EE] dark:text-[#111110]"
                           >
                             <Plus className="h-3 w-3" />
                             <span>{t.drawer.addTagBtn}</span>
@@ -601,7 +587,7 @@ export function DetailDrawer({
                     </div>
                     {suggestedTags.length > 0 && (
                       <div className="mt-1.5 flex flex-wrap items-center gap-1">
-                        <span className="text-[10px] text-zinc-400">
+                        <span className="text-[10px] text-[#969088]">
                           {t.drawer.suggestedTags}:
                         </span>
                         {suggestedTags.map((st) => (
@@ -609,7 +595,7 @@ export function DetailDrawer({
                             key={st}
                             type="button"
                             onClick={() => handleAddTag(st)}
-                            className="rounded-full border border-dashed border-zinc-300 px-1.5 py-0.5 text-[10px] text-zinc-500 transition-colors hover:border-sky-400 hover:text-sky-600 dark:border-[#2A3040] dark:text-zinc-400 dark:hover:border-sky-400 dark:hover:text-sky-300"
+                            className="rounded-md border border-dashed border-[#1C1917]/[0.15] px-1.5 py-0.5 text-[10px] text-[#78716C] transition-colors hover:border-[#1C1917]/40 hover:text-[#1C1917] dark:border-white/[0.12] dark:text-[#8C8B85] dark:hover:border-white/[0.3] dark:hover:text-[#F2F1EE]"
                           >
                             +{st}
                           </button>
@@ -618,20 +604,19 @@ export function DetailDrawer({
                     )}
                   </div>
 
-                  {/* Notes + Follow-up Reminder Date */}
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_170px]">
                     <div>
                       <div className="flex items-center justify-between">
-                        <label className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
+                        <label className="text-[11px] font-medium text-[#78716C] dark:text-[#8C8B85]">
                           {t.drawer.notesLabel}
                         </label>
                         {notesState === 'saving' && (
-                          <span className="text-[10.5px] text-zinc-400">
+                          <span className="text-[10.5px] text-[#969088]">
                             {t.drawer.notesSaving}
                           </span>
                         )}
                         {notesState === 'saved' && (
-                          <span className="inline-flex items-center gap-0.5 text-[10.5px] text-emerald-600 dark:text-emerald-400">
+                          <span className="inline-flex items-center gap-0.5 text-[10.5px] text-[#15803D] dark:text-[#4ADE80]">
                             <Check className="h-3 w-3" />
                             {t.drawer.notesSaved}
                           </span>
@@ -646,12 +631,12 @@ export function DetailDrawer({
                           void commitNotes(notesDraft);
                         }}
                         placeholder={t.drawer.notesPlaceholder}
-                        className="mt-1 w-full resize-y rounded-md border border-zinc-200 bg-zinc-50/70 px-2.5 py-1.5 text-xs leading-relaxed text-zinc-800 placeholder:text-zinc-400 focus:border-sky-500 focus:bg-white focus:outline-none dark:border-[#262C3B] dark:bg-[#0E1117] dark:text-zinc-200 dark:placeholder:text-zinc-500"
+                        className="mt-1 w-full resize-y rounded-lg border border-[#1C1917]/[0.1] bg-[#FAF9F6] px-2.5 py-1.5 text-xs leading-relaxed text-[#1C1917] placeholder:text-[#969088] focus:border-[#1C1917]/40 focus:bg-white focus:outline-none dark:border-white/[0.09] dark:bg-[#141413] dark:text-[#F2F1EE] dark:placeholder:text-[#666560]"
                       />
                     </div>
 
                     <div>
-                      <label className="flex items-center gap-1 text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
+                      <label className="flex items-center gap-1 text-[11px] font-medium text-[#78716C] dark:text-[#8C8B85]">
                         <CalendarClock className="h-3 w-3" />
                         <span>{t.drawer.followUpDateLabel}</span>
                       </label>
@@ -660,14 +645,14 @@ export function DetailDrawer({
                           type="date"
                           value={followUpDateVal}
                           onChange={(e) => handleFollowUpChange(e.target.value)}
-                          className="h-8 w-full rounded-md border border-zinc-200 bg-zinc-50/70 px-2 font-mono text-xs text-zinc-800 focus:border-sky-500 focus:bg-white focus:outline-none dark:border-[#262C3B] dark:bg-[#0E1117] dark:text-zinc-200"
+                          className="h-8 w-full rounded-lg border border-[#1C1917]/[0.1] bg-[#FAF9F6] px-2 font-mono text-xs text-[#1C1917] focus:border-[#1C1917]/40 focus:bg-white focus:outline-none dark:border-white/[0.09] dark:bg-[#141413] dark:text-[#F2F1EE]"
                         />
                         {followUpDateVal && (
                           <button
                             type="button"
                             onClick={() => handleFollowUpChange('')}
                             title={t.drawer.clearDate}
-                            className="rounded p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                            className="rounded p-1.5 text-[#8C867E] hover:bg-[#1C1917]/[0.06] hover:text-[#1C1917] dark:hover:bg-white/[0.08] dark:hover:text-[#F2F1EE]"
                           >
                             <X className="h-3.5 w-3.5" />
                           </button>
@@ -680,8 +665,8 @@ export function DetailDrawer({
             </section>
           )}
 
-          {/* 4 Clean Tabs */}
-          <div className="mb-3.5 flex items-center gap-1 border-b border-zinc-200/80 dark:border-[#212633]">
+          {/* 4 Monochrome Editorial Tabs */}
+          <div className="mb-3.5 flex items-center gap-1 border-b border-[#1C1917]/[0.08] dark:border-white/[0.07]">
             {(
               [
                 {
@@ -720,14 +705,14 @@ export function DetailDrawer({
                   onClick={() => setActiveTab(id)}
                   className={`relative -mb-px inline-flex items-center gap-1.5 border-b-2 px-3 py-2 text-xs font-medium transition-colors ${
                     active
-                      ? 'border-zinc-900 text-zinc-900 dark:border-sky-400 dark:text-zinc-50'
-                      : 'border-transparent text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200'
+                      ? 'border-[#1C1917] text-[#1C1917] dark:border-[#F2F1EE] dark:text-[#F2F1EE]'
+                      : 'border-transparent text-[#78716C] hover:text-[#1C1917] dark:text-[#8C8B85] dark:hover:text-[#F2F1EE]'
                   }`}
                 >
                   <Icon className="h-3.5 w-3.5" />
                   <span>{label}</span>
                   {count !== null && count > 0 && (
-                    <span className="tabular-nums rounded-full bg-zinc-200/70 px-1.5 py-0.2 text-[10px] font-semibold text-zinc-600 dark:bg-[#1E2330] dark:text-zinc-400">
+                    <span className="tabular-nums font-mono text-[10.5px] opacity-65">
                       {count}
                     </span>
                   )}
@@ -736,14 +721,13 @@ export function DetailDrawer({
             })}
           </div>
 
-          {/* Tab Body */}
           {loading && !detail ? (
-            <div className="flex items-center justify-center gap-2 py-16 text-xs text-zinc-400">
+            <div className="flex items-center justify-center gap-2 py-16 text-xs text-[#8C867E]">
               <Loader2 className="h-4 w-4 animate-spin" />
               <span>{t.drawer.loadingDetail}</span>
             </div>
           ) : error && !detail ? (
-            <div className="rounded-lg border border-rose-200 bg-rose-50/70 p-4 text-xs text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
+            <div className="rounded-xl border border-[#DC2626]/25 bg-[#FEF2F2] p-4 text-xs text-[#B91C1C] dark:border-[#EF4444]/25 dark:bg-[#2A1616] dark:text-[#FCA5A5]">
               {t.drawer.errorDetail}: {error}
             </div>
           ) : detail ? (

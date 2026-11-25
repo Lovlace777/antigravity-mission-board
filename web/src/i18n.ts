@@ -70,6 +70,28 @@ export interface Dictionary {
     shortcutSearch: string;
     shortcutViews: string;
     shortcutClose: string;
+    desktopSection: string;
+    desktopAutoStart: string;
+    desktopAlwaysOnTop: string;
+    desktopShowWidget: string;
+  };
+  widget: {
+    allClear: string;
+    runningShort: (n: number) => string;
+    attentionShort: (n: number) => string;
+    expandTooltip: string;
+    collapseTooltip: string;
+    openBoardTooltip: string;
+    openFullBoard: string;
+    pinTopTooltip: string;
+    tabFocus: string;
+    tabRunning: string;
+    tabSwarm: string;
+    tabAll: string;
+    emptyFocus: string;
+    emptyTab: string;
+    markReadShort: string;
+    previewBadge: string;
   };
   theme: {
     light: string;
@@ -414,6 +436,28 @@ export const dictionaries: Record<Locale, Dictionary> = {
       shortcutSearch: '打开命令面板 / 搜索',
       shortcutViews: '切换看板 / 列表 / Swarm',
       shortcutClose: '关闭抽屉 / 面板',
+      desktopSection: '桌面客户端',
+      desktopAutoStart: '开机自动启动',
+      desktopAlwaysOnTop: '浮窗置顶',
+      desktopShowWidget: '显示桌面浮窗',
+    },
+    widget: {
+      allClear: '一切正常',
+      runningShort: (n) => `${n} 运行中`,
+      attentionShort: (n) => `${n} 待关注`,
+      expandTooltip: '展开浮窗面板',
+      collapseTooltip: '收起为胶囊',
+      openBoardTooltip: '打开完整看板',
+      openFullBoard: '打开完整看板',
+      pinTopTooltip: '浮窗始终置顶',
+      tabFocus: '焦点',
+      tabRunning: '运行中',
+      tabSwarm: 'Swarm',
+      tabAll: '全部',
+      emptyFocus: '当前没有运行中或待关注的对话',
+      emptyTab: '暂无符合条件的对话',
+      markReadShort: '已阅',
+      previewBadge: '浮窗预览',
     },
     theme: {
       light: '浅色',
@@ -768,6 +812,28 @@ export const dictionaries: Record<Locale, Dictionary> = {
       shortcutSearch: 'Command palette / Search',
       shortcutViews: 'Switch Kanban / Matrix / Swarms',
       shortcutClose: 'Close drawer / modal',
+      desktopSection: 'Desktop App',
+      desktopAutoStart: 'Launch at Login',
+      desktopAlwaysOnTop: 'Widget Always on Top',
+      desktopShowWidget: 'Show Floating Widget',
+    },
+    widget: {
+      allClear: 'All clear',
+      runningShort: (n) => `${n} running`,
+      attentionShort: (n) => `${n} attention`,
+      expandTooltip: 'Expand widget panel',
+      collapseTooltip: 'Collapse to pill',
+      openBoardTooltip: 'Open full Mission Board',
+      openFullBoard: 'Open Full Board',
+      pinTopTooltip: 'Keep widget always on top',
+      tabFocus: 'Focus',
+      tabRunning: 'Running',
+      tabSwarm: 'Swarm',
+      tabAll: 'All',
+      emptyFocus: 'Nothing running or waiting for you right now',
+      emptyTab: 'No conversations in this filter',
+      markReadShort: 'Read',
+      previewBadge: 'Widget Preview',
     },
     theme: {
       light: 'Light',

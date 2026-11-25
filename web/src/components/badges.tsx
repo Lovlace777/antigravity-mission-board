@@ -1,25 +1,19 @@
 import type { AttentionReason, LaneId, Priority, SwarmMemberState } from '@shared/types';
-import {
-  AlertCircle,
-  CalendarClock,
-  CircleDot,
-  FileCheck2,
-  HelpCircle,
-  MailWarning,
-} from 'lucide-react';
 import type { Dictionary } from '../i18n';
 
 export const LANE_ORDER: LaneId[] = ['running', 'attention', 'active', 'stale', 'archived'];
 
+/** Quiet 6px breathing sage-emerald signal dot (used ONLY when genuinely running) */
 export function LivePulseDot({ className = '' }: { className?: string }) {
   return (
-    <span className={`relative inline-flex h-2 w-2 shrink-0 ${className}`}>
-      <span className="live-pulse-ring absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-      <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+    <span className={`relative inline-flex h-1.5 w-1.5 shrink-0 ${className}`}>
+      <span className="live-pulse-ring absolute inline-flex h-full w-full rounded-full bg-emerald-500/75 dark:bg-emerald-400/70" />
+      <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#16A34A] dark:bg-[#22C55E]" />
     </span>
   );
 }
 
+/** Minimal typographic priority label (no loud boxed pill) */
 export function PriorityBadge({
   priority,
   compact = false,
@@ -29,14 +23,14 @@ export function PriorityBadge({
 }) {
   if (!priority) return null;
   const styles: Record<Exclude<Priority, null>, string> = {
-    p0: 'bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-600/20 dark:bg-rose-500/15 dark:text-rose-300 dark:ring-rose-400/25',
-    p1: 'bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20 dark:bg-amber-500/15 dark:text-amber-300 dark:ring-amber-400/25',
-    p2: 'bg-sky-50 text-sky-700 ring-1 ring-inset ring-sky-600/20 dark:bg-sky-500/15 dark:text-sky-300 dark:ring-sky-400/25',
+    p0: 'text-[#DC2626] dark:text-[#F87171]',
+    p1: 'text-[#B45309] dark:text-[#FBBF24]',
+    p2: 'text-[#78716C] dark:text-[#A1A09A]',
   };
   return (
     <span
-      className={`inline-flex items-center rounded font-mono font-semibold uppercase tracking-tight ${
-        compact ? 'px-1 py-0.5 text-[10px] leading-none' : 'px-1.5 py-0.5 text-[11px] leading-none'
+      className={`inline-flex items-center font-mono font-semibold uppercase tracking-tight ${
+        compact ? 'text-[10px] leading-none' : 'text-[11px] leading-none'
       } ${styles[priority]}`}
     >
       {priority.toUpperCase()}
@@ -44,6 +38,7 @@ export function PriorityBadge({
   );
 }
 
+/** Calm editorial lane indicator (whisper surface + tiny semantic dot) */
 export function LanePill({
   lane,
   t,
@@ -53,42 +48,19 @@ export function LanePill({
   t: Dictionary;
   isRunning?: boolean;
 }) {
-  const styles: Record<LaneId, string> = {
-    running:
-      'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20 dark:bg-emerald-500/12 dark:text-emerald-300 dark:ring-emerald-400/25',
-    attention:
-      'bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20 dark:bg-amber-500/12 dark:text-amber-300 dark:ring-amber-400/25',
-    active:
-      'bg-sky-50 text-sky-700 ring-1 ring-inset ring-sky-600/20 dark:bg-sky-500/12 dark:text-sky-300 dark:ring-sky-400/25',
-    stale:
-      'bg-zinc-100 text-zinc-600 ring-1 ring-inset ring-zinc-500/15 dark:bg-zinc-800/80 dark:text-zinc-400 dark:ring-zinc-600/30',
-    archived:
-      'bg-zinc-100/80 text-zinc-500 ring-1 ring-inset ring-zinc-500/15 dark:bg-zinc-900 dark:text-zinc-500 dark:ring-zinc-700/40',
-  };
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium whitespace-nowrap ${styles[lane]}`}
-    >
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-[#1C1917]/[0.08] bg-[#F4F2EC] px-2 py-0.5 text-[11px] font-medium whitespace-nowrap text-[#44403C] dark:border-white/[0.08] dark:bg-[#242421] dark:text-[#D6D3CD]">
       {lane === 'running' || isRunning ? (
         <LivePulseDot />
       ) : (
-        <span
-          className={`h-1.5 w-1.5 rounded-full ${
-            lane === 'attention'
-              ? 'bg-amber-500'
-              : lane === 'active'
-                ? 'bg-sky-500'
-                : lane === 'stale'
-                  ? 'bg-zinc-400'
-                  : 'bg-zinc-400/60'
-          }`}
-        />
+        <span className={`h-1.5 w-1.5 rounded-full ${laneAccentDot(lane)}`} />
       )}
       <span>{t.lanes[lane]}</span>
     </span>
   );
 }
 
+/** Restrained editorial attention tag (used in Drawer & Matrix, never stacked neon pills) */
 export function AttentionReasonBadge({
   reason,
   t,
@@ -96,48 +68,31 @@ export function AttentionReasonBadge({
   reason: AttentionReason;
   t: Dictionary;
 }) {
-  const config: Record<
-    AttentionReason,
-    { style: string; Icon: typeof AlertCircle }
-  > = {
-    error: {
-      style:
-        'bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-600/20 dark:bg-rose-500/14 dark:text-rose-300 dark:ring-rose-400/25',
-      Icon: AlertCircle,
-    },
-    needs_input: {
-      style:
-        'bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-600/25 dark:bg-amber-500/14 dark:text-amber-300 dark:ring-amber-400/25',
-      Icon: HelpCircle,
-    },
-    request_feedback: {
-      style:
-        'bg-sky-50 text-sky-700 ring-1 ring-inset ring-sky-600/20 dark:bg-sky-500/14 dark:text-sky-300 dark:ring-sky-400/25',
-      Icon: FileCheck2,
-    },
-    unread_update: {
-      style:
-        'bg-amber-50/90 text-amber-700 ring-1 ring-inset ring-amber-600/20 dark:bg-amber-500/12 dark:text-amber-300 dark:ring-amber-400/20',
-      Icon: CircleDot,
-    },
-    marked_as_unread: {
-      style:
-        'bg-orange-50 text-orange-700 ring-1 ring-inset ring-orange-600/20 dark:bg-orange-500/12 dark:text-orange-300 dark:ring-orange-400/25',
-      Icon: MailWarning,
-    },
-    follow_up_due: {
-      style:
-        'bg-rose-50/80 text-rose-700 ring-1 ring-inset ring-rose-600/20 dark:bg-rose-500/12 dark:text-rose-300 dark:ring-rose-400/25',
-      Icon: CalendarClock,
-    },
-  };
+  const isError = reason === 'error';
+  const isAmber =
+    reason === 'needs_input' ||
+    reason === 'request_feedback' ||
+    reason === 'unread_update' ||
+    reason === 'marked_as_unread' ||
+    reason === 'follow_up_due';
 
-  const { style, Icon } = config[reason];
+  const dotColor = isError
+    ? 'bg-[#DC2626] dark:bg-[#EF4444]'
+    : isAmber
+      ? 'bg-[#D97706] dark:bg-[#F59E0B]'
+      : 'bg-[#78716C]';
+
+  const textColor = isError
+    ? 'text-[#B91C1C] dark:text-[#FCA5A5]'
+    : isAmber
+      ? 'text-[#92400E] dark:text-[#FCD34D]'
+      : 'text-[#57534E] dark:text-[#A1A09A]';
+
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium leading-tight whitespace-nowrap ${style}`}
+      className={`inline-flex items-center gap-1.5 rounded-md border border-[#1C1917]/[0.07] bg-[#F7F5F0] px-1.5 py-0.5 text-[11px] font-medium leading-tight whitespace-nowrap dark:border-white/[0.07] dark:bg-[#22221F] ${textColor}`}
     >
-      <Icon className="h-3 w-3 shrink-0" />
+      <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${dotColor}`} />
       <span>{t.attentionReasons[reason]}</span>
     </span>
   );
@@ -153,36 +108,32 @@ export function SwarmStateBadge({
   t: Dictionary;
 }) {
   const effective: SwarmMemberState = isRunning ? 'working' : state;
-  const map: Record<SwarmMemberState, { label: string; style: string; dot: string }> = {
+  const map: Record<SwarmMemberState, { label: string; dot: string; text: string }> = {
     working: {
       label: t.swarmView.statusWorking,
-      style:
-        'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20 dark:bg-emerald-500/12 dark:text-emerald-300 dark:ring-emerald-400/25',
-      dot: 'bg-emerald-500',
+      dot: 'bg-[#16A34A] dark:bg-[#22C55E]',
+      text: 'text-[#15803D] dark:text-[#4ADE80]',
     },
     waiting: {
       label: t.swarmView.statusWaiting,
-      style:
-        'bg-sky-50 text-sky-700 ring-1 ring-inset ring-sky-600/20 dark:bg-sky-500/12 dark:text-sky-300 dark:ring-sky-400/25',
-      dot: 'bg-sky-500',
+      dot: 'bg-[#78716C] dark:bg-[#A1A09A]',
+      text: 'text-[#57534E] dark:text-[#D6D3CD]',
     },
     stopped: {
       label: t.swarmView.statusStopped,
-      style:
-        'bg-zinc-100 text-zinc-600 ring-1 ring-inset ring-zinc-500/20 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-600/30',
-      dot: 'bg-zinc-400',
+      dot: 'bg-[#A8A29E] dark:bg-[#666560]',
+      text: 'text-[#78716C] dark:text-[#8C8B85]',
     },
     killed: {
       label: t.swarmView.statusKilled,
-      style:
-        'bg-zinc-100/70 text-zinc-500 ring-1 ring-inset ring-zinc-500/15 dark:bg-zinc-900 dark:text-zinc-500 dark:ring-zinc-700/40',
-      dot: 'bg-zinc-400/60',
+      dot: 'bg-[#D6D3D1] dark:bg-[#494844]',
+      text: 'text-[#A8A29E] dark:text-[#666560]',
     },
   };
   const cfg = map[effective] ?? map.stopped;
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium whitespace-nowrap ${cfg.style}`}
+      className={`inline-flex items-center gap-1.5 text-[11px] font-medium whitespace-nowrap ${cfg.text}`}
     >
       {effective === 'working' ? (
         <LivePulseDot />
@@ -197,15 +148,15 @@ export function SwarmStateBadge({
 export function laneAccentDot(lane: LaneId): string {
   switch (lane) {
     case 'running':
-      return 'bg-emerald-500';
+      return 'bg-[#16A34A] dark:bg-[#22C55E]';
     case 'attention':
-      return 'bg-amber-500';
+      return 'bg-[#D97706] dark:bg-[#F59E0B]';
     case 'active':
-      return 'bg-sky-500';
+      return 'bg-[#57534E] dark:bg-[#A1A09A]';
     case 'stale':
-      return 'bg-zinc-400 dark:bg-zinc-500';
+      return 'bg-[#A8A29E] dark:bg-[#666560]';
     case 'archived':
-      return 'bg-zinc-300 dark:bg-zinc-600';
+      return 'bg-[#D6D3D1] dark:bg-[#44433F]';
   }
 }
 
@@ -214,4 +165,23 @@ export function priorityRank(priority: Priority): number {
   if (priority === 'p1') return 2;
   if (priority === 'p2') return 1;
   return 0;
+}
+
+/** Pick the single highest-priority human attention reason to display cleanly */
+export function primaryAttentionReason(
+  reasons: AttentionReason[],
+): AttentionReason | null {
+  if (reasons.length === 0) return null;
+  const order: AttentionReason[] = [
+    'error',
+    'needs_input',
+    'request_feedback',
+    'follow_up_due',
+    'marked_as_unread',
+    'unread_update',
+  ];
+  for (const r of order) {
+    if (reasons.includes(r)) return r;
+  }
+  return reasons[0];
 }

@@ -1,11 +1,4 @@
 import type { BoardStats } from '@shared/types';
-import {
-  Activity,
-  AlertTriangle,
-  Clock,
-  Cpu,
-  Network,
-} from 'lucide-react';
 import type { Dictionary } from '../i18n';
 import { formatCompactNumber, formatPercent } from '../utils';
 import { LivePulseDot } from './badges';
@@ -19,6 +12,10 @@ interface RadarStripProps {
   t: Dictionary;
 }
 
+/**
+ * Calm 40px Editorial Status Strip — replaces heavy 5-card KPI walls
+ * with a razor-clean, tactile horizontal telemetry strip.
+ */
 export function RadarStrip({
   stats,
   activeFilter,
@@ -30,228 +27,99 @@ export function RadarStrip({
   };
 
   const cachePct = formatPercent(stats.tokens.cacheHitRate);
-  const cacheWidth = Math.min(
-    100,
-    Math.max(
-      0,
-      Math.round(
-        (stats.tokens.cacheHitRate <= 1
-          ? stats.tokens.cacheHitRate * 100
-          : stats.tokens.cacheHitRate) || 0,
-      ),
-    ),
-  );
+
+  const btnBase =
+    'inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs transition-colors whitespace-nowrap';
+  const btnActive =
+    'bg-[#1C1917] text-[#F6F5F1] font-medium dark:bg-[#F2F1EE] dark:text-[#111110]';
+  const btnIdle =
+    'text-[#57534E] hover:bg-[#1C1917]/[0.05] hover:text-[#1C1917] dark:text-[#A1A09A] dark:hover:bg-white/[0.06] dark:hover:text-[#F2F1EE]';
 
   return (
     <section
       aria-label="Attention Radar"
-      className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5"
+      className="flex min-h-[40px] flex-wrap items-center justify-between gap-2 rounded-xl border border-[#1C1917]/[0.075] bg-white/85 px-2.5 py-1 shadow-[0_1px_2px_rgba(28,25,23,0.03)] dark:border-white/[0.065] dark:bg-[#171715]/90 dark:shadow-none"
     >
-      {/* 1. Running */}
-      <button
-        type="button"
-        onClick={() => toggle('running')}
-        className={`group relative flex items-center justify-between overflow-hidden rounded-xl border px-3.5 py-2.5 text-left transition-all duration-150 hover:-translate-y-[1px] ${
-          activeFilter === 'running'
-            ? 'border-emerald-500/60 bg-emerald-50/70 shadow-xs ring-2 ring-emerald-500/18 dark:border-emerald-400/50 dark:bg-emerald-500/10 dark:ring-emerald-400/20'
-            : 'border-zinc-200/85 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)] hover:border-zinc-300/90 hover:shadow-[0_4px_12px_-4px_rgba(15,23,42,0.07)] dark:border-[#212633] dark:bg-[#12151C] dark:shadow-none dark:hover:border-[#31394B]'
-        }`}
-      >
-        <span
-          className={`pointer-events-none absolute inset-x-0 top-0 h-[2px] transition-opacity ${
-            stats.runningCount > 0 || activeFilter === 'running'
-              ? 'bg-emerald-500/80 opacity-100'
-              : 'bg-emerald-500/40 opacity-0 group-hover:opacity-100'
-          }`}
-        />
-        <div className="min-w-0">
-          <div className="flex items-center gap-1.5 text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
-            {stats.runningCount > 0 ? (
-              <LivePulseDot />
-            ) : (
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500/45" />
-            )}
-            <span className="truncate">{t.radar.running}</span>
-          </div>
-          <div className="mt-1 flex items-baseline gap-2">
-            <span className="tabular-nums text-[22px] leading-none font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-              {stats.runningCount}
-            </span>
-            {activeFilter === 'running' && (
-              <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">
-                {t.radar.filterActive}
-              </span>
-            )}
-          </div>
-        </div>
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 ring-1 ring-inset ring-emerald-500/15 transition-transform group-hover:scale-105 dark:bg-emerald-500/12 dark:text-emerald-400 dark:ring-emerald-400/20">
-          <Activity className="h-4 w-4" />
-        </div>
-      </button>
-
-      {/* 2. Needs Attention */}
-      <button
-        type="button"
-        onClick={() => toggle('attention')}
-        className={`group relative flex items-center justify-between overflow-hidden rounded-xl border px-3.5 py-2.5 text-left transition-all duration-150 hover:-translate-y-[1px] ${
-          activeFilter === 'attention'
-            ? 'border-amber-500/70 bg-amber-50/70 shadow-xs ring-2 ring-amber-500/18 dark:border-amber-400/50 dark:bg-amber-500/10 dark:ring-amber-400/20'
-            : 'border-zinc-200/85 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)] hover:border-zinc-300/90 hover:shadow-[0_4px_12px_-4px_rgba(15,23,42,0.07)] dark:border-[#212633] dark:bg-[#12151C] dark:shadow-none dark:hover:border-[#31394B]'
-        }`}
-      >
-        <span
-          className={`pointer-events-none absolute inset-x-0 top-0 h-[2px] transition-opacity ${
-            stats.attentionCount > 0 || activeFilter === 'attention'
-              ? 'bg-amber-500/85 opacity-100'
-              : 'bg-amber-500/40 opacity-0 group-hover:opacity-100'
-          }`}
-        />
-        <div className="min-w-0">
-          <div className="flex items-center gap-1.5 text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
-            <span
-              className={`h-1.5 w-1.5 rounded-full ${
-                stats.attentionCount > 0 ? 'bg-amber-500' : 'bg-zinc-300 dark:bg-zinc-600'
-              }`}
-            />
-            <span className="truncate">{t.radar.attention}</span>
-          </div>
-          <div className="mt-1 flex items-baseline gap-2">
-            <span
-              className={`tabular-nums text-[22px] leading-none font-semibold tracking-tight ${
-                stats.attentionCount > 0
-                  ? 'text-amber-700 dark:text-amber-300'
-                  : 'text-zinc-900 dark:text-zinc-50'
-              }`}
-            >
-              {stats.attentionCount}
-            </span>
-            {activeFilter === 'attention' && (
-              <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300">
-                {t.radar.filterActive}
-              </span>
-            )}
-          </div>
-        </div>
-        <div
-          className={`flex h-8 w-8 items-center justify-center rounded-lg ring-1 ring-inset transition-transform group-hover:scale-105 ${
-            stats.attentionCount > 0
-              ? 'bg-amber-500/10 text-amber-600 ring-amber-500/20 dark:bg-amber-500/12 dark:text-amber-400 dark:ring-amber-400/20'
-              : 'bg-zinc-100 text-zinc-400 ring-zinc-500/10 dark:bg-zinc-800/80 dark:text-zinc-500 dark:ring-zinc-700/40'
-          }`}
+      {/* Left: Clickable editorial telemetry filters */}
+      <div className="flex flex-wrap items-center gap-1">
+        {/* Running */}
+        <button
+          type="button"
+          onClick={() => toggle('running')}
+          className={`${btnBase} ${activeFilter === 'running' ? btnActive : btnIdle}`}
         >
-          <AlertTriangle className="h-4 w-4" />
-        </div>
-      </button>
+          {stats.runningCount > 0 ? (
+            <LivePulseDot />
+          ) : (
+            <span className="h-1.5 w-1.5 rounded-full bg-[#A8A29E] dark:bg-[#666560]" />
+          )}
+          <span className="tabular-nums font-semibold">{stats.runningCount}</span>
+          <span>{t.radar.running}</span>
+        </button>
 
-      {/* 3. Active Swarms / Subagents */}
-      <button
-        type="button"
-        onClick={() => toggle('agents')}
-        className={`group relative flex items-center justify-between overflow-hidden rounded-xl border px-3.5 py-2.5 text-left transition-all duration-150 hover:-translate-y-[1px] ${
-          activeFilter === 'agents'
-            ? 'border-sky-500/60 bg-sky-50/70 shadow-xs ring-2 ring-sky-500/18 dark:border-sky-400/50 dark:bg-sky-500/10 dark:ring-sky-400/20'
-            : 'border-zinc-200/85 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)] hover:border-zinc-300/90 hover:shadow-[0_4px_12px_-4px_rgba(15,23,42,0.07)] dark:border-[#212633] dark:bg-[#12151C] dark:shadow-none dark:hover:border-[#31394B]'
-        }`}
-      >
-        <span
-          className={`pointer-events-none absolute inset-x-0 top-0 h-[2px] transition-opacity ${
-            stats.activeSwarmCount > 0 || activeFilter === 'agents'
-              ? 'bg-sky-500/80 opacity-100'
-              : 'bg-sky-500/40 opacity-0 group-hover:opacity-100'
-          }`}
-        />
-        <div className="min-w-0">
-          <div className="flex items-center gap-1.5 text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
-            <span className="h-1.5 w-1.5 rounded-full bg-sky-500/80" />
-            <span className="truncate">{t.radar.swarmsAndAgents}</span>
-          </div>
-          <div className="mt-1 flex items-baseline gap-1.5">
-            <span className="tabular-nums text-[22px] leading-none font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-              {stats.activeSwarmCount}
-            </span>
-            <span className="tabular-nums text-xs text-zinc-400 dark:text-zinc-500">
-              / {stats.activeAgentCount}
-            </span>
-            {activeFilter === 'agents' && (
-              <span className="rounded bg-sky-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-sky-700 dark:text-sky-300">
-                {t.radar.filterActive}
-              </span>
-            )}
-          </div>
-        </div>
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-500/10 text-sky-600 ring-1 ring-inset ring-sky-500/15 transition-transform group-hover:scale-105 dark:bg-sky-500/12 dark:text-sky-400 dark:ring-sky-400/20">
-          <Network className="h-4 w-4" />
-        </div>
-      </button>
+        <span className="h-3.5 w-px bg-[#1C1917]/[0.08] dark:bg-white/[0.08]" />
 
-      {/* 4. Stale */}
-      <button
-        type="button"
-        onClick={() => toggle('stale')}
-        className={`group relative flex items-center justify-between overflow-hidden rounded-xl border px-3.5 py-2.5 text-left transition-all duration-150 hover:-translate-y-[1px] ${
-          activeFilter === 'stale'
-            ? 'border-zinc-500/60 bg-zinc-100/80 shadow-xs ring-2 ring-zinc-500/15 dark:border-zinc-400/50 dark:bg-zinc-800/70 dark:ring-zinc-400/15'
-            : 'border-zinc-200/85 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)] hover:border-zinc-300/90 hover:shadow-[0_4px_12px_-4px_rgba(15,23,42,0.07)] dark:border-[#212633] dark:bg-[#12151C] dark:shadow-none dark:hover:border-[#31394B]'
-        }`}
-      >
-        <span
-          className={`pointer-events-none absolute inset-x-0 top-0 h-[2px] transition-opacity ${
-            activeFilter === 'stale'
-              ? 'bg-zinc-500 opacity-100'
-              : 'bg-zinc-400/50 opacity-0 group-hover:opacity-100'
-          }`}
-        />
-        <div className="min-w-0">
-          <div className="flex items-center gap-1.5 text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
-            <span className="h-1.5 w-1.5 rounded-full bg-zinc-400/70" />
-            <span className="truncate">{t.radar.stale}</span>
-          </div>
-          <div className="mt-1 flex items-baseline gap-2">
-            <span className="tabular-nums text-[22px] leading-none font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-              {stats.staleCount}
-            </span>
-            {activeFilter === 'stale' && (
-              <span className="rounded bg-zinc-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-700 dark:text-zinc-300">
-                {t.radar.filterActive}
-              </span>
-            )}
-          </div>
-        </div>
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-500/10 text-zinc-500 ring-1 ring-inset ring-zinc-500/10 transition-transform group-hover:scale-105 dark:bg-zinc-700/35 dark:text-zinc-400 dark:ring-zinc-600/30">
-          <Clock className="h-4 w-4" />
-        </div>
-      </button>
+        {/* Needs Attention */}
+        <button
+          type="button"
+          onClick={() => toggle('attention')}
+          className={`${btnBase} ${activeFilter === 'attention' ? btnActive : btnIdle}`}
+        >
+          <span
+            className={`h-1.5 w-1.5 rounded-full ${
+              stats.attentionCount > 0
+                ? 'bg-[#D97706] dark:bg-[#F59E0B]'
+                : 'bg-[#A8A29E] dark:bg-[#666560]'
+            }`}
+          />
+          <span className="tabular-nums font-semibold">{stats.attentionCount}</span>
+          <span>{t.radar.attention}</span>
+        </button>
 
-      {/* 5. Total Tokens & Cache Hit Rate */}
+        <span className="h-3.5 w-px bg-[#1C1917]/[0.08] dark:bg-white/[0.08]" />
+
+        {/* Active Swarms / Subagents */}
+        <button
+          type="button"
+          onClick={() => toggle('agents')}
+          className={`${btnBase} ${activeFilter === 'agents' ? btnActive : btnIdle}`}
+        >
+          <span className="tabular-nums font-semibold">{stats.activeSwarmCount}</span>
+          <span>Swarm</span>
+          {stats.activeAgentCount > 0 && (
+            <span className="tabular-nums opacity-65">
+              · {stats.activeAgentCount}
+            </span>
+          )}
+        </button>
+
+        <span className="h-3.5 w-px bg-[#1C1917]/[0.08] dark:bg-white/[0.08]" />
+
+        {/* Stale */}
+        <button
+          type="button"
+          onClick={() => toggle('stale')}
+          className={`${btnBase} ${activeFilter === 'stale' ? btnActive : btnIdle}`}
+        >
+          <span className="tabular-nums font-semibold">{stats.staleCount}</span>
+          <span>{t.radar.stale}</span>
+        </button>
+      </div>
+
+      {/* Right: Quiet token & cache telemetry */}
       <button
         type="button"
         onClick={() => onToggleFilter(null)}
-        className="group relative col-span-2 flex items-center justify-between overflow-hidden rounded-xl border border-zinc-200/85 bg-white px-3.5 py-2.5 text-left shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-all duration-150 hover:-translate-y-[1px] hover:border-zinc-300/90 hover:shadow-[0_4px_12px_-4px_rgba(15,23,42,0.07)] sm:col-span-1 dark:border-[#212633] dark:bg-[#12151C] dark:shadow-none dark:hover:border-[#31394B]"
         title={`${t.radar.totalConversations}: ${stats.total}`}
+        className="tabular-nums inline-flex items-center gap-2 rounded-lg px-2 py-1 text-[11.5px] text-[#78716C] transition-colors hover:text-[#1C1917] dark:text-[#8C8B85] dark:hover:text-[#F2F1EE]"
       >
-        <span className="pointer-events-none absolute inset-x-0 top-0 h-[2px] bg-slate-400/50 opacity-0 transition-opacity group-hover:opacity-100 dark:bg-slate-500/50" />
-        <div className="min-w-0 flex-1 pr-2">
-          <div className="flex items-center justify-between text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
-            <span className="truncate">{t.radar.tokensAndCache}</span>
-          </div>
-          <div className="mt-1 flex items-baseline gap-2">
-            <span className="tabular-nums text-[22px] leading-none font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-              {formatCompactNumber(stats.tokens.totalTokens)}
-            </span>
-            <span className="tabular-nums rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-500/14 dark:text-emerald-300">
-              {cachePct} {t.radar.cacheHit}
-            </span>
-          </div>
-          <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-[#1C212E]">
-            <div
-              className="h-full rounded-full bg-emerald-500/80 transition-all duration-300"
-              style={{ width: `${cacheWidth}%` }}
-            />
-          </div>
-        </div>
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-500/10 text-zinc-500 ring-1 ring-inset ring-zinc-500/10 dark:bg-zinc-700/35 dark:text-zinc-400 dark:ring-zinc-600/30">
-          <Cpu className="h-4 w-4" />
-        </div>
+        <span className="font-mono font-medium text-[#44403C] dark:text-[#D6D3CD]">
+          {formatCompactNumber(stats.tokens.totalTokens)}
+        </span>
+        <span>tokens</span>
+        <span className="opacity-40">·</span>
+        <span className="font-mono">{cachePct}</span>
+        <span className="hidden sm:inline">{t.radar.cacheHit}</span>
       </button>
     </section>
   );

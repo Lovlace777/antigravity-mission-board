@@ -43,7 +43,6 @@ function sortLaneCards(
       return Date.parse(b.lastModifiedAt) - Date.parse(a.lastModifiedAt);
     }
 
-    // 'smart': priority -> error/pending decision urgency -> recent
     const pDiff = priorityRank(b.overlay.priority) - priorityRank(a.overlay.priority);
     if (pDiff !== 0) return pDiff;
     const urgency = (c: ConversationCardData) =>
@@ -146,9 +145,9 @@ export function KanbanBoard({
   const archivedCards = grouped.archived;
 
   return (
-    <div className="flex min-h-[calc(100vh-230px)] items-stretch gap-3 overflow-x-auto pb-4">
-      {/* 4 Active Columns */}
-      <div className="grid min-w-[1040px] flex-1 grid-cols-4 gap-3">
+    <div className="flex min-h-[calc(100vh-195px)] items-stretch gap-3.5 overflow-x-auto pb-4">
+      {/* 4 Active Editorial Column Wells */}
+      <div className="grid min-w-[1040px] flex-1 grid-cols-4 gap-3.5">
         {ACTIVE_LANES.map((lane) => {
           const cards = grouped[lane];
           const isDropTarget = dragOverLane === lane;
@@ -164,60 +163,57 @@ export function KanbanBoard({
               }}
               onDrop={(e) => handleDrop(e, lane)}
               aria-label={t.lanes[lane]}
-              className={`flex flex-col rounded-xl border transition-colors ${
+              className={`flex flex-col rounded-2xl border transition-colors ${
                 isDropTarget
-                  ? 'border-dashed border-sky-500 bg-sky-50/60 dark:border-sky-400 dark:bg-sky-500/8'
-                  : 'border-zinc-200/75 bg-zinc-100/50 dark:border-[#1D2230] dark:bg-[#0E1117]/85'
+                  ? 'border-dashed border-[#1C1917]/40 bg-[#EAE6DE] dark:border-[#F2F1EE]/40 dark:bg-[#1E1E1C]'
+                  : 'border-[#1C1917]/[0.05] bg-[#EFECE6]/70 dark:border-white/[0.045] dark:bg-[#171715]'
               }`}
             >
-              {/* Column Header */}
+              {/* Quiet Column Header */}
               <div
-                className="flex items-center justify-between gap-2 border-b border-zinc-200/60 px-3 py-2.5 dark:border-[#1D2230]"
+                className="flex items-center justify-between gap-2 px-3.5 pt-3 pb-2"
                 title={laneDescription(lane)}
               >
                 <div className="flex min-w-0 items-center gap-2">
                   {lane === 'running' && cards.length > 0 ? (
                     <LivePulseDot />
                   ) : (
-                    <span className={`h-2 w-2 shrink-0 rounded-full ${laneAccentDot(lane)}`} />
+                    <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${laneAccentDot(lane)}`} />
                   )}
-                  <h2 className="truncate text-xs font-semibold tracking-tight text-zinc-800 dark:text-zinc-200">
+                  <h2 className="truncate text-xs font-semibold tracking-[-0.01em] text-[#44403C] dark:text-[#D6D3CD]">
                     {t.lanes[lane]}
                   </h2>
-                </div>
-
-                <div className="flex shrink-0 items-center gap-1.5">
-                  {lane === 'attention' && cards.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => onMarkAllAttentionRead(cards)}
-                      className="inline-flex items-center gap-1 rounded-md border border-zinc-200/80 bg-white px-2 py-0.5 text-[10.5px] font-medium whitespace-nowrap text-zinc-600 transition-colors hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700 dark:border-[#283042] dark:bg-[#161B25] dark:text-zinc-300 dark:hover:border-emerald-500/40 dark:hover:bg-emerald-500/15 dark:hover:text-emerald-300"
-                    >
-                      <CheckCheck className="h-3 w-3" />
-                      <span>{t.lanes.markAllRead}</span>
-                    </button>
-                  )}
-
-                  <span className="tabular-nums rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold text-zinc-600 ring-1 ring-zinc-200/80 dark:bg-[#171B24] dark:text-zinc-400 dark:ring-[#262C3B]">
+                  <span className="tabular-nums font-mono text-[11px] text-[#969088] dark:text-[#6E6D68]">
                     {cards.length}
                   </span>
                 </div>
+
+                {lane === 'attention' && cards.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => onMarkAllAttentionRead(cards)}
+                    className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium whitespace-nowrap text-[#57534E] transition-colors hover:bg-[#1C1917]/[0.06] hover:text-[#1C1917] dark:text-[#9F9E98] dark:hover:bg-white/[0.07] dark:hover:text-[#F2F1EE]"
+                  >
+                    <CheckCheck className="h-3 w-3" />
+                    <span>{t.lanes.markAllRead}</span>
+                  </button>
+                )}
               </div>
 
               {/* Cards Stack */}
               <div
-                className={`flex flex-1 flex-col overflow-y-auto ${
-                  density === 'compact' ? 'gap-1.5 p-2' : 'gap-2.5 p-2.5'
+                className={`flex flex-1 flex-col overflow-y-auto px-2.5 pb-2.5 ${
+                  density === 'compact' ? 'gap-2' : 'gap-2.5'
                 }`}
               >
                 {isDropTarget && (
-                  <div className="rounded-lg border border-dashed border-sky-400 bg-sky-50/70 py-2 text-center text-[11px] font-medium text-sky-700 dark:border-sky-500/60 dark:bg-sky-500/10 dark:text-sky-300">
+                  <div className="rounded-xl border border-dashed border-[#1C1917]/30 bg-white/70 py-2 text-center text-[11px] font-medium text-[#44403C] dark:border-white/30 dark:bg-[#222220] dark:text-[#D6D3CD]">
                     {t.lanes.dropHere}
                   </div>
                 )}
 
                 {cards.length === 0 ? (
-                  <div className="flex flex-1 flex-col items-center justify-center rounded-lg border border-dashed border-zinc-200/80 py-10 text-center text-xs text-zinc-400 dark:border-[#212633] dark:text-zinc-600">
+                  <div className="flex flex-1 flex-col items-center justify-center rounded-xl border border-dashed border-[#1C1917]/[0.08] py-10 text-center text-xs text-[#A8A29E] dark:border-white/[0.06] dark:text-[#575652]">
                     <span>{t.lanes.emptyColumn}</span>
                   </div>
                 ) : (
@@ -245,7 +241,7 @@ export function KanbanBoard({
         })}
       </div>
 
-      {/* 5th Column: Archived (Collapsible narrow rail by default) */}
+      {/* 5th Column: Archived (Quiet collapsible narrow rail by default) */}
       {archivedExpanded ? (
         <section
           onDragOver={(e) => handleDragOver(e, 'archived')}
@@ -256,19 +252,19 @@ export function KanbanBoard({
           }}
           onDrop={(e) => handleDrop(e, 'archived')}
           aria-label={t.lanes.archived}
-          className={`flex w-[300px] shrink-0 flex-col rounded-xl border transition-all ${
+          className={`flex w-[296px] shrink-0 flex-col rounded-2xl border transition-all ${
             dragOverLane === 'archived'
-              ? 'border-dashed border-sky-500 bg-sky-50/60 dark:border-sky-400 dark:bg-sky-500/8'
-              : 'border-zinc-200/75 bg-zinc-100/40 dark:border-[#1D2230] dark:bg-[#0D1016]'
+              ? 'border-dashed border-[#1C1917]/40 bg-[#EAE6DE] dark:border-[#F2F1EE]/40 dark:bg-[#1E1E1C]'
+              : 'border-[#1C1917]/[0.05] bg-[#EFECE6]/55 dark:border-white/[0.045] dark:bg-[#151513]'
           }`}
         >
-          <div className="flex items-center justify-between border-b border-zinc-200/60 px-3 py-2.5 dark:border-[#1D2230]">
+          <div className="flex items-center justify-between px-3.5 pt-3 pb-2">
             <div className="flex items-center gap-2">
-              <Archive className="h-3.5 w-3.5 text-zinc-400" />
-              <h2 className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">
+              <Archive className="h-3.5 w-3.5 text-[#8C867E]" />
+              <h2 className="text-xs font-semibold text-[#57534E] dark:text-[#9F9E98]">
                 {t.lanes.archived}
               </h2>
-              <span className="tabular-nums rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold text-zinc-500 ring-1 ring-zinc-200/80 dark:bg-[#171B24] dark:text-zinc-400 dark:ring-[#262C3B]">
+              <span className="tabular-nums font-mono text-[11px] text-[#969088] dark:text-[#666560]">
                 {archivedCards.length}
               </span>
             </div>
@@ -276,23 +272,23 @@ export function KanbanBoard({
               type="button"
               onClick={() => setArchivedExpanded(false)}
               title={t.lanes.collapseArchived}
-              className="rounded p-1 text-zinc-400 transition-colors hover:bg-zinc-200/60 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+              className="rounded-md p-1 text-[#8C867E] transition-colors hover:bg-[#1C1917]/[0.06] hover:text-[#1C1917] dark:hover:bg-white/[0.08] dark:hover:text-[#F2F1EE]"
             >
               <ChevronRight className="h-3.5 w-3.5" />
             </button>
           </div>
           <div
-            className={`flex flex-1 flex-col overflow-y-auto ${
-              density === 'compact' ? 'gap-1.5 p-2' : 'gap-2.5 p-2.5'
+            className={`flex flex-1 flex-col overflow-y-auto px-2.5 pb-2.5 ${
+              density === 'compact' ? 'gap-2' : 'gap-2.5'
             }`}
           >
             {dragOverLane === 'archived' && (
-              <div className="rounded-lg border border-dashed border-sky-400 bg-sky-50/70 py-2 text-center text-[11px] font-medium text-sky-700 dark:border-sky-500/60 dark:bg-sky-500/10 dark:text-sky-300">
+              <div className="rounded-xl border border-dashed border-[#1C1917]/30 bg-white/70 py-2 text-center text-[11px] font-medium text-[#44403C] dark:border-white/30 dark:bg-[#222220] dark:text-[#D6D3CD]">
                 {t.lanes.dropHere}
               </div>
             )}
             {archivedCards.length === 0 ? (
-              <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-zinc-200/80 py-10 text-xs text-zinc-400 dark:border-[#212633] dark:text-zinc-600">
+              <div className="flex flex-1 items-center justify-center rounded-xl border border-dashed border-[#1C1917]/[0.08] py-10 text-xs text-[#A8A29E] dark:border-white/[0.06] dark:text-[#575652]">
                 {t.lanes.emptyColumn}
               </div>
             ) : (
@@ -325,21 +321,21 @@ export function KanbanBoard({
             }
           }}
           onDrop={(e) => handleDrop(e, 'archived')}
-          className={`flex w-11 shrink-0 flex-col items-center rounded-xl border py-3 transition-all ${
+          className={`flex w-11 shrink-0 flex-col items-center rounded-2xl border py-3 transition-all ${
             dragOverLane === 'archived'
-              ? 'w-14 border-dashed border-sky-500 bg-sky-50/70 dark:border-sky-400 dark:bg-sky-500/12'
-              : 'border-zinc-200/75 bg-zinc-100/45 hover:border-zinc-300 hover:bg-zinc-100/80 dark:border-[#1D2230] dark:bg-[#0D1016] dark:hover:border-[#2E3647]'
+              ? 'w-14 border-dashed border-[#1C1917]/40 bg-[#EAE6DE] dark:border-[#F2F1EE]/40 dark:bg-[#1E1E1C]'
+              : 'border-[#1C1917]/[0.05] bg-[#EFECE6]/55 hover:border-[#1C1917]/[0.12] hover:bg-[#EAE6DE]/80 dark:border-white/[0.045] dark:bg-[#151513] dark:hover:border-white/[0.1] dark:hover:bg-[#1A1A18]'
           }`}
         >
           <button
             type="button"
             onClick={() => setArchivedExpanded(true)}
             title={t.lanes.expandArchived}
-            className="flex h-full w-full flex-col items-center gap-3 text-zinc-500 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+            className="flex h-full w-full flex-col items-center gap-3 text-[#78716C] transition-colors hover:text-[#1C1917] dark:text-[#787771] dark:hover:text-[#F2F1EE]"
           >
             <ChevronLeft className="h-4 w-4 shrink-0" />
             <Archive className="h-3.5 w-3.5 shrink-0" />
-            <span className="tabular-nums rounded-full bg-white px-1.5 py-0.5 text-[10px] font-semibold text-zinc-600 ring-1 ring-zinc-200/80 dark:bg-[#171B24] dark:text-zinc-400 dark:ring-[#262C3B]">
+            <span className="tabular-nums font-mono text-[11px] font-medium">
               {archivedCards.length}
             </span>
             <span

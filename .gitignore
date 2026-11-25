@@ -1,10 +1,13 @@
 # Dependencies
 node_modules/
+desktop/node_modules/
 
 # Build outputs
 dist/
 server/dist/
 web/dist/
+desktop/dist/
+desktop/release/
 
 # Local SQLite databases & journals
 *.db

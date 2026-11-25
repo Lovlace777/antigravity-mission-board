@@ -8,6 +8,10 @@
     <script>
       (function () {
         try {
+          const params = new URLSearchParams(window.location.search);
+          if (params.get('mode') === 'widget') {
+            document.documentElement.classList.add('widget-mode');
+          }
           const saved = localStorage.getItem('agmb_theme');
           const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
           const theme = saved === 'light' || saved === 'dark' ? saved : (prefersDark ? 'dark' : 'light');
@@ -16,7 +20,7 @@
       })();
     </script>
   </head>
-  <body class="bg-[#F6F7F9] text-zinc-900 antialiased selection:bg-sky-500/20 selection:text-sky-900 dark:bg-[#0A0C10] dark:text-zinc-100 dark:selection:bg-sky-400/25 dark:selection:text-sky-100">
+  <body class="bg-[#F6F5F1] text-[#1C1917] antialiased selection:bg-[#1C1917]/15 selection:text-[#1C1917] dark:bg-[#111110] dark:text-[#F2F1EE] dark:selection:bg-[#F2F1EE]/20 dark:selection:text-[#F2F1EE]">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

@@ -1,0 +1,28 @@
+{
+  "name": "antigravity-mission-board-desktop",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Zero-terminal native Desktop Floating Widget & System Tray shell for Antigravity Mission Board",
+  "main": "src/main.cjs",
+  "author": "Antigravity Mission Board",
+  "license": "MIT",
+  "scripts": {
+    "postinstall": "install-electron",
+    "start": "node scripts/run-electron.cjs",
+    "start:demo": "node scripts/run-electron.cjs --demo",
+    "check": "node --check src/main.cjs && node --check src/preload.cjs && node --check scripts/run-electron.cjs",
+    "icons": "python scripts/generate-icons.py",
+    "install:shortcut": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-windows-shortcut.ps1",
+    "uninstall:shortcut": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/uninstall-windows-shortcut.ps1",
+    "dist": "npx --yes electron-builder --config electron-builder.yml",
+    "dist:win": "npx --yes electron-builder --win --config electron-builder.yml",
+    "dist:mac": "npx --yes electron-builder --mac --config electron-builder.yml",
+    "dist:linux": "npx --yes electron-builder --linux --config electron-builder.yml"
+  },
+  "devDependencies": {
+    "electron": "^45.5.0"
+  },
+  "dependencies": {
+    "antigravity-mission-board": "file:.."
+  }
+}
