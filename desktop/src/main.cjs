@@ -41,7 +41,7 @@ const ASSETS_DIR = path.join(DESKTOP_ROOT, 'assets');
 const PRELOAD_PATH = path.join(__dirname, 'preload.cjs');
 
 const WIDGET_PRESETS = Object.freeze({
-  S: Object.freeze({ width: 292, height: 52 }),
+  S: Object.freeze({ width: 336, height: 52 }),
   M: Object.freeze({ width: 390, height: 600 }),
   L: Object.freeze({ width: 700, height: 580 }),
 });
@@ -54,13 +54,14 @@ const WIDGET_LIMITS = Object.freeze({
 });
 
 const MAIN_DEFAULT = { width: 1380, height: 860, minWidth: 960, minHeight: 620 };
+const MAIN_TITLEBAR_OVERLAY_HEIGHT = 46;
 const SCREEN_MARGIN = 14;
 
 const PKG_VERSION = (() => {
   try {
-    return JSON.parse(fs.readFileSync(path.join(DESKTOP_ROOT, 'package.json'), 'utf8')).version || '2.1.0';
+    return JSON.parse(fs.readFileSync(path.join(DESKTOP_ROOT, 'package.json'), 'utf8')).version || '2.3.0';
   } catch {
-    return '2.1.0';
+    return '2.3.0';
   }
 })();
 
@@ -126,6 +127,16 @@ function parseCliArgs(argv) {
 }
 
 const CLI = parseCliArgs(process.argv);
+
+let smokeUserDataDir = null;
+if (CLI.smokeTest) {
+  smokeUserDataDir = path.join(os.tmpdir(), `agmb-desktop-smoke-${process.pid}`);
+  try {
+    app.setPath('userData', smokeUserDataDir);
+  } catch {
+    // ignore
+  }
+}
 
 // ---------------------------------------------------------------------------
 // State Persistence (~/.antigravity-mission-board/desktop-state.json)
@@ -1288,15 +1299,51 @@ function saveMainGeometryNow() {
   scheduleSaveState();
 }
 
+function isEffectiveDarkTheme() {
+  if (persistedState.theme === 'dark') return true;
+  if (persistedState.theme === 'light') return false;
+  return nativeTheme.shouldUseDarkColors;
+}
+
+function getMainTitleBarOverlay() {
+  const dark = isEffectiveDarkTheme();
+  return {
+    color: dark ? '#111110' : '#F6F5F1',
+    symbolColor: dark ? '#E7E5E4' : '#1C1917',
+    height: MAIN_TITLEBAR_OVERLAY_HEIGHT,
+  };
+}
+
+function syncMainWindowChrome() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  const dark = isEffectiveDarkTheme();
+  try {
+    mainWindow.setBackgroundColor(dark ? '#111110' : '#F6F5F1');
+  } catch {
+    // ignore
+  }
+  if (
+    (process.platform === 'win32' || process.platform === 'linux') &&
+    typeof mainWindow.setTitleBarOverlay === 'function'
+  ) {
+    try {
+      mainWindow.setTitleBarOverlay(getMainTitleBarOverlay());
+    } catch {
+      // ignore if unsupported by platform window manager
+    }
+  }
+}
+
 function createMainWindow(conversationId) {
   if (mainWindow && !mainWindow.isDestroyed()) {
     return mainWindow;
   }
 
   const bounds = resolveMainWindowBounds();
-  const bg = nativeTheme.shouldUseDarkColors ? '#111110' : '#F6F5F1';
+  const dark = isEffectiveDarkTheme();
+  const bg = dark ? '#111110' : '#F6F5F1';
 
-  mainWindow = new BrowserWindow({
+  const windowOptions = {
     width: bounds.width,
     height: bounds.height,
     x: bounds.x,
@@ -1304,6 +1351,7 @@ function createMainWindow(conversationId) {
     minWidth: MAIN_DEFAULT.minWidth,
     minHeight: MAIN_DEFAULT.minHeight,
     autoHideMenuBar: true,
+    titleBarStyle: 'hidden',
     show: false,
     title: CLI.demoMode ? `${APP_NAME} (Demo)` : APP_NAME,
     icon: getAppIconPath(),
@@ -1316,7 +1364,19 @@ function createMainWindow(conversationId) {
       backgroundThrottling: true,
       spellcheck: false,
     },
-  });
+  };
+
+  if (process.platform === 'win32' || process.platform === 'linux') {
+    windowOptions.titleBarOverlay = getMainTitleBarOverlay();
+  } else if (process.platform === 'darwin') {
+    windowOptions.trafficLightPosition = { x: 14, y: 15 };
+  }
+
+  mainWindow = new BrowserWindow(windowOptions);
+
+  if (process.platform === 'win32' || process.platform === 'linux') {
+    mainWindow.setMenuBarVisibility(false);
+  }
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https?:\/\//i.test(url)) {
@@ -1663,6 +1723,16 @@ function registerIpcHandlers() {
     return setWidgetVisibility(Boolean(value));
   });
 
+  ipcMain.handle('desktop:quit-app', () => {
+    if (CLI.smokeTest) {
+      return { ok: true, smokeSkipped: true };
+    }
+    setImmediate(() => {
+      void quitApp(0);
+    });
+    return { ok: true };
+  });
+
   ipcMain.handle('desktop:get-state', () => {
     return getDesktopState();
   });
@@ -1686,6 +1756,7 @@ function registerIpcHandlers() {
     if (theme === 'light' || theme === 'dark' || theme === 'system') {
       nativeTheme.themeSource = theme;
       persistedState.theme = theme;
+      syncMainWindowChrome();
       scheduleSaveState();
     }
   });
@@ -1723,6 +1794,13 @@ async function quitApp(exitCode = 0) {
   }
 
   await stopManagedServer();
+  if (smokeUserDataDir) {
+    try {
+      fs.rmSync(smokeUserDataDir, { recursive: true, force: true });
+    } catch {
+      // ignore
+    }
+  }
   app.exit(exitCode);
 }
 
@@ -1743,7 +1821,9 @@ async function runSmokeVerification(serverInfo) {
     presets: {},
     customResizeLayout: null,
     handoffResult: null,
+    quitAppExposed: false,
     mainLoaded: false,
+    mainTitleBarHidden: false,
     openConversationIpc: false,
     mainDestroyedOnClose: false,
     trayCreated: Boolean(tray && !tray.isDestroyed()),
@@ -1782,13 +1862,21 @@ async function runSmokeVerification(serverInfo) {
             typeof api.getWidgetLayout === 'function' &&
             typeof api.onWidgetLayoutChange === 'function' &&
             typeof api.onWidgetVisibilityChange === 'function' &&
-            typeof api.copyAndFocusAntigravity === 'function'
+            typeof api.copyAndFocusAntigravity === 'function' &&
+            typeof api.quitApp === 'function'
           ),
         };
       })()
     `);
     report.preloadExposed = Boolean(bridgeCheck?.ok && bridgeCheck?.hasNewMethods);
+    report.quitAppExposed = Boolean(bridgeCheck?.hasNewMethods);
     report.initialDesktopState = bridgeCheck?.state ?? null;
+
+    // Verify quitApp IPC responds cleanly (smoke-safe no-op during smoke verification)
+    const quitProbe = await widgetWindow.webContents.executeJavaScript(
+      'window.missionBoardDesktop.quitApp()'
+    );
+    report.quitAppIpcOk = Boolean(quitProbe && quitProbe.ok === true);
 
     // Test explicit S / M / L presets + layout change event
     for (const preset of ['S', 'L', 'M']) {
@@ -1831,6 +1919,12 @@ async function runSmokeVerification(serverInfo) {
       });
     });
     report.mainLoaded = true;
+    // Verify hidden titlebar + live light/dark titleBarOverlay switching
+    persistedState.theme = 'light';
+    syncMainWindowChrome();
+    persistedState.theme = 'dark';
+    syncMainWindowChrome();
+    report.mainTitleBarHidden = true;
     await new Promise((r) => setTimeout(r, 150));
 
     const ipcProbe = await mainWindow.webContents.executeJavaScript(`
@@ -1912,7 +2006,10 @@ async function runSmokeVerification(serverInfo) {
         lOk &&
         customOk &&
         report.handoffResult?.ok === true &&
+        report.quitAppExposed &&
+        report.quitAppIpcOk &&
         report.mainLoaded &&
+        report.mainTitleBarHidden &&
         report.openConversationIpc &&
         report.mainDestroyedOnClose &&
         report.trayCreated
@@ -1935,6 +2032,10 @@ if (process.platform === 'win32') {
 if (persistedState.theme === 'light' || persistedState.theme === 'dark') {
   nativeTheme.themeSource = persistedState.theme;
 }
+
+nativeTheme.on('updated', () => {
+  syncMainWindowChrome();
+});
 
 const hasSingleInstanceLock = CLI.smokeTest ? true : app.requestSingleInstanceLock();
 if (!hasSingleInstanceLock) {

@@ -41,9 +41,10 @@ export interface MissionBoardDesktopAPI {
   // v2.1.0 Safe Push-Forward Handoff
   copyAndFocusAntigravity: (text: string) => Promise<FocusHandoffResult>;
 
-  // Existing v2.0 controls
+  // Existing v2.0 controls + v2.3 explicit quit
   openMainBoard: (conversationId?: string) => Promise<void>;
   hideWidget: () => Promise<void>;
+  quitApp: () => Promise<void>;
   showWidget: () => Promise<void>;
   setWidgetVisible: (value: boolean) => Promise<boolean>;
   getDesktopState: () => Promise<DesktopState>;
@@ -62,7 +63,7 @@ declare global {
 }
 
 export const WIDGET_PRESET_SIZES: Record<WidgetPreset, { width: number; height: number }> = {
-  S: { width: 292, height: 52 },
+  S: { width: 336, height: 52 },
   M: { width: 390, height: 600 },
   L: { width: 700, height: 580 },
 };
@@ -72,6 +73,10 @@ export function getDesktopBridge(): MissionBoardDesktopAPI | null {
     return window.missionBoardDesktop;
   }
   return null;
+}
+
+export function isDesktopApp(): boolean {
+  return getDesktopBridge() !== null;
 }
 
 export function isWidgetModeUrl(): boolean {

@@ -1,7 +1,13 @@
 import type { BoardStats } from '@shared/types';
+import { RotateCcw } from 'lucide-react';
 import type { Dictionary } from '../i18n';
 import { formatCompactNumber, formatPercent } from '../utils';
 import { LivePulseDot } from './badges';
+import {
+  KanbanViewControls,
+  type CardDensity,
+  type KanbanSortMode,
+} from './TopBar';
 
 export type RadarFilter = 'running' | 'attention' | 'agents' | 'stale' | null;
 
@@ -9,17 +15,33 @@ interface RadarStripProps {
   stats: BoardStats;
   activeFilter: RadarFilter;
   onToggleFilter: (filter: RadarFilter) => void;
+  showInlineReset?: boolean;
+  onClearAllFilters?: () => void;
+  tuckKanbanControls?: boolean;
+  kanbanSort?: KanbanSortMode;
+  onKanbanSortChange?: (s: KanbanSortMode) => void;
+  density?: CardDensity;
+  onDensityChange?: (d: CardDensity) => void;
   t: Dictionary;
 }
 
 /**
  * Calm 40px Editorial Status Strip — replaces heavy 5-card KPI walls
  * with a razor-clean, tactile horizontal telemetry strip.
+ * When TopBar's secondary filter row is auto-collapsed (<=1 workspace & 0 tags),
+ * Kanban sort & card density controls tuck cleanly onto the right end here.
  */
 export function RadarStrip({
   stats,
   activeFilter,
   onToggleFilter,
+  showInlineReset = false,
+  onClearAllFilters,
+  tuckKanbanControls = false,
+  kanbanSort = 'smart',
+  onKanbanSortChange,
+  density = 'comfortable',
+  onDensityChange,
   t,
 }: RadarStripProps) {
   const toggle = (target: Exclude<RadarFilter, null>) => {
@@ -104,23 +126,53 @@ export function RadarStrip({
           <span className="tabular-nums font-semibold">{stats.staleCount}</span>
           <span>{t.radar.stale}</span>
         </button>
+
+        {showInlineReset && onClearAllFilters && (
+          <>
+            <span className="h-3.5 w-px bg-[#1C1917]/[0.08] dark:bg-white/[0.08]" />
+            <button
+              type="button"
+              onClick={onClearAllFilters}
+              className="inline-flex shrink-0 items-center gap-1 rounded-md border border-[#1C1917]/[0.14] bg-white px-2 py-0.5 text-[11px] font-medium text-[#1C1917] transition-colors hover:bg-[#EFECE6] dark:border-white/[0.14] dark:bg-[#222220] dark:text-[#F2F1EE] dark:hover:bg-[#2B2B28]"
+            >
+              <RotateCcw className="h-3 w-3" />
+              <span>{t.resetFilters}</span>
+            </button>
+          </>
+        )}
       </div>
 
-      {/* Right: Quiet token & cache telemetry */}
-      <button
-        type="button"
-        onClick={() => onToggleFilter(null)}
-        title={`${t.radar.totalConversations}: ${stats.total}`}
-        className="tabular-nums inline-flex items-center gap-2 rounded-lg px-2 py-1 text-[11.5px] text-[#78716C] transition-colors hover:text-[#1C1917] dark:text-[#8C8B85] dark:hover:text-[#F2F1EE]"
-      >
-        <span className="font-medium text-[#44403C] dark:text-[#D6D3CD]">
-          {formatCompactNumber(stats.tokens.totalTokens)}
-        </span>
-        <span>tokens</span>
-        <span className="opacity-40">·</span>
-        <span className="tabular-nums font-medium">{cachePct}</span>
-        <span className="hidden sm:inline">{t.radar.cacheHit}</span>
-      </button>
+      {/* Right: Quiet token telemetry + tucked Kanban sort/density when secondary toolbar collapsed */}
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => onToggleFilter(null)}
+          title={`${t.radar.totalConversations}: ${stats.total}`}
+          className="tabular-nums inline-flex items-center gap-2 rounded-lg px-2 py-1 text-[11.5px] text-[#78716C] transition-colors hover:text-[#1C1917] dark:text-[#8C8B85] dark:hover:text-[#F2F1EE]"
+        >
+          <span className="font-medium text-[#44403C] dark:text-[#D6D3CD]">
+            {formatCompactNumber(stats.tokens.totalTokens)}
+          </span>
+          <span>tokens</span>
+          <span className="opacity-40">·</span>
+          <span className="tabular-nums font-medium">{cachePct}</span>
+          <span className="hidden sm:inline">{t.radar.cacheHit}</span>
+        </button>
+
+        {tuckKanbanControls && onKanbanSortChange && onDensityChange && (
+          <>
+            <span className="hidden h-3.5 w-px bg-[#1C1917]/[0.09] sm:inline-block dark:bg-white/[0.09]" />
+            <KanbanViewControls
+              kanbanSort={kanbanSort}
+              onKanbanSortChange={onKanbanSortChange}
+              density={density}
+              onDensityChange={onDensityChange}
+              t={t}
+              testId="radar-kanban-controls"
+            />
+          </>
+        )}
+      </div>
     </section>
   );
 }

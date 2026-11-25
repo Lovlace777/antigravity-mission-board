@@ -70,6 +70,10 @@ const api = Object.freeze({
     return ipcRenderer.invoke('desktop:set-widget-visible', Boolean(value));
   },
 
+  quitApp() {
+    return ipcRenderer.invoke('desktop:quit-app');
+  },
+
   getDesktopState() {
     return ipcRenderer.invoke('desktop:get-state');
   },

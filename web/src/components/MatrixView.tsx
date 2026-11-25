@@ -18,6 +18,7 @@ import {
   formatDateTime,
   formatPercent,
   formatRelativeTime,
+  resolveDistinctSubtitle,
 } from '../utils';
 import {
   LANE_ORDER,
@@ -316,7 +317,11 @@ export function MatrixView({
                           const needsReview =
                             card.attentionReasons.length > 0 || card.lane === 'attention';
                           const topReason = primaryAttentionReason(card.attentionReasons);
-                          const secondary = card.currentFocus || card.preview;
+                          const secondary = resolveDistinctSubtitle(
+                            card.title,
+                            card.currentFocus,
+                            card.preview,
+                          );
 
                           return (
                             <tr

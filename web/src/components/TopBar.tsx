@@ -28,7 +28,7 @@ import {
   X,
 } from 'lucide-react';
 import type { SseStatus } from '../api';
-import type { DesktopState } from '../desktopBridge';
+import { getDesktopBridge, type DesktopState } from '../desktopBridge';
 import type { Dictionary, Locale } from '../i18n';
 import { formatClockTime } from '../utils';
 import { LivePulseDot } from './badges';
@@ -64,6 +64,7 @@ interface TopBarProps {
   radarFilter: RadarFilter;
   onClearAllFilters: () => void;
   hasActiveFilters: boolean;
+  showSecondaryFilterRow: boolean;
   viewMode: ViewMode;
   onViewModeChange: (v: ViewMode) => void;
   density: CardDensity;
@@ -87,6 +88,75 @@ interface TopBarProps {
   locale: Locale;
   onToggleLocale: () => void;
   t: Dictionary;
+}
+
+export function KanbanViewControls({
+  kanbanSort,
+  onKanbanSortChange,
+  density,
+  onDensityChange,
+  t,
+  testId,
+}: {
+  kanbanSort: KanbanSortMode;
+  onKanbanSortChange: (s: KanbanSortMode) => void;
+  density: CardDensity;
+  onDensityChange: (d: CardDensity) => void;
+  t: Dictionary;
+  testId?: string;
+}) {
+  return (
+    <div data-testid={testId} className="flex shrink-0 items-center gap-2">
+      <div className="relative flex items-center">
+        <ArrowUpDown className="pointer-events-none absolute left-2 h-3 w-3 text-[#8C867E]" />
+        <select
+          value={kanbanSort}
+          onChange={(e) => onKanbanSortChange(e.target.value as KanbanSortMode)}
+          aria-label={t.kanbanSort.label}
+          className="h-6.5 cursor-pointer appearance-none rounded-lg border border-[#1C1917]/[0.08] bg-white pr-6 pl-6 text-[11px] font-medium text-[#44403C] transition-colors hover:border-[#1C1917]/[0.18] focus:border-[#1C1917]/40 focus:outline-none dark:border-white/[0.075] dark:bg-[#181816] dark:text-[#D6D3CD] dark:hover:border-white/[0.16]"
+        >
+          <option value="smart">{t.kanbanSort.smart}</option>
+          <option value="recent">{t.kanbanSort.recent}</option>
+          <option value="priority">{t.kanbanSort.priority}</option>
+          <option value="steps">{t.kanbanSort.steps}</option>
+        </select>
+        <ChevronDown className="pointer-events-none absolute right-1.5 h-3 w-3 text-[#8C867E]" />
+      </div>
+
+      <div
+        role="group"
+        aria-label={t.density.label}
+        className="inline-flex items-center rounded-lg border border-[#1C1917]/[0.08] bg-[#EFECE6]/90 p-0.5 dark:border-white/[0.07] dark:bg-[#171715]"
+      >
+        <button
+          type="button"
+          onClick={() => onDensityChange('comfortable')}
+          title={t.density.comfortable}
+          className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors ${
+            density === 'comfortable'
+              ? 'bg-[#1C1917] text-[#F6F5F1] shadow-xs dark:bg-[#F2F1EE] dark:text-[#111110]'
+              : 'text-[#57534E] hover:text-[#1C1917] dark:text-[#9F9E98] dark:hover:text-[#F2F1EE]'
+          }`}
+        >
+          <LayoutGrid className="h-3 w-3" />
+          <span className="hidden lg:inline">{t.density.comfortable}</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => onDensityChange('compact')}
+          title={t.density.compact}
+          className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors ${
+            density === 'compact'
+              ? 'bg-[#1C1917] text-[#F6F5F1] shadow-xs dark:bg-[#F2F1EE] dark:text-[#111110]'
+              : 'text-[#57534E] hover:text-[#1C1917] dark:text-[#9F9E98] dark:hover:text-[#F2F1EE]'
+          }`}
+        >
+          <Rows3 className="h-3 w-3" />
+          <span className="hidden lg:inline">{t.density.compact}</span>
+        </button>
+      </div>
+    </div>
+  );
 }
 
 function MinimalSwitch({
@@ -148,6 +218,7 @@ export function TopBar({
   radarFilter,
   onClearAllFilters,
   hasActiveFilters,
+  showSecondaryFilterRow,
   viewMode,
   onViewModeChange,
   density,
@@ -269,20 +340,41 @@ export function TopBar({
     }
   };
 
+  const desktopBridge = getDesktopBridge();
+  const inDesktopApp = desktopBridge !== null;
+  const isMacDesktop = inDesktopApp && desktopBridge.platform === 'darwin';
+
   const iconBtn =
     'inline-flex h-7 w-7 items-center justify-center rounded-lg border border-[#1C1917]/[0.08] bg-white text-[#57534E] transition-colors hover:border-[#1C1917]/[0.18] hover:text-[#1C1917] dark:border-white/[0.075] dark:bg-[#1A1A18] dark:text-[#9F9E98] dark:hover:border-white/[0.16] dark:hover:text-[#F2F1EE]';
 
   return (
-    <header className="sticky top-0 z-30 border-b border-[#1C1917]/[0.075] bg-[#F6F5F1]/92 backdrop-blur-md dark:border-white/[0.065] dark:bg-[#111110]/92">
-      <div className="mx-auto max-w-[1760px] px-4 sm:px-5">
-        {/* Primary command row */}
-        <div className="flex flex-wrap items-center justify-between gap-2.5 py-2.5">
+    <header
+      data-desktop-titlebar={
+        inDesktopApp ? (isMacDesktop ? 'darwin' : 'overlay') : 'none'
+      }
+      className={`sticky top-0 z-30 border-b border-[#1C1917]/[0.075] dark:border-white/[0.065] ${
+        inDesktopApp
+          ? 'bg-[#F6F5F1] dark:bg-[#111110]'
+          : 'bg-[#F6F5F1]/92 backdrop-blur-md dark:bg-[#111110]/92'
+      }`}
+    >
+      {/* Primary command row (acts as native integrated titlebar in Desktop App) */}
+      <div
+        className={`${inDesktopApp ? 'agmb-drag' : ''} ${
+          inDesktopApp ? (isMacDesktop ? 'pl-[76px]' : 'pr-[140px]') : ''
+        }`}
+      >
+        <div
+          className={`mx-auto flex max-w-[1760px] flex-wrap items-center justify-between gap-2 px-4 sm:px-5 ${
+            inDesktopApp ? 'min-h-[46px] py-1.5 md:flex-nowrap' : 'py-2.5'
+          }`}
+        >
           {/* Left: Bespoke Brand + Live SSE indicator */}
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2.5">
-              <BrandMark className="h-7 w-7" />
+          <div className="flex shrink-0 items-center gap-2.5">
+            <div className="flex items-center gap-2">
+              <BrandMark className="h-6.5 w-6.5" />
               <div className="flex items-center gap-2">
-                <h1 className="text-[14px] font-semibold tracking-[-0.015em] text-[#1C1917] dark:text-[#F2F1EE]">
+                <h1 className="whitespace-nowrap text-[14px] font-semibold tracking-[-0.015em] text-[#1C1917] dark:text-[#F2F1EE]">
                   {t.appName}
                 </h1>
                 {mode === 'demo' && (
@@ -299,7 +391,7 @@ export function TopBar({
             <div className="hidden h-4 w-px bg-[#1C1917]/[0.1] sm:block dark:bg-white/[0.09]" />
 
             {/* SSE Live pill + Manual Refresh */}
-            <div className="hidden items-center gap-1.5 sm:flex">
+            <div className="agmb-no-drag hidden items-center gap-1.5 sm:flex">
               <div
                 className="inline-flex items-center gap-1.5 rounded-lg border border-[#1C1917]/[0.075] bg-white px-2 py-1 text-[11px] font-medium text-[#57534E] dark:border-white/[0.075] dark:bg-[#181816] dark:text-[#9F9E98]"
                 title={`${t.lastSynced} ${formatClockTime(lastSyncedAt)}`}
@@ -313,14 +405,18 @@ export function TopBar({
                     }`}
                   />
                 )}
-                <span className="text-[#44403C] dark:text-[#D6D3CD]">
+                <span className="whitespace-nowrap text-[#44403C] dark:text-[#D6D3CD]">
                   {sseStatus === 'connected'
                     ? t.liveConnected
                     : sseStatus === 'connecting'
                       ? t.liveConnecting
                       : t.liveDisconnected}
                 </span>
-                <span className="tabular-nums text-[10px] text-[#969088] dark:text-[#666560]">
+                <span
+                  className={`tabular-nums text-[10px] text-[#969088] dark:text-[#666560] ${
+                    inDesktopApp ? 'hidden xl:inline' : ''
+                  }`}
+                >
                   {formatClockTime(lastSyncedAt)}
                 </span>
               </div>
@@ -338,7 +434,7 @@ export function TopBar({
           </div>
 
           {/* Center: Command Palette Trigger Bar */}
-          <div className="relative order-3 w-full md:order-2 md:max-w-md md:flex-1">
+          <div className="agmb-no-drag relative order-3 w-full md:order-2 md:min-w-[160px] md:max-w-md md:flex-1">
             <div
               role="button"
               tabIndex={0}
@@ -397,7 +493,7 @@ export function TopBar({
           </div>
 
           {/* Right: View Switcher + Utility Controls */}
-          <div className="order-2 flex items-center gap-1.5 md:order-3">
+          <div className="agmb-no-drag order-2 flex shrink-0 items-center gap-1.5 md:order-3">
             {/* Monochrome View Switcher */}
             <nav
               aria-label="View switcher"
@@ -664,207 +760,176 @@ export function TopBar({
             </button>
           </div>
         </div>
+      </div>
 
-        {/* Decluttered Filter & Toolbar Row */}
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[#1C1917]/[0.055] py-1.5 dark:border-white/[0.05]">
-          {/* Left: Workspace + Top 6 Tags + Overflow Popover + Reset */}
-          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-            {/* Workspace selector */}
-            <div className="relative flex shrink-0 items-center">
-              <Folder className="pointer-events-none absolute left-2 h-3 w-3 text-[#8C867E]" />
-              <select
-                value={selectedWorkspace}
-                onChange={(e) => onSelectWorkspace(e.target.value)}
-                aria-label={t.allWorkspaces}
-                className="h-6.5 cursor-pointer appearance-none rounded-lg border border-[#1C1917]/[0.08] bg-white pr-6 pl-6 text-[11px] font-medium text-[#44403C] transition-colors hover:border-[#1C1917]/[0.18] focus:border-[#1C1917]/40 focus:outline-none dark:border-white/[0.075] dark:bg-[#181816] dark:text-[#D6D3CD] dark:hover:border-white/[0.16]"
-              >
-                <option value="">{t.allWorkspaces}</option>
-                {workspaces.map((ws) => (
-                  <option key={ws.path || ws.name} value={ws.name}>
-                    {ws.name || t.noWorkspace} ({ws.count})
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-1.5 h-3 w-3 text-[#8C867E]" />
-            </div>
-
-            {allTags.length > 0 && (
-              <>
-                <div className="h-3.5 w-px shrink-0 bg-[#1C1917]/[0.09] dark:bg-white/[0.08]" />
-                <div className="flex flex-wrap items-center gap-1">
-                  <Tag className="mr-0.5 h-3 w-3 shrink-0 text-[#969088]" />
-                  <button
-                    type="button"
-                    onClick={() => onSelectTag('')}
-                    className={`shrink-0 rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors ${
-                      selectedTag === ''
-                        ? 'bg-[#1C1917] text-[#F6F5F1] dark:bg-[#F2F1EE] dark:text-[#111110]'
-                        : 'text-[#57534E] hover:bg-[#1C1917]/[0.05] hover:text-[#1C1917] dark:text-[#9F9E98] dark:hover:bg-white/[0.06] dark:hover:text-[#F2F1EE]'
-                    }`}
+      {/* Decluttered Filter & Toolbar Row (auto-collapsed when <=1 workspace & 0 tags) */}
+      {showSecondaryFilterRow && (
+        <div
+          data-testid="topbar-filter-row"
+          className="border-t border-[#1C1917]/[0.055] dark:border-white/[0.05]"
+        >
+          <div className="mx-auto flex max-w-[1760px] flex-wrap items-center justify-between gap-2 px-4 py-1.5 sm:px-5">
+            {/* Left: Workspace + Top 6 Tags + Overflow Popover + Reset */}
+            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+              {/* Workspace selector (only when 2+ workspaces or filter active) */}
+              {(workspaces.length > 1 || Boolean(selectedWorkspace)) && (
+                <div className="relative flex shrink-0 items-center">
+                  <Folder className="pointer-events-none absolute left-2 h-3 w-3 text-[#8C867E]" />
+                  <select
+                    value={selectedWorkspace}
+                    onChange={(e) => onSelectWorkspace(e.target.value)}
+                    aria-label={t.allWorkspaces}
+                    className="h-6.5 cursor-pointer appearance-none rounded-lg border border-[#1C1917]/[0.08] bg-white pr-6 pl-6 text-[11px] font-medium text-[#44403C] transition-colors hover:border-[#1C1917]/[0.18] focus:border-[#1C1917]/40 focus:outline-none dark:border-white/[0.075] dark:bg-[#181816] dark:text-[#D6D3CD] dark:hover:border-white/[0.16]"
                   >
-                    {t.allTags}
-                  </button>
+                    <option value="">{t.allWorkspaces}</option>
+                    {workspaces.map((ws) => (
+                      <option key={ws.path || ws.name} value={ws.name}>
+                        {ws.name || t.noWorkspace} ({ws.count})
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-1.5 h-3 w-3 text-[#8C867E]" />
+                </div>
+              )}
 
-                  {inlineTags.map((tag) => {
-                    const active = selectedTag === tag;
-                    return (
-                      <button
-                        key={tag}
-                        type="button"
-                        onClick={() => onSelectTag(active ? '' : tag)}
-                        className={`shrink-0 rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors ${
-                          active
-                            ? 'bg-[#1C1917] text-[#F6F5F1] dark:bg-[#F2F1EE] dark:text-[#111110]'
-                            : 'text-[#57534E] hover:bg-[#1C1917]/[0.05] hover:text-[#1C1917] dark:text-[#9F9E98] dark:hover:bg-white/[0.06] dark:hover:text-[#F2F1EE]'
-                        }`}
-                      >
-                        #{tag}
-                      </button>
-                    );
-                  })}
+              {allTags.length > 0 && (
+                <>
+                  {(workspaces.length > 1 || Boolean(selectedWorkspace)) && (
+                    <div className="h-3.5 w-px shrink-0 bg-[#1C1917]/[0.09] dark:bg-white/[0.08]" />
+                  )}
+                  <div className="flex flex-wrap items-center gap-1">
+                    <Tag className="mr-0.5 h-3 w-3 shrink-0 text-[#969088]" />
+                    <button
+                      type="button"
+                      onClick={() => onSelectTag('')}
+                      className={`shrink-0 rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors ${
+                        selectedTag === ''
+                          ? 'bg-[#1C1917] text-[#F6F5F1] dark:bg-[#F2F1EE] dark:text-[#111110]'
+                          : 'text-[#57534E] hover:bg-[#1C1917]/[0.05] hover:text-[#1C1917] dark:text-[#9F9E98] dark:hover:bg-white/[0.06] dark:hover:text-[#F2F1EE]'
+                      }`}
+                    >
+                      {t.allTags}
+                    </button>
 
-                  {/* +N More Searchable Tag Popover */}
-                  {overflowTags.length > 0 && (
-                    <div className="relative" ref={moreTagsRef}>
-                      <button
-                        type="button"
-                        onClick={() => setMoreTagsOpen((v) => !v)}
-                        className={`inline-flex shrink-0 items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-medium transition-colors ${
-                          moreTagsOpen
-                            ? 'border-[#1C1917] bg-[#1C1917] text-[#F6F5F1] dark:border-[#F2F1EE] dark:bg-[#F2F1EE] dark:text-[#111110]'
-                            : 'border-[#1C1917]/[0.1] bg-white text-[#57534E] hover:border-[#1C1917]/[0.2] hover:text-[#1C1917] dark:border-white/[0.09] dark:bg-[#181816] dark:text-[#9F9E98] dark:hover:border-white/[0.18] dark:hover:text-[#F2F1EE]'
-                        }`}
-                      >
-                        <span>{t.moreTags(overflowTags.length)}</span>
-                        <ChevronDown className="h-3 w-3" />
-                      </button>
+                    {inlineTags.map((tag) => {
+                      const active = selectedTag === tag;
+                      return (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() => onSelectTag(active ? '' : tag)}
+                          className={`shrink-0 rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors ${
+                            active
+                              ? 'bg-[#1C1917] text-[#F6F5F1] dark:bg-[#F2F1EE] dark:text-[#111110]'
+                              : 'text-[#57534E] hover:bg-[#1C1917]/[0.05] hover:text-[#1C1917] dark:text-[#9F9E98] dark:hover:bg-white/[0.06] dark:hover:text-[#F2F1EE]'
+                          }`}
+                        >
+                          #{tag}
+                        </button>
+                      );
+                    })}
 
-                      {moreTagsOpen && (
-                        <div className="agmb-modal-enter absolute top-8 left-0 z-50 w-56 overflow-hidden rounded-xl border border-[#1C1917]/[0.1] bg-white shadow-xl dark:border-white/[0.1] dark:bg-[#1B1B19]">
-                          <div className="border-b border-[#1C1917]/[0.07] p-2 dark:border-white/[0.07]">
-                            <div className="relative">
-                              <Search className="pointer-events-none absolute top-1/2 left-2 h-3 w-3 -translate-y-1/2 text-[#969088]" />
-                              <input
-                                ref={tagSearchInputRef}
-                                type="text"
-                                value={tagSearch}
-                                onChange={(e) => setTagSearch(e.target.value)}
-                                placeholder={t.searchTagsPlaceholder}
-                                className="h-7 w-full rounded-md border border-[#1C1917]/[0.1] bg-[#F6F5F1] pr-2 pl-6.5 text-[11px] text-[#1C1917] placeholder:text-[#969088] focus:border-[#1C1917]/40 focus:bg-white focus:outline-none dark:border-white/[0.09] dark:bg-[#141413] dark:text-[#F2F1EE]"
-                              />
+                    {/* +N More Searchable Tag Popover */}
+                    {overflowTags.length > 0 && (
+                      <div className="relative" ref={moreTagsRef}>
+                        <button
+                          type="button"
+                          onClick={() => setMoreTagsOpen((v) => !v)}
+                          className={`inline-flex shrink-0 items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-medium transition-colors ${
+                            moreTagsOpen
+                              ? 'border-[#1C1917] bg-[#1C1917] text-[#F6F5F1] dark:border-[#F2F1EE] dark:bg-[#F2F1EE] dark:text-[#111110]'
+                              : 'border-[#1C1917]/[0.1] bg-white text-[#57534E] hover:border-[#1C1917]/[0.2] hover:text-[#1C1917] dark:border-white/[0.09] dark:bg-[#181816] dark:text-[#9F9E98] dark:hover:border-white/[0.18] dark:hover:text-[#F2F1EE]'
+                          }`}
+                        >
+                          <span>{t.moreTags(overflowTags.length)}</span>
+                          <ChevronDown className="h-3 w-3" />
+                        </button>
+
+                        {moreTagsOpen && (
+                          <div className="agmb-modal-enter absolute top-8 left-0 z-50 w-56 overflow-hidden rounded-xl border border-[#1C1917]/[0.1] bg-white shadow-xl dark:border-white/[0.1] dark:bg-[#1B1B19]">
+                            <div className="border-b border-[#1C1917]/[0.07] p-2 dark:border-white/[0.07]">
+                              <div className="relative">
+                                <Search className="pointer-events-none absolute top-1/2 left-2 h-3 w-3 -translate-y-1/2 text-[#969088]" />
+                                <input
+                                  ref={tagSearchInputRef}
+                                  type="text"
+                                  value={tagSearch}
+                                  onChange={(e) => setTagSearch(e.target.value)}
+                                  placeholder={t.searchTagsPlaceholder}
+                                  className="h-7 w-full rounded-md border border-[#1C1917]/[0.1] bg-[#F6F5F1] pr-2 pl-6.5 text-[11px] text-[#1C1917] placeholder:text-[#969088] focus:border-[#1C1917]/40 focus:bg-white focus:outline-none dark:border-white/[0.09] dark:bg-[#141413] dark:text-[#F2F1EE]"
+                                />
+                              </div>
+                            </div>
+                            <div className="max-h-52 overflow-y-auto p-1.5">
+                              {filteredOverflowTags.length === 0 ? (
+                                <div className="py-4 text-center text-[11px] text-[#969088]">
+                                  {t.noMatchingTags}
+                                </div>
+                              ) : (
+                                filteredOverflowTags.map((tag) => {
+                                  const active = selectedTag === tag;
+                                  return (
+                                    <button
+                                      key={tag}
+                                      type="button"
+                                      onClick={() => {
+                                        onSelectTag(active ? '' : tag);
+                                        setMoreTagsOpen(false);
+                                      }}
+                                      className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-[11.5px] transition-colors ${
+                                        active
+                                          ? 'bg-[#1C1917] font-medium text-[#F6F5F1] dark:bg-[#F2F1EE] dark:text-[#111110]'
+                                          : 'text-[#44403C] hover:bg-[#1C1917]/[0.05] dark:text-[#D6D3CD] dark:hover:bg-white/[0.06]'
+                                      }`}
+                                    >
+                                      <span className="truncate">#{tag}</span>
+                                      <span className="tabular-nums text-[10px] opacity-60">
+                                        {tagCounts[tag] ?? 0}
+                                      </span>
+                                    </button>
+                                  );
+                                })
+                              )}
                             </div>
                           </div>
-                          <div className="max-h-52 overflow-y-auto p-1.5">
-                            {filteredOverflowTags.length === 0 ? (
-                              <div className="py-4 text-center text-[11px] text-[#969088]">
-                                {t.noMatchingTags}
-                              </div>
-                            ) : (
-                              filteredOverflowTags.map((tag) => {
-                                const active = selectedTag === tag;
-                                return (
-                                  <button
-                                    key={tag}
-                                    type="button"
-                                    onClick={() => {
-                                      onSelectTag(active ? '' : tag);
-                                      setMoreTagsOpen(false);
-                                    }}
-                                    className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-[11.5px] transition-colors ${
-                                      active
-                                        ? 'bg-[#1C1917] font-medium text-[#F6F5F1] dark:bg-[#F2F1EE] dark:text-[#111110]'
-                                        : 'text-[#44403C] hover:bg-[#1C1917]/[0.05] dark:text-[#D6D3CD] dark:hover:bg-white/[0.06]'
-                                    }`}
-                                  >
-                                    <span className="truncate">#{tag}</span>
-                                    <span className="tabular-nums text-[10px] opacity-60">
-                                      {tagCounts[tag] ?? 0}
-                                    </span>
-                                  </button>
-                                );
-                              })
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
 
-            {hasActiveFilters && (
-              <button
-                type="button"
-                onClick={onClearAllFilters}
-                className="inline-flex shrink-0 items-center gap-1 rounded-md border border-[#1C1917]/[0.14] bg-white px-2 py-0.5 text-[11px] font-medium text-[#1C1917] transition-colors hover:bg-[#EFECE6] dark:border-white/[0.14] dark:bg-[#222220] dark:text-[#F2F1EE] dark:hover:bg-[#2B2B28]"
-              >
-                <RotateCcw className="h-3 w-3" />
-                <span>
-                  {t.resetFilters}
-                  {radarFilter
-                    ? ` · ${t.radar[radarFilter === 'agents' ? 'swarmsAndAgents' : radarFilter]}`
-                    : ''}
-                </span>
-              </button>
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  onClick={onClearAllFilters}
+                  className="inline-flex shrink-0 items-center gap-1 rounded-md border border-[#1C1917]/[0.14] bg-white px-2 py-0.5 text-[11px] font-medium text-[#1C1917] transition-colors hover:bg-[#EFECE6] dark:border-white/[0.14] dark:bg-[#222220] dark:text-[#F2F1EE] dark:hover:bg-[#2B2B28]"
+                >
+                  <RotateCcw className="h-3 w-3" />
+                  <span>
+                    {t.resetFilters}
+                    {radarFilter
+                      ? ` · ${t.radar[radarFilter === 'agents' ? 'swarmsAndAgents' : radarFilter]}`
+                      : ''}
+                  </span>
+                </button>
+              )}
+            </div>
+
+            {/* Right: Kanban Sort + Card Density Toggle */}
+            {viewMode === 'kanban' && (
+              <KanbanViewControls
+                kanbanSort={kanbanSort}
+                onKanbanSortChange={onKanbanSortChange}
+                density={density}
+                onDensityChange={onDensityChange}
+                t={t}
+                testId="topbar-kanban-controls"
+              />
             )}
           </div>
-
-          {/* Right: Kanban Sort + Card Density Toggle */}
-          {viewMode === 'kanban' && (
-            <div className="flex shrink-0 items-center gap-2">
-              <div className="relative flex items-center">
-                <ArrowUpDown className="pointer-events-none absolute left-2 h-3 w-3 text-[#8C867E]" />
-                <select
-                  value={kanbanSort}
-                  onChange={(e) => onKanbanSortChange(e.target.value as KanbanSortMode)}
-                  aria-label={t.kanbanSort.label}
-                  className="h-6.5 cursor-pointer appearance-none rounded-lg border border-[#1C1917]/[0.08] bg-white pr-6 pl-6 text-[11px] font-medium text-[#44403C] transition-colors hover:border-[#1C1917]/[0.18] focus:border-[#1C1917]/40 focus:outline-none dark:border-white/[0.075] dark:bg-[#181816] dark:text-[#D6D3CD] dark:hover:border-white/[0.16]"
-                >
-                  <option value="smart">{t.kanbanSort.smart}</option>
-                  <option value="recent">{t.kanbanSort.recent}</option>
-                  <option value="priority">{t.kanbanSort.priority}</option>
-                  <option value="steps">{t.kanbanSort.steps}</option>
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-1.5 h-3 w-3 text-[#8C867E]" />
-              </div>
-
-              <div
-                role="group"
-                aria-label={t.density.label}
-                className="inline-flex items-center rounded-lg border border-[#1C1917]/[0.08] bg-[#EFECE6]/90 p-0.5 dark:border-white/[0.07] dark:bg-[#171715]"
-              >
-                <button
-                  type="button"
-                  onClick={() => onDensityChange('comfortable')}
-                  title={t.density.comfortable}
-                  className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors ${
-                    density === 'comfortable'
-                      ? 'bg-[#1C1917] text-[#F6F5F1] shadow-xs dark:bg-[#F2F1EE] dark:text-[#111110]'
-                      : 'text-[#57534E] hover:text-[#1C1917] dark:text-[#9F9E98] dark:hover:text-[#F2F1EE]'
-                  }`}
-                >
-                  <LayoutGrid className="h-3 w-3" />
-                  <span className="hidden lg:inline">{t.density.comfortable}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onDensityChange('compact')}
-                  title={t.density.compact}
-                  className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors ${
-                    density === 'compact'
-                      ? 'bg-[#1C1917] text-[#F6F5F1] shadow-xs dark:bg-[#F2F1EE] dark:text-[#111110]'
-                      : 'text-[#57534E] hover:text-[#1C1917] dark:text-[#9F9E98] dark:hover:text-[#F2F1EE]'
-                  }`}
-                >
-                  <Rows3 className="h-3 w-3" />
-                  <span className="hidden lg:inline">{t.density.compact}</span>
-                </button>
-              </div>
-            </div>
-          )}
         </div>
-      </div>
+      )}
     </header>
   );
 }

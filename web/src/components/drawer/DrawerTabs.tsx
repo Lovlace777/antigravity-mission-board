@@ -40,12 +40,14 @@ import remarkGfm from 'remark-gfm';
 import { fetchArtifactContent } from '../../api';
 import type { Dictionary, Locale } from '../../i18n';
 import {
+  cleanDisplayText,
   copyToClipboard,
   formatCompactNumber,
   formatDateTime,
   formatExactNumber,
   formatPercent,
   formatRelativeTime,
+  resolveDistinctSubtitle,
   shortModelName,
 } from '../../utils';
 import { LivePulseDot, SwarmStateBadge } from '../badges';
@@ -90,6 +92,11 @@ export function OverviewTab({
     detail.stepsTotal > 0
       ? Math.round((detail.stepsCompleted / detail.stepsTotal) * 100)
       : 0;
+  const cleanFocus = cleanDisplayText(detail.currentFocus);
+  const cleanPreview = resolveDistinctSubtitle(
+    [detail.title, cleanFocus],
+    detail.preview,
+  );
 
   return (
     <div className="space-y-3.5">
@@ -125,7 +132,7 @@ export function OverviewTab({
           <span>{t.drawer.overview.currentFocus}</span>
         </div>
         <p className="mt-1.5 text-xs leading-relaxed text-[#1C1917] dark:text-[#E7E5E0]">
-          {detail.currentFocus || (
+          {cleanFocus || (
             <span className="text-[#969088] dark:text-[#666560]">
               {t.drawer.overview.noFocus}
             </span>
@@ -305,13 +312,13 @@ export function OverviewTab({
         )}
       </section>
 
-      {detail.preview && (
+      {cleanPreview && (
         <section className="rounded-xl border border-[#1C1917]/[0.07] bg-white p-3.5 dark:border-white/[0.065] dark:bg-[#191917]">
           <div className="text-xs font-semibold text-[#1C1917] dark:text-[#F2F1EE]">
             {t.drawer.overview.latestPreview}
           </div>
           <p className="mt-1.5 text-xs leading-relaxed whitespace-pre-wrap text-[#57534E] dark:text-[#9F9E98]">
-            {detail.preview}
+            {cleanPreview}
           </p>
         </section>
       )}

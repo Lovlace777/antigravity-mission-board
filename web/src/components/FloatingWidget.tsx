@@ -25,6 +25,7 @@ import {
   Loader2,
   Lock,
   MessageSquare,
+  Minus,
   MinusCircle,
   Moon,
   Network,
@@ -51,7 +52,12 @@ import {
   type WidgetPreset,
 } from '../desktopBridge';
 import { dictionaries, loadSavedLocale, type Dictionary, type Locale } from '../i18n';
-import { formatClockTime, formatRelativeTime } from '../utils';
+import {
+  cleanDisplayText,
+  formatClockTime,
+  formatRelativeTime,
+  resolveDistinctSubtitle,
+} from '../utils';
 import {
   LANE_ORDER,
   LivePulseDot,
@@ -674,6 +680,22 @@ export function FloatingWidget() {
     }
   }, [alwaysOnTop, bridge]);
 
+  const handleMinimizeWidget = useCallback(() => {
+    if (bridge) {
+      void bridge.hideWidget();
+      return;
+    }
+    showToast({ label: t.widget.browserMinimizeNotice, tone: 'info' }, 3200);
+  }, [bridge, showToast, t.widget.browserMinimizeNotice]);
+
+  const handleQuitApp = useCallback(() => {
+    if (bridge?.quitApp) {
+      void bridge.quitApp();
+      return;
+    }
+    showToast({ label: t.widget.browserQuitNotice, tone: 'info' }, 3200);
+  }, [bridge, showToast, t.widget.browserQuitNotice]);
+
   // Optimistic Overlay Patch inside Widget
   const handlePatchOverlay = useCallback(
     async (id: string, patch: OverlayPatch): Promise<boolean> => {
@@ -1099,17 +1121,17 @@ export function FloatingWidget() {
           <div
             style={DRAG_STYLE}
             data-testid="widget-pill"
-            className="flex h-[42px] w-full items-center justify-between gap-1.5 rounded-full border border-[#1C1917]/[0.12] bg-white/96 pr-1.5 pl-2.5 text-[#1C1917] shadow-[0_10px_28px_-6px_rgba(28,25,23,0.22),0_1px_2px_rgba(28,25,23,0.08)] backdrop-blur-xl dark:border-white/[0.12] dark:bg-[#181816]/96 dark:text-[#F2F1EE] dark:shadow-[0_14px_34px_-6px_rgba(0,0,0,0.72),inset_0_1px_0_rgba(255,255,255,0.06)]"
+            className="flex h-[42px] w-full items-center justify-between gap-1.5 rounded-full border border-[#1C1917]/[0.12] bg-white/96 pr-1.5 pl-2 text-[#1C1917] shadow-[0_10px_28px_-6px_rgba(28,25,23,0.22),0_1px_2px_rgba(28,25,23,0.08)] backdrop-blur-xl dark:border-white/[0.12] dark:bg-[#181816]/96 dark:text-[#F2F1EE] dark:shadow-[0_14px_34px_-6px_rgba(0,0,0,0.72),inset_0_1px_0_rgba(255,255,255,0.06)]"
           >
-            <div className="flex min-w-0 flex-1 items-center gap-2">
-              <BrandMark className="h-5 w-5" />
+            <div className="flex min-w-0 flex-1 items-center gap-1.5">
+              <BrandMark className="h-5 w-5 shrink-0" />
               {allClear ? (
-                <span className="inline-flex items-center gap-1.5 truncate text-xs font-medium text-[#44403C] dark:text-[#D6D3CD]">
-                  <Check className="h-3.5 w-3.5 text-[#16A34A] dark:text-[#22C55E]" />
-                  <span>{t.widget.allClear}</span>
+                <span className="inline-flex items-center gap-1.5 truncate text-[11.5px] font-medium text-[#44403C] dark:text-[#D6D3CD]">
+                  <Check className="h-3.5 w-3.5 shrink-0 text-[#16A34A] dark:text-[#22C55E]" />
+                  <span className="truncate">{t.widget.allClear}</span>
                 </span>
               ) : (
-                <div className="tabular-nums flex min-w-0 items-center gap-1.5 text-[11.5px] font-medium">
+                <div className="tabular-nums flex min-w-0 items-center gap-1.5 text-[11px] font-medium">
                   <span className="inline-flex items-center gap-1 whitespace-nowrap">
                     {runningCount > 0 ? (
                       <LivePulseDot />
@@ -1143,7 +1165,7 @@ export function FloatingWidget() {
                   title={
                     presetKey === 'M' ? t.widget.presetMTitle : t.widget.presetLTitle
                   }
-                  className="flex h-6 w-6 items-center justify-center rounded-full text-[10.5px] font-semibold text-[#57534E] transition-colors hover:bg-[#1C1917] hover:text-[#F6F5F1] dark:text-[#A1A09A] dark:hover:bg-[#F2F1EE] dark:hover:text-[#111110]"
+                  className="flex h-[22px] w-[22px] items-center justify-center rounded-full text-[10px] font-semibold text-[#57534E] transition-colors hover:bg-[#1C1917] hover:text-[#F6F5F1] dark:text-[#A1A09A] dark:hover:bg-[#F2F1EE] dark:hover:text-[#111110]"
                 >
                   {presetKey}
                 </button>
@@ -1153,13 +1175,45 @@ export function FloatingWidget() {
                 onClick={() => handleOpenMainBoard()}
                 title={t.widget.openBoardTooltip}
                 aria-label={t.widget.openBoardTooltip}
-                className="flex h-6 w-6 items-center justify-center rounded-full text-[#78716C] transition-colors hover:bg-[#1C1917]/[0.07] hover:text-[#1C1917] dark:text-[#9F9E98] dark:hover:bg-white/[0.08] dark:hover:text-[#F2F1EE]"
+                className="flex h-[22px] w-[22px] items-center justify-center rounded-full text-[#78716C] transition-colors hover:bg-[#1C1917]/[0.07] hover:text-[#1C1917] dark:text-[#9F9E98] dark:hover:bg-white/[0.08] dark:hover:text-[#F2F1EE]"
               >
                 <ArrowUpRight className="h-3.5 w-3.5" />
+              </button>
+              <span className="mx-0.5 h-3 w-px bg-[#1C1917]/[0.1] dark:bg-white/[0.1]" />
+              <button
+                type="button"
+                data-testid="widget-minimize-btn"
+                onClick={handleMinimizeWidget}
+                title={t.widget.minimizeTooltip}
+                aria-label={t.widget.minimizeTooltip}
+                className="flex h-[22px] w-[22px] items-center justify-center rounded-full text-[#78716C] transition-colors hover:bg-[#1C1917]/[0.08] hover:text-[#1C1917] dark:text-[#9F9E98] dark:hover:bg-white/[0.1] dark:hover:text-[#F2F1EE]"
+              >
+                <Minus className="h-3 w-3" />
+              </button>
+              <button
+                type="button"
+                data-testid="widget-quit-btn"
+                onClick={handleQuitApp}
+                title={t.widget.quitTooltip}
+                aria-label={t.widget.quitTooltip}
+                className="flex h-[22px] w-[22px] items-center justify-center rounded-full text-[#78716C] transition-colors hover:bg-[#DC2626]/12 hover:text-[#DC2626] dark:text-[#9F9E98] dark:hover:bg-[#EF4444]/16 dark:hover:text-[#F87171]"
+              >
+                <X className="h-3 w-3" />
               </button>
             </div>
           </div>
         </div>
+
+        {/* Browser preview toast in S Pill mode */}
+        {toast && (
+          <div
+            role="status"
+            data-testid="widget-toast"
+            className="agmb-toast-enter fixed bottom-4 left-1/2 z-50 -translate-x-1/2 rounded-lg border border-[#1C1917]/[0.12] bg-[#1C1917] px-3 py-1.5 text-[11px] whitespace-nowrap text-[#F6F5F1] shadow-lg dark:border-white/[0.12] dark:bg-[#262623] dark:text-[#F2F1EE]"
+          >
+            {toast.label}
+          </div>
+        )}
       </div>
     );
   }
@@ -1355,6 +1409,15 @@ export function FloatingWidget() {
         : 0;
     const isLocked = lockedId === card.id;
     const stepsList = card.stepsPreview?.length ? card.stepsPreview : card.steps;
+    const focusCopy = resolveDistinctSubtitle(card.title, card.currentFocus);
+    const latestOutputCopy = resolveDistinctSubtitle(
+      [card.title, focusCopy],
+      card.latestMessagePreview,
+      card.preview,
+    );
+    const cleanSwarmPost = card.swarmPreview?.latestPost
+      ? cleanDisplayText(card.swarmPreview.latestPost.text)
+      : '';
 
     return (
       <aside
@@ -1424,21 +1487,21 @@ export function FloatingWidget() {
           </div>
 
           {/* Current Focus */}
-          {card.currentFocus && (
+          {focusCopy && (
             <div className="flex items-start gap-1.5 rounded-lg border border-[#1C1917]/[0.06] bg-[#FAF9F6] px-2.5 py-2 text-[11.5px] leading-relaxed text-[#44403C] dark:border-white/[0.06] dark:bg-[#141413] dark:text-[#D6D3CD]">
               <Compass className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#8C867E]" />
-              <span className="line-clamp-2">{card.currentFocus}</span>
+              <span className="line-clamp-2">{focusCopy}</span>
             </div>
           )}
 
           {/* Latest Agent Output / Question */}
-          {(card.latestMessagePreview || card.preview) && (
+          {latestOutputCopy && (
             <div>
               <div className="mb-1 text-[10px] font-semibold tracking-wider text-[#969088] uppercase dark:text-[#666560]">
                 {t.widget.latestOutput}
               </div>
               <p className="line-clamp-3 rounded-lg border border-[#1C1917]/[0.06] bg-[#F6F5F1]/80 px-2.5 py-2 text-[11.5px] leading-relaxed text-[#44403C] dark:border-white/[0.055] dark:bg-[#141413] dark:text-[#C7C5BE]">
-                {card.latestMessagePreview || card.preview}
+                {latestOutputCopy}
               </p>
             </div>
           )}
@@ -1512,14 +1575,14 @@ export function FloatingWidget() {
                   ))}
                 </div>
               )}
-              {card.swarmPreview.latestPost && (
+              {card.swarmPreview.latestPost && cleanSwarmPost && (
                 <p className="mt-1.5 line-clamp-2 flex items-start gap-1 text-[10.5px] text-[#57534E] dark:text-[#9F9E98]">
                   <MessageSquare className="mt-0.5 h-3 w-3 shrink-0 opacity-60" />
                   <span>
                     <strong className="font-semibold">
                       @{card.swarmPreview.latestPost.agent}:
                     </strong>{' '}
-                    {card.swarmPreview.latestPost.text}
+                    {cleanSwarmPost}
                   </span>
                 </p>
               )}
@@ -1595,7 +1658,12 @@ export function FloatingWidget() {
         : 0;
     const isLocked = lockedId === card.id;
     const showComposer = isLocked || mediumComposerOpen;
-    const excerpt = card.currentFocus || card.latestMessagePreview || card.preview;
+    const excerpt = resolveDistinctSubtitle(
+      card.title,
+      card.currentFocus,
+      card.latestMessagePreview,
+      card.preview,
+    );
 
     return (
       <div
@@ -1763,21 +1831,21 @@ export function FloatingWidget() {
         {/* Draggable Top Header with Explicit S / M / L Size Switcher */}
         <header
           style={DRAG_STYLE}
-          className="flex h-[38px] shrink-0 items-center justify-between gap-2 border-b border-[#1C1917]/[0.07] bg-white/85 px-3 backdrop-blur-md dark:border-white/[0.06] dark:bg-[#1A1A18]/95"
+          className="flex h-[38px] shrink-0 items-center justify-between gap-1.5 border-b border-[#1C1917]/[0.07] bg-white/85 px-2.5 backdrop-blur-md dark:border-white/[0.06] dark:bg-[#1A1A18]/95"
         >
-          <div className="flex min-w-0 items-center gap-2">
-            <BrandMark className="h-4.5 w-4.5" />
+          <div className="flex min-w-0 items-center gap-1.5">
+            <BrandMark className="h-4.5 w-4.5 shrink-0" />
             <span className="truncate text-xs font-semibold tracking-[-0.012em]">
               Mission Board
             </span>
             {sseStatus === 'connected' ? (
               <LivePulseDot />
             ) : (
-              <span className="h-1.5 w-1.5 rounded-full bg-[#D97706]" />
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#D97706]" />
             )}
           </div>
 
-          <div style={NO_DRAG_STYLE} className="flex shrink-0 items-center gap-1">
+          <div style={NO_DRAG_STYLE} className="flex shrink-0 items-center gap-0.5">
             <div
               role="group"
               aria-label="Widget size preset"
@@ -1846,6 +1914,30 @@ export function FloatingWidget() {
               className="flex h-6 w-6 items-center justify-center rounded-md text-[#78716C] transition-colors hover:bg-[#1C1917]/[0.06] hover:text-[#1C1917] dark:text-[#9F9E98] dark:hover:bg-white/[0.08] dark:hover:text-[#F2F1EE]"
             >
               <ArrowUpRight className="h-3.5 w-3.5" />
+            </button>
+
+            <span className="mx-0.5 h-3.5 w-px bg-[#1C1917]/[0.1] dark:bg-white/[0.1]" />
+
+            <button
+              type="button"
+              data-testid="widget-minimize-btn"
+              onClick={handleMinimizeWidget}
+              title={t.widget.minimizeTooltip}
+              aria-label={t.widget.minimizeTooltip}
+              className="flex h-6 w-6 items-center justify-center rounded-md text-[#78716C] transition-colors hover:bg-[#1C1917]/[0.08] hover:text-[#1C1917] dark:text-[#9F9E98] dark:hover:bg-white/[0.1] dark:hover:text-[#F2F1EE]"
+            >
+              <Minus className="h-3.5 w-3.5" />
+            </button>
+
+            <button
+              type="button"
+              data-testid="widget-quit-btn"
+              onClick={handleQuitApp}
+              title={t.widget.quitTooltip}
+              aria-label={t.widget.quitTooltip}
+              className="flex h-6 w-6 items-center justify-center rounded-md text-[#78716C] transition-colors hover:bg-[#DC2626]/12 hover:text-[#DC2626] dark:text-[#9F9E98] dark:hover:bg-[#EF4444]/16 dark:hover:text-[#F87171]"
+            >
+              <X className="h-3.5 w-3.5" />
             </button>
           </div>
         </header>

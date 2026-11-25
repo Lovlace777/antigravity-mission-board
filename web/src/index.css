@@ -89,6 +89,16 @@ html.widget-mode body {
   overflow: hidden;
 }
 
+/* Electron integrated titlebar drag regions (Main Window & Floating Widget) */
+.agmb-drag {
+  -webkit-app-region: drag;
+  user-select: none;
+}
+
+.agmb-no-drag {
+  -webkit-app-region: no-drag;
+}
+
 .tabular-nums {
   font-variant-numeric: tabular-nums;
 }

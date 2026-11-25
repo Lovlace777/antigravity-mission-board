@@ -1,6 +1,6 @@
 {
   "name": "antigravity-mission-board-desktop",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "private": true,
   "description": "Zero-terminal native Desktop Floating Widget & System Tray shell for Antigravity Mission Board",
   "main": "src/main.cjs",

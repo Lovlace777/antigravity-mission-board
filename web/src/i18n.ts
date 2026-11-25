@@ -127,6 +127,10 @@ export interface Dictionary {
     detailShort: string;
     pushShort: string;
     workingAgentsLabel: string;
+    minimizeTooltip: string;
+    quitTooltip: string;
+    browserMinimizeNotice: string;
+    browserQuitNotice: string;
   };
   moveMenu: {
     triggerTooltip: string;
@@ -503,7 +507,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
       presetS: 'S',
       presetM: 'M',
       presetL: 'L',
-      presetSTitle: 'S 胶囊浮窗 (292×52)',
+      presetSTitle: 'S 胶囊浮窗 (336×52)',
       presetMTitle: 'M 中型纵览 (390×600)',
       presetLTitle: 'L 大型全景 (700×580)',
       shortError: '出错',
@@ -532,6 +536,10 @@ export const dictionaries: Record<Locale, Dictionary> = {
       detailShort: '详情',
       pushShort: '推进',
       workingAgentsLabel: '执行中',
+      minimizeTooltip: '最小化到托盘',
+      quitTooltip: '彻底关闭程序',
+      browserMinimizeNotice: '桌面版会将浮窗最小化到系统托盘',
+      browserQuitNotice: '桌面版会彻底关闭 Mission Board 服务与托盘',
     },
     moveMenu: {
       triggerTooltip: '调整状态 / 移至其他列',
@@ -919,7 +927,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
       presetS: 'S',
       presetM: 'M',
       presetL: 'L',
-      presetSTitle: 'Small Pill (292×52)',
+      presetSTitle: 'Small Pill (336×52)',
       presetMTitle: 'Medium Radar (390×600)',
       presetLTitle: 'Large Panorama (700×580)',
       shortError: 'Err',
@@ -948,6 +956,10 @@ export const dictionaries: Record<Locale, Dictionary> = {
       detailShort: 'Detail',
       pushShort: 'Push',
       workingAgentsLabel: 'Working',
+      minimizeTooltip: 'Minimize to tray',
+      quitTooltip: 'Quit Mission Board',
+      browserMinimizeNotice: 'In Desktop App, hides floating widget to System Tray',
+      browserQuitNotice: 'In Desktop App, quits Mission Board completely',
     },
     moveMenu: {
       triggerTooltip: 'Move to lane / quick triage',

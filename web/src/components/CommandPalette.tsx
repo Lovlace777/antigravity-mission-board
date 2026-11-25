@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { searchConversations } from '../api';
 import type { Dictionary, Locale } from '../i18n';
-import { formatRelativeTime } from '../utils';
+import { formatRelativeTime, resolveDistinctSubtitle } from '../utils';
 import { LivePulseDot, PriorityBadge, laneAccentDot } from './badges';
 import type { CardDensity, ThemeMode, ViewMode } from './TopBar';
 
@@ -205,7 +205,12 @@ export function CommandPalette({
         section: 'conversations',
         kind: 'conversation',
         label: item.card.title || t.card.untitled,
-        subtitle: item.card.currentFocus || item.card.preview,
+        subtitle:
+          resolveDistinctSubtitle(
+            item.card.title,
+            item.card.currentFocus,
+            item.card.preview,
+          ) ?? undefined,
         card: item.card,
         matchedIn: item.matchedIn,
         run: () => {

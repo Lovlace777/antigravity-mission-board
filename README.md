@@ -8,7 +8,7 @@
 
 <p>
   <a href="https://github.com/Lovlace777/antigravity-mission-board/actions/workflows/ci.yml"><img src="https://github.com/Lovlace777/antigravity-mission-board/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
-  <a href="https://github.com/Lovlace777/antigravity-mission-board/releases/tag/v2.2.0"><img src="https://img.shields.io/badge/Release-v2.2.0-1C1917" alt="Release v2.2.0" /></a>
+  <a href="https://github.com/Lovlace777/antigravity-mission-board/releases/tag/v2.3.0"><img src="https://img.shields.io/badge/Release-v2.3.0-1C1917" alt="Release v2.3.0" /></a>
   <img src="https://img.shields.io/badge/Desktop-S%2FM%2FL%20Floating%20Widget-292524" alt="Desktop Floating Widget" />
   <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-%E2%89%A522.5-339933?logo=node.js&logoColor=white" alt="Node.js >= 22.5" /></a>
   <a href="https://nodejs.org/api/sqlite.html"><img src="https://img.shields.io/badge/SQLite-Zero%20Native%20Deps-0F766E" alt="Zero Native Deps" /></a>
@@ -91,11 +91,11 @@ Open **http://127.0.0.1:3777** — your local Antigravity sessions appear immedi
 
 ### 1. Resizable `S / M / L` Desktop Floating Widget, Zero-Latency Hover Inspector & Quick Push-Forward
 A featherweight frameless desktop radar built to stay open all day with **ultra-low RAM & 0% idle CPU**:
-- **Explicit `S / M / L` Size Presets + Free Drag Resize:** Switch cleanly between **`S` Pill (`292×52`)**, **`M` Medium All-Titles Radar (`390×600`)**, and **`L` Large Split Panorama (`700×580`)** from the header or System Tray — or freely drag any edge/corner to a custom size (persisted automatically, zero unsolicited auto-resizing).
+- **Explicit `S / M / L` Size Presets + Free Drag Resize:** Switch cleanly between **`S` Pill (`336×52`)**, **`M` Medium All-Titles Radar (`390×600`)**, and **`L` Large Split Panorama (`700×580`)** from the header or System Tray — or freely drag any edge/corner to a custom size (persisted automatically, zero unsolicited auto-resizing).
 - **All Unfinished Titles At-a-Glance + Auto-Hide `0ms` Hover Dock:** Every open conversation sits simultaneously visible without scrolling. In `M` mode, the bottom info bar stays **completely hidden at rest** for a serene list and smoothly fades in on hover (with `0` extra HTTP requests) — click to lock for typing or press `Esc` / `×` to dismiss.
 - **Free 5-Lane Control Everywhere:** Freely move any task across `Running` / `Needs Attention` / `In Progress` / `Stale` / `Archived` (e.g. pulling a stale thread back into `Needs Attention` as `Flagged`) via direct drag-and-drop between widget groups, hover `⇄` menu, right-click context menu, or the inline preview selector — with clean review dismissal and instant **Undo**.
 - **Safe Quick Push-Forward Composer & Offline Humanist Typography:** Bundled offline `Plus Jakarta Sans Variable` + refined CJK sans typography (zero code-font clutter on UI chrome). Click any row to fire a follow-up prompt directly (`agy --conversation <id> --prompt ...` when `agy` CLI is installed, or safe Clipboard + Focus Antigravity Desktop handoff).
-- **System Tray + Global Hotkeys:** Closing the full board destroys its renderer to reclaim ~150 MB RAM immediately; summon the Floating Widget (`Ctrl+Shift+W`) or Full Board (`Ctrl+Shift+M`) anytime, and toggle **Launch at Login** in one click.
+- **Seamless Integrated Window Chrome, Minimize (`—`) & Complete Quit (`×`):** Full Board uses Electron's native `titleBarStyle: 'hidden'` + theme-matched `titleBarOverlay` (zero ugly OS titlebar), while every Floating Widget size (`S / M / L`) offers crisp 1-click **Minimize to Tray (`—`)** and **Complete Quit (`×`)** buttons alongside global hotkeys (`Ctrl+Shift+W` / `Ctrl+Shift+M`) and Launch at Login.
 
 ![Desktop Floating Widget — S Pill, M Resting, M Hovered & L Split Panorama](docs/screenshots/floating-widget.png)
 
@@ -243,7 +243,7 @@ All endpoints are served under `http://127.0.0.1:3777`:
 
 | Endpoint | Description |
 | --- | --- |
-| `GET /api/health` | Runtime mode (`live` \| `demo`), version (`2.2.0`), `dispatchCapabilities`, data directory & DB status |
+| `GET /api/health` | Runtime mode (`live` \| `demo`), version (`2.3.0`), `dispatchCapabilities`, data directory & DB status |
 | `GET /api/board` | Full board snapshot: root `ConversationCard[]` (incl. zero-latency hover preview fields), `stats`, `workspaces`, `tags`, `settings`, `activeSwarms` |
 | `GET /api/conversations/:id` | Detailed `ConversationDetail` (checklist, Swarm detail & board feed, recursive subagent tree, artifacts, timeline, tokens) |
 | `GET /api/conversations/:id/artifact?file=...` | Path-traversal-safe artifact Markdown/text reader (max 512 KB) |

@@ -11,7 +11,7 @@ import {
   Users,
 } from 'lucide-react';
 import type { Dictionary } from '../i18n';
-import { formatRelativeTime, isFollowUpDue } from '../utils';
+import { formatRelativeTime, isFollowUpDue, resolveDistinctSubtitle } from '../utils';
 import {
   LivePulseDot,
   PriorityBadge,
@@ -68,7 +68,11 @@ export function ConversationCard({
   const extraTagCount = Math.max(0, card.overlay.tags.length - visibleTags.length);
   const followUpDue = isFollowUpDue(card.overlay.followUpAt);
   const topReason = primaryAttentionReason(card.attentionReasons);
-  const secondaryCopy = card.currentFocus || card.preview;
+  const secondaryCopy = resolveDistinctSubtitle(
+    card.title,
+    card.currentFocus,
+    card.preview,
+  );
 
   const dotColor = card.hasError
     ? 'bg-[#DC2626] dark:bg-[#EF4444]'

@@ -138,3 +138,105 @@ export function shortModelName(model: string): string {
     .replace(/^claude-/i, 'claude-')
     .trim();
 }
+
+/**
+ * Strips redundant outer wrapping quotes (ASCII & smart quotes) and stray
+ * truncation-induced unmatched double quotes from agent focus/preview text.
+ * Example: `"Running pre-push..."` -> `Running pre-push...`
+ */
+export function cleanDisplayText(raw: string | null | undefined): string {
+  if (!raw) return '';
+  let text = raw.trim();
+  if (!text) return '';
+
+  const quotePairs: Array<[string, string]> = [
+    ['"', '"'],
+    ["'", "'"],
+    ['“', '”'],
+    ['‘', '’'],
+  ];
+
+  let changed = true;
+  while (changed && text.length >= 2) {
+    changed = false;
+    for (const [open, close] of quotePairs) {
+      if (!text.startsWith(open) || !text.endsWith(close)) continue;
+      const inner = text.slice(open.length, text.length - close.length).trim();
+
+      if (open === close) {
+        // Avoid unwrapping `"foo" and "bar"`, while allowing nested `""foo""`.
+        if (inner.includes(open) && !(inner.startsWith(open) && inner.endsWith(close))) {
+          continue;
+        }
+      } else {
+        // For asymmetric smart quotes, verify the opening quote stays open until the end.
+        let depth = 0;
+        let closesEarly = false;
+        for (let i = 0; i < text.length; i += 1) {
+          const ch = text[i];
+          if (ch === open) depth += 1;
+          else if (ch === close) depth -= 1;
+          if (depth === 0 && i < text.length - 1) {
+            closesEarly = true;
+            break;
+          }
+        }
+        if (closesEarly || depth !== 0) continue;
+      }
+
+      text = inner;
+      changed = true;
+      break;
+    }
+  }
+
+  // Strip a solitary unmatched leading/trailing double quote left by truncation
+  // (e.g. `"Running pre-push…`).
+  if (text.startsWith('"') && text.indexOf('"', 1) === -1) {
+    text = text.slice(1).trim();
+  } else if (text.endsWith('"') && text.indexOf('"') === text.length - 1) {
+    text = text.slice(0, -1).trim();
+  }
+  if (text.startsWith('“') && !text.includes('”')) {
+    text = text.slice(1).trim();
+  } else if (text.endsWith('”') && !text.includes('“')) {
+    text = text.slice(0, -1).trim();
+  }
+
+  return text;
+}
+
+function normalizeForTitleMatch(raw: string): string {
+  return cleanDisplayText(raw)
+    .replace(/[\s\u00A0]+/g, ' ')
+    .replace(/[.。…!！?？:：;；]+$/g, '')
+    .trim()
+    .toLowerCase();
+}
+
+/**
+ * Picks the first cleaned candidate string that provides genuinely new copy
+ * compared to `excludeTexts` (e.g. conversation title or already-rendered focus).
+ */
+export function resolveDistinctSubtitle(
+  excludeTexts: string | Array<string | null | undefined>,
+  ...candidates: Array<string | null | undefined>
+): string | null {
+  const excludedList = Array.isArray(excludeTexts) ? excludeTexts : [excludeTexts];
+  const excludedNorm = new Set(
+    excludedList
+      .map((s) => (s ? normalizeForTitleMatch(s) : ''))
+      .filter((s) => s.length > 0),
+  );
+
+  for (const candidate of candidates) {
+    const cleaned = cleanDisplayText(candidate);
+    if (!cleaned) continue;
+    const norm = normalizeForTitleMatch(cleaned);
+    if (!norm) continue;
+    if (excludedNorm.has(norm)) continue;
+    return cleaned;
+  }
+
+  return null;
+}

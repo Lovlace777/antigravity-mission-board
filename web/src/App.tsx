@@ -1050,6 +1050,13 @@ function MissionBoardApp() {
     searchQuery.trim() || selectedWorkspace || selectedTag || radarFilter,
   );
 
+  // Collapse the secondary filter toolbar when <=1 workspace, 0 tags, and no workspace/tag filter is active
+  const showSecondaryFilterRow =
+    (board?.workspaces.length ?? 0) > 1 ||
+    (board?.tags.length ?? 0) > 0 ||
+    Boolean(selectedWorkspace) ||
+    Boolean(selectedTag);
+
   const clearAllFilters = useCallback(() => {
     setSearchQuery('');
     setSelectedWorkspace('');
@@ -1086,6 +1093,7 @@ function MissionBoardApp() {
         radarFilter={radarFilter}
         onClearAllFilters={clearAllFilters}
         hasActiveFilters={hasActiveFilters}
+        showSecondaryFilterRow={showSecondaryFilterRow}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
         density={density}
@@ -1149,6 +1157,13 @@ function MissionBoardApp() {
               stats={board.stats}
               activeFilter={radarFilter}
               onToggleFilter={setRadarFilter}
+              showInlineReset={!showSecondaryFilterRow && hasActiveFilters}
+              onClearAllFilters={clearAllFilters}
+              tuckKanbanControls={!showSecondaryFilterRow && viewMode === 'kanban'}
+              kanbanSort={kanbanSort}
+              onKanbanSortChange={setKanbanSort}
+              density={density}
+              onDensityChange={setDensity}
               t={t}
             />
 
