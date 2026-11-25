@@ -505,7 +505,7 @@ export function CommandPalette({
               <X className="h-3.5 w-3.5" />
             </button>
           )}
-          <kbd className="hidden shrink-0 rounded border border-[#1C1917]/[0.09] bg-[#F6F5F1] px-1.5 py-0.5 font-mono text-[10px] text-[#8C867E] sm:inline-block dark:border-white/[0.09] dark:bg-[#232320] dark:text-[#787771]">
+          <kbd className="hidden shrink-0 rounded border border-[#1C1917]/[0.09] bg-[#F6F5F1] px-1.5 py-0.5 text-[10px] text-[#8C867E] sm:inline-block dark:border-white/[0.09] dark:bg-[#232320] dark:text-[#787771]">
             ESC
           </kbd>
         </div>
@@ -587,7 +587,7 @@ export function CommandPalette({
                           <PriorityBadge priority={entry.card.overlay.priority} compact />
                         )}
                         {entry.matchedIn && entry.matchedIn.length > 0 && (
-                          <span className="shrink-0 font-mono text-[10px] text-[#78716C] dark:text-[#8C8B85]">
+                          <span className="shrink-0 text-[10px] text-[#78716C] dark:text-[#8C8B85]">
                             · {entry.matchedIn[0]}
                           </span>
                         )}
@@ -602,7 +602,7 @@ export function CommandPalette({
                     {entry.kind === 'conversation' && entry.card ? (
                       <div className="flex shrink-0 items-center gap-2">
                         {entry.card.workspace && (
-                          <span className="hidden max-w-[115px] truncate font-mono text-[10.5px] text-[#8C867E] sm:inline dark:text-[#787771]">
+                          <span className="hidden max-w-[115px] truncate text-[10.5px] text-[#8C867E] sm:inline dark:text-[#787771]">
                             {entry.card.workspace}
                           </span>
                         )}
@@ -614,7 +614,7 @@ export function CommandPalette({
                         )}
                       </div>
                     ) : entry.shortcut ? (
-                      <kbd className="shrink-0 rounded border border-[#1C1917]/[0.1] bg-white px-1.5 py-0.5 font-mono text-[10px] text-[#78716C] dark:border-white/[0.1] dark:bg-[#1D1D1B] dark:text-[#9F9E98]">
+                      <kbd className="shrink-0 rounded border border-[#1C1917]/[0.1] bg-white px-1.5 py-0.5 text-[10px] text-[#78716C] dark:border-white/[0.1] dark:bg-[#1D1D1B] dark:text-[#9F9E98]">
                         {entry.shortcut}
                       </kbd>
                     ) : isActive ? (
@@ -631,25 +631,25 @@ export function CommandPalette({
         <div className="flex items-center justify-between border-t border-[#1C1917]/[0.07] bg-[#F6F5F1]/80 px-4 py-2 text-[10.5px] text-[#8C867E] dark:border-white/[0.06] dark:bg-[#141413] dark:text-[#6E6D68]">
           <div className="flex items-center gap-3">
             <span className="inline-flex items-center gap-1">
-              <kbd className="rounded border border-[#1C1917]/[0.09] bg-white px-1 py-0.5 font-mono text-[9.5px] dark:border-white/[0.09] dark:bg-[#1E1E1C]">
+              <kbd className="rounded border border-[#1C1917]/[0.09] bg-white px-1 py-0.5 text-[9.5px] dark:border-white/[0.09] dark:bg-[#1E1E1C]">
                 ↑↓
               </kbd>
               <span>{t.commandPalette.navigateHint}</span>
             </span>
             <span className="inline-flex items-center gap-1">
-              <kbd className="rounded border border-[#1C1917]/[0.09] bg-white px-1 py-0.5 font-mono text-[9.5px] dark:border-white/[0.09] dark:bg-[#1E1E1C]">
+              <kbd className="rounded border border-[#1C1917]/[0.09] bg-white px-1 py-0.5 text-[9.5px] dark:border-white/[0.09] dark:bg-[#1E1E1C]">
                 ↵
               </kbd>
               <span>{t.commandPalette.selectHint}</span>
             </span>
             <span className="inline-flex items-center gap-1">
-              <kbd className="rounded border border-[#1C1917]/[0.09] bg-white px-1 py-0.5 font-mono text-[9.5px] dark:border-white/[0.09] dark:bg-[#1E1E1C]">
+              <kbd className="rounded border border-[#1C1917]/[0.09] bg-white px-1 py-0.5 text-[9.5px] dark:border-white/[0.09] dark:bg-[#1E1E1C]">
                 Esc
               </kbd>
               <span>{t.commandPalette.closeHint}</span>
             </span>
           </div>
-          <span className="tabular-nums font-mono text-[10px]">
+          <span className="tabular-nums text-[10px]">
             {conversations.length}
           </span>
         </div>

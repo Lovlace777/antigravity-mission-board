@@ -89,6 +89,7 @@ export interface Dictionary {
     tabRunning: string;
     tabAttention: string;
     tabSwarm: string;
+    tabArchived: string;
     tabAll: string;
     emptyFocus: string;
     emptyTab: string;
@@ -105,7 +106,12 @@ export interface Dictionary {
     shortDecision: string;
     shortUnread: string;
     shortDue: string;
+    shortFlagged: string;
     hoverHint: string;
+    restingTitle: string;
+    restingHint: string;
+    closePreview: string;
+    dropToArchive: string;
     lockedLabel: string;
     unlockTooltip: string;
     latestOutput: string;
@@ -121,6 +127,10 @@ export interface Dictionary {
     detailShort: string;
     pushShort: string;
     workingAgentsLabel: string;
+  };
+  moveMenu: {
+    triggerTooltip: string;
+    moveTo: string;
   };
   theme: {
     light: string;
@@ -484,6 +494,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
       tabRunning: '运行中',
       tabAttention: '待关注',
       tabSwarm: 'Swarm',
+      tabArchived: '已归档',
       tabAll: '全部',
       emptyFocus: '当前没有未完成的对话',
       emptyTab: '暂无符合条件的对话',
@@ -500,7 +511,12 @@ export const dictionaries: Record<Locale, Dictionary> = {
       shortDecision: '决策',
       shortUnread: '未读',
       shortDue: '到期',
+      shortFlagged: '关注',
       hoverHint: '悬停预览 · 点击锁定',
+      restingTitle: '将鼠标移至左侧任意任务查看详情',
+      restingHint: '点击锁定后可快捷推进对话，右键或拖动可自由调整状态列',
+      closePreview: '关闭预览 (Esc)',
+      dropToArchive: '松开归档此对话',
       lockedLabel: '已锁定',
       unlockTooltip: '取消锁定，恢复悬停跟随',
       latestOutput: '最新进展',
@@ -516,6 +532,10 @@ export const dictionaries: Record<Locale, Dictionary> = {
       detailShort: '详情',
       pushShort: '推进',
       workingAgentsLabel: '执行中',
+    },
+    moveMenu: {
+      triggerTooltip: '调整状态 / 移至其他列',
+      moveTo: '调整任务状态',
     },
     theme: {
       light: '浅色',
@@ -560,6 +580,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
       error: '执行出错',
       request_feedback: '待审产物',
       follow_up_due: '跟进到期',
+      manual_attention: '手动关注',
     },
     priority: {
       label: '优先级',
@@ -889,6 +910,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
       tabRunning: 'Running',
       tabAttention: 'Attention',
       tabSwarm: 'Swarm',
+      tabArchived: 'Archived',
       tabAll: 'All',
       emptyFocus: 'All conversations are clear or archived',
       emptyTab: 'No conversations in this filter',
@@ -905,7 +927,12 @@ export const dictionaries: Record<Locale, Dictionary> = {
       shortDecision: 'Ask',
       shortUnread: 'New',
       shortDue: 'Due',
+      shortFlagged: 'Flag',
       hoverHint: 'Hover to preview · Click to lock',
+      restingTitle: 'Hover any conversation to inspect',
+      restingHint: 'Click to lock & push forward · Right-click or drag to move lanes',
+      closePreview: 'Dismiss preview (Esc)',
+      dropToArchive: 'Drop to archive conversation',
       lockedLabel: 'Locked',
       unlockTooltip: 'Unlock to resume hover preview',
       latestOutput: 'Latest Output',
@@ -921,6 +948,10 @@ export const dictionaries: Record<Locale, Dictionary> = {
       detailShort: 'Detail',
       pushShort: 'Push',
       workingAgentsLabel: 'Working',
+    },
+    moveMenu: {
+      triggerTooltip: 'Move to lane / quick triage',
+      moveTo: 'Move conversation to',
     },
     theme: {
       light: 'Light',
@@ -965,6 +996,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
       error: 'Error',
       request_feedback: 'Artifact review',
       follow_up_due: 'Follow-up due',
+      manual_attention: 'Flagged',
     },
     priority: {
       label: 'Priority',

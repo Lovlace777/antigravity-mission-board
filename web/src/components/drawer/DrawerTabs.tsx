@@ -100,7 +100,7 @@ export function OverviewTab({
             <AlertCircle className="h-3.5 w-3.5 shrink-0" />
             <span>{t.drawer.overview.lastErrorTitle}</span>
           </div>
-          <p className="mt-1 font-mono text-[11.5px] leading-relaxed break-words whitespace-pre-wrap text-[#991B1B] dark:text-[#FECACA]">
+          <p className="mt-1 text-[11.5px] leading-relaxed break-words whitespace-pre-wrap text-[#991B1B] dark:text-[#FECACA]">
             {detail.lastError}
           </p>
         </div>
@@ -153,7 +153,7 @@ export function OverviewTab({
             {t.drawer.overview.checklist}
           </span>
           {detail.stepsTotal > 0 && (
-            <span className="tabular-nums font-mono text-[11px] font-medium text-[#78716C] dark:text-[#8C8B85]">
+            <span className="tabular-nums text-[11px] font-medium text-[#78716C] dark:text-[#8C8B85]">
               {detail.stepsCompleted} / {detail.stepsTotal} ({progressPct}%)
             </span>
           )}
@@ -208,7 +208,7 @@ export function OverviewTab({
             {t.drawer.overview.tokenBreakdown}
           </span>
           {tokens.totalTokens > 0 && (
-            <span className="tabular-nums font-mono text-[11px] font-medium text-[#15803D] dark:text-[#4ADE80]">
+            <span className="tabular-nums text-[11px] font-medium text-[#15803D] dark:text-[#4ADE80]">
               {t.drawer.overview.cacheHitRate} {formatPercent(tokens.cacheHitRate)}
             </span>
           )}
@@ -222,7 +222,7 @@ export function OverviewTab({
                   {t.drawer.overview.inputTokens}
                 </div>
                 <div
-                  className="tabular-nums mt-0.5 font-mono text-sm font-semibold text-[#1C1917] dark:text-[#F2F1EE]"
+                  className="tabular-nums mt-0.5 text-sm font-semibold text-[#1C1917] dark:text-[#F2F1EE]"
                   title={formatExactNumber(tokens.inputTokens)}
                 >
                   {formatCompactNumber(tokens.inputTokens)}
@@ -233,7 +233,7 @@ export function OverviewTab({
                   {t.drawer.overview.cacheReadTokens}
                 </div>
                 <div
-                  className="tabular-nums mt-0.5 font-mono text-sm font-semibold text-[#15803D] dark:text-[#4ADE80]"
+                  className="tabular-nums mt-0.5 text-sm font-semibold text-[#15803D] dark:text-[#4ADE80]"
                   title={formatExactNumber(tokens.cacheReadTokens)}
                 >
                   {formatCompactNumber(tokens.cacheReadTokens)}
@@ -244,7 +244,7 @@ export function OverviewTab({
                   {t.drawer.overview.outputTokens}
                 </div>
                 <div
-                  className="tabular-nums mt-0.5 font-mono text-sm font-semibold text-[#44403C] dark:text-[#D6D3CD]"
+                  className="tabular-nums mt-0.5 text-sm font-semibold text-[#44403C] dark:text-[#D6D3CD]"
                   title={formatExactNumber(tokens.outputTokens)}
                 >
                   {formatCompactNumber(tokens.outputTokens)}
@@ -255,7 +255,7 @@ export function OverviewTab({
                   {t.drawer.overview.totalTokens}
                 </div>
                 <div
-                  className="tabular-nums mt-0.5 font-mono text-sm font-semibold text-[#1C1917] dark:text-[#F2F1EE]"
+                  className="tabular-nums mt-0.5 text-sm font-semibold text-[#1C1917] dark:text-[#F2F1EE]"
                   title={formatExactNumber(tokens.totalTokens)}
                 >
                   {formatCompactNumber(tokens.totalTokens)}
@@ -290,7 +290,7 @@ export function OverviewTab({
                 {detail.models.map((m) => (
                   <span
                     key={m}
-                    className="rounded-md bg-[#F2F0EB] px-1.5 py-0.5 font-mono text-[10.5px] text-[#44403C] dark:bg-[#242421] dark:text-[#D6D3CD]"
+                    className="rounded-md bg-[#F2F0EB] px-1.5 py-0.5 text-[10.5px] text-[#44403C] dark:bg-[#242421] dark:text-[#D6D3CD]"
                   >
                     {shortModelName(m)}
                   </span>
@@ -325,7 +325,7 @@ export function OverviewTab({
             <dt className="text-[11px] text-[#8C867E] dark:text-[#73726C]">
               {t.drawer.overview.createdOrModified}
             </dt>
-            <dd className="tabular-nums mt-0.5 font-mono text-[11.5px] text-[#44403C] dark:text-[#D6D3CD]">
+            <dd className="tabular-nums mt-0.5 text-[11.5px] text-[#44403C] dark:text-[#D6D3CD]">
               {formatDateTime(detail.lastModifiedAt, locale)}
             </dd>
           </div>
@@ -333,7 +333,7 @@ export function OverviewTab({
             <dt className="text-[11px] text-[#8C867E] dark:text-[#73726C]">
               {t.drawer.overview.lastUserInput}
             </dt>
-            <dd className="tabular-nums mt-0.5 font-mono text-[11.5px] text-[#44403C] dark:text-[#D6D3CD]">
+            <dd className="tabular-nums mt-0.5 text-[11.5px] text-[#44403C] dark:text-[#D6D3CD]">
               {detail.lastUserInputAt
                 ? formatDateTime(detail.lastUserInputAt, locale)
                 : t.drawer.overview.never}
@@ -343,7 +343,7 @@ export function OverviewTab({
             <dt className="text-[11px] text-[#8C867E] dark:text-[#73726C]">
               {t.drawer.overview.lastReviewed}
             </dt>
-            <dd className="tabular-nums mt-0.5 font-mono text-[11.5px] text-[#44403C] dark:text-[#D6D3CD]">
+            <dd className="tabular-nums mt-0.5 text-[11.5px] text-[#44403C] dark:text-[#D6D3CD]">
               {detail.overlay.reviewedAt
                 ? formatDateTime(detail.overlay.reviewedAt, locale)
                 : t.drawer.overview.never}
@@ -353,7 +353,7 @@ export function OverviewTab({
             <dt className="text-[11px] text-[#8C867E] dark:text-[#73726C]">
               {t.drawer.overview.stepCount}
             </dt>
-            <dd className="tabular-nums mt-0.5 font-mono text-[11.5px] text-[#44403C] dark:text-[#D6D3CD]">
+            <dd className="tabular-nums mt-0.5 text-[11.5px] text-[#44403C] dark:text-[#D6D3CD]">
               {detail.stepCount}
             </dd>
           </div>
@@ -371,7 +371,7 @@ export function OverviewTab({
                   className="flex items-center justify-between gap-2 text-[11.5px] text-[#44403C] dark:text-[#D6D3CD]"
                 >
                   <span className="truncate">{sq.title || sq.id}</span>
-                  <span className="shrink-0 font-mono text-[10px] text-[#8C867E]">
+                  <span className="shrink-0 text-[10px] text-[#8C867E]">
                     {sq.id.slice(0, 8)}
                   </span>
                 </li>
@@ -411,7 +411,7 @@ function SubagentTreeNode({
                 }`}
               />
             )}
-            <span className="rounded bg-white px-1.5 py-0.5 font-mono text-[10.5px] font-medium text-[#1C1917] ring-1 ring-[#1C1917]/[0.08] dark:bg-[#222220] dark:text-[#E7E5E0] dark:ring-white/[0.08]">
+            <span className="rounded bg-white px-1.5 py-0.5 text-[10.5px] font-medium text-[#1C1917] ring-1 ring-[#1C1917]/[0.08] dark:bg-[#222220] dark:text-[#E7E5E0] dark:ring-white/[0.08]">
               {node.typeName || node.role || 'subagent'}
             </span>
             <span className="truncate text-xs font-medium text-[#1C1917] dark:text-[#F2F1EE]">
@@ -461,7 +461,7 @@ export function AgentsTab({
                 <Network className="h-3.5 w-3.5 text-[#8C867E]" />
                 <span>{swarm.title || t.drawer.agents.swarmTitle}</span>
               </div>
-              <span className="font-mono text-[10.5px] text-[#8C867E]">
+              <span className="text-[10.5px] text-[#8C867E]">
                 {swarm.swarmId.slice(0, 8)}
               </span>
             </div>
@@ -498,7 +498,7 @@ export function AgentsTab({
                     className="rounded-lg border border-[#1C1917]/[0.06] bg-[#FAF9F6] p-2.5 dark:border-white/[0.055] dark:bg-[#141413]"
                   >
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-[10.5px] font-semibold text-[#78716C] dark:text-[#8C8B85]">
+                      <span className="text-[10.5px] font-semibold text-[#78716C] dark:text-[#8C8B85]">
                         {thread.id}
                       </span>
                       <span className="text-xs font-medium text-[#1C1917] dark:text-[#F2F1EE]">
@@ -541,7 +541,7 @@ export function AgentsTab({
                   <tbody className="divide-y divide-[#1C1917]/[0.055] dark:divide-white/[0.055]">
                     {swarm.members.map((m) => (
                       <tr key={m.conversationId || m.name}>
-                        <td className="py-2 pl-3.5 pr-2 font-mono font-semibold text-[#1C1917] dark:text-[#F2F1EE]">
+                        <td className="py-2 pl-3.5 pr-2 font-semibold text-[#1C1917] dark:text-[#F2F1EE]">
                           @{m.name}
                           {m.role === 'coordinator' && (
                             <span className="ml-1.5 rounded bg-[#1C1917] px-1 py-0.5 text-[9px] text-[#F6F5F1] uppercase dark:bg-[#F2F1EE] dark:text-[#111110]">
@@ -556,7 +556,7 @@ export function AgentsTab({
                             t={t}
                           />
                         </td>
-                        <td className="py-2 pr-2 font-mono text-[11px] text-[#78716C] dark:text-[#8C8B85]">
+                        <td className="py-2 pr-2 text-[11px] text-[#78716C] dark:text-[#8C8B85]">
                           {m.model ? shortModelName(m.model) : '—'}
                         </td>
                         <td className="max-w-[240px] truncate py-2 pr-3.5 text-[11.5px] text-[#57534E] dark:text-[#9F9E98]">
@@ -591,17 +591,17 @@ export function AgentsTab({
                   >
                     <div className="flex items-center justify-between gap-2 text-[11px]">
                       <div className="flex items-center gap-1.5">
-                        <span className="tabular-nums font-mono text-[#969088]">
+                        <span className="tabular-nums text-[#969088]">
                           #{msg.seq}
                         </span>
-                        <span className="font-mono text-[10.5px] font-semibold text-[#1C1917] dark:text-[#F2F1EE]">
+                        <span className="text-[10.5px] font-semibold text-[#1C1917] dark:text-[#F2F1EE]">
                           @{msg.agent}
                         </span>
                         {msg.kind && (
                           <span className="text-[10px] text-[#8C867E]">· {msg.kind}</span>
                         )}
                       </div>
-                      <span className="tabular-nums font-mono text-[10px] text-[#969088]">
+                      <span className="tabular-nums text-[10px] text-[#969088]">
                         {msg.time}
                       </span>
                     </div>
@@ -732,7 +732,7 @@ export function ArtifactsTab({
               <div className="flex items-start justify-between gap-1.5">
                 <div className="flex min-w-0 items-center gap-1.5">
                   <FileText className="h-3.5 w-3.5 shrink-0 text-[#8C867E]" />
-                  <span className="truncate font-mono text-xs font-semibold text-[#1C1917] dark:text-[#F2F1EE]">
+                  <span className="truncate text-xs font-semibold text-[#1C1917] dark:text-[#F2F1EE]">
                     {art.fileName}
                   </span>
                 </div>
@@ -749,7 +749,7 @@ export function ArtifactsTab({
               )}
               <div className="tabular-nums mt-1.5 flex items-center justify-between text-[10px] text-[#969088]">
                 <span>{art.updatedAt ? formatDateTime(art.updatedAt, locale) : '—'}</span>
-                <span className="font-mono">
+                <span className="tabular-nums">
                   {art.sizeBytes > 1024
                     ? `${(art.sizeBytes / 1024).toFixed(1)} KB`
                     : `${art.sizeBytes} B`}
@@ -769,7 +769,7 @@ export function ArtifactsTab({
         ) : (
           <>
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#1C1917]/[0.07] bg-[#FAF9F6] px-3.5 py-2 dark:border-white/[0.06] dark:bg-[#151513]">
-              <span className="truncate font-mono text-xs font-semibold text-[#1C1917] dark:text-[#E7E5E0]">
+              <span className="truncate text-xs font-semibold text-[#1C1917] dark:text-[#E7E5E0]">
                 {selectedFile}
               </span>
               <div className="flex items-center gap-1.5">
@@ -820,7 +820,7 @@ export function ArtifactsTab({
                 </div>
               ) : contentRes ? (
                 rawMode ? (
-                  <pre className="overflow-x-auto font-mono text-xs leading-relaxed whitespace-pre-wrap text-[#1C1917] dark:text-[#E7E5E0]">
+                  <pre className="agmb-raw-code overflow-x-auto text-xs leading-relaxed whitespace-pre-wrap text-[#1C1917] dark:text-[#E7E5E0]">
                     {contentRes.content}
                   </pre>
                 ) : (
@@ -911,16 +911,16 @@ function TimelineTurnCard({
             <Icon className="h-3 w-3" />
             <span>{roleConfig.label}</span>
           </span>
-          <span className="tabular-nums font-mono text-[10.5px] text-[#969088]">
+          <span className="tabular-nums text-[10.5px] text-[#969088]">
             {t.drawer.timeline.stepIndex(turn.stepIndex)}
           </span>
           {turn.model && (
-            <span className="font-mono text-[10px] text-[#8C867E] dark:text-[#787771]">
+            <span className="text-[10px] text-[#8C867E] dark:text-[#787771]">
               · {shortModelName(turn.model)}
             </span>
           )}
         </div>
-        <span className="tabular-nums font-mono text-[10.5px] text-[#969088]">
+        <span className="tabular-nums text-[10.5px] text-[#969088]">
           {formatDateTime(turn.createdAt, locale)}
         </span>
       </div>
@@ -931,7 +931,7 @@ function TimelineTurnCard({
           {turn.toolNames.map((tool, i) => (
             <span
               key={`${tool}-${i}`}
-              className="rounded bg-[#F2F0EB] px-1.5 py-0.5 font-mono text-[10px] text-[#57534E] dark:bg-[#242421] dark:text-[#A1A09A]"
+              className="rounded bg-[#F2F0EB] px-1.5 py-0.5 text-[10px] text-[#57534E] dark:bg-[#242421] dark:text-[#A1A09A]"
             >
               {tool}
             </span>
@@ -965,7 +965,7 @@ function TimelineTurnCard({
         <p
           className={`mt-2 text-xs leading-relaxed break-words whitespace-pre-wrap ${
             role === 'error'
-              ? 'font-mono text-[#B91C1C] dark:text-[#FCA5A5]'
+              ? 'text-[#B91C1C] dark:text-[#FCA5A5]'
               : 'text-[#44403C] dark:text-[#D6D3CD]'
           }`}
         >

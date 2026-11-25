@@ -8,7 +8,7 @@
 
 <p>
   <a href="https://github.com/Lovlace777/antigravity-mission-board/actions/workflows/ci.yml"><img src="https://github.com/Lovlace777/antigravity-mission-board/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
-  <a href="https://github.com/Lovlace777/antigravity-mission-board/releases/tag/v2.1.0"><img src="https://img.shields.io/badge/Release-v2.1.0-1C1917" alt="Release v2.1.0" /></a>
+  <a href="https://github.com/Lovlace777/antigravity-mission-board/releases/tag/v2.2.0"><img src="https://img.shields.io/badge/Release-v2.2.0-1C1917" alt="Release v2.2.0" /></a>
   <img src="https://img.shields.io/badge/%E6%A1%8C%E9%9D%A2%E7%AB%AF-S%2FM%2FL%20%E8%87%AA%E7%94%B1%E7%BC%A9%E6%94%BE%E6%B5%AE%E7%AA%97-292524" alt="S/M/L 自由缩放桌面浮窗" />
   <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-%E2%89%A522.5-339933?logo=node.js&logoColor=white" alt="Node.js >= 22.5" /></a>
   <a href="https://nodejs.org/api/sqlite.html"><img src="https://img.shields.io/badge/SQLite-%E9%9B%B6%E5%8E%9F%E7%94%9F%20C%2B%2B%20%E4%BE%9D%E8%B5%96-0F766E" alt="零原生 C++ 依赖" /></a>
@@ -92,11 +92,12 @@ powershell -ExecutionPolicy Bypass -File desktop/scripts/install-windows-shortcu
 ### 1. 自由缩放 `S / M / L` 置顶浮窗、零延迟悬停预览与快捷推进指令
 专为「全天开着也不占资源、扫一眼就知道所有未完成事项」深度打造的桌面灵动雷达：
 - **显式 `S / M / L` 三档尺寸 + 边缘自由拖拽缩放：** 顶栏或托盘菜单一键切换 **`S` 胶囊（`292×52`）**、**`M` 中型全标题雷达（`390×600`）**、**`L` 大型双栏全景（`700×580`）**，也可以直接拖拽窗口四边或四角调成任意尺寸并自动记忆（绝不擅自乱跳大小）。
-- **未完成标题一目了然 + 0 延迟鼠标悬停预览：** 所有未归档任务标题以紧凑单行分组同屏呈现，无需翻页寻找；鼠标划过任意标题即在底部预览栏（`M`）或右侧双栏检视器（`L`）**0 HTTP 请求秒出详情**（实时焦点、最新回复摘录、步骤清单、Swarm 成员状态与待审文档）。
-- **浮窗内直接发指令推进对话：** 点击任意条目锁定后，直接输入下一步指令或点选快捷芯片（`继续推进` / `总结当前进展` / `检查报错并修复`）—— 若本机安装了官方 `agy` CLI 则通过文档化 `agy --conversation <id> --prompt ...` 直接派发，否则一键复制指令并自动切换焦点到 Antigravity Desktop 窗口，按 `Ctrl+V` 回车即推进（零 Hack、100% 安全）。
+- **未完成标题一目了然 + 自动隐藏悬停信息栏（`0ms` 响应）：** 所有未归档标题以紧凑分组同屏呈现。`M` 模式下静息状态**完全收起底部信息栏**保持极致清爽，鼠标划过任意标题时丝滑浮现详情（`0` 次额外请求），移开自动隐藏，点击锁定方便输入与操作。
+- **全场景自由五栏定位与状态调控：** 无论是把「久未跟进」拉回「待你关注（手动关注）」，还是微调「运行中 / 跟进中 / 已归档」，均支持浮窗组间直接拖拽、悬停 `⇄` 菜单、右键快捷菜单与预览栏内联切换 —— 配合一键「已阅」自动清标与即时 **撤销（Undo）**。
+- **离线人文无衬线排版 + 浮窗快捷推进指令：** 本地离线打包 `Plus Jakarta Sans Variable` 与细腻中文字体栈（彻底移除界面上的等宽代码体）。点击任意条目锁定后即可直接发送下一步指令（有官方 `agy` CLI 时直连派发，否则一键复制并切焦至 Antigravity Desktop）。
 - **极致轻量化与托盘常驻：** 后端直嵌 Electron 主进程，彻底消灭独立 `node.exe` 子进程（**私有内存直降 42%**）；关闭主看板窗口即刻销毁渲染进程释放 ~150 MB 内存；随时通过 `Ctrl+Shift+W` 显隐浮窗、`Ctrl+Shift+M` 呼出完整看板。
 
-![桌面置顶浮窗 — S 胶囊、M 全标题雷达与 L 双栏全景](docs/screenshots/floating-widget.png)
+![桌面置顶浮窗 — S 胶囊、M 静息态、M 悬停态与 L 双栏全景](docs/screenshots/floating-widget.png)
 
 ![中文 L 大型双栏全景浮窗与快捷推进指令](docs/screenshots/widget-panorama-zh.png)
 
@@ -252,7 +253,7 @@ flowchart LR
 
 | 接口 | 用途 |
 | --- | --- |
-| `GET /api/health` | 运行模式（`live` / `demo`）、版本（`2.1.0`）、`dispatchCapabilities` 与数据库可读状态 |
+| `GET /api/health` | 运行模式（`live` / `demo`）、版本（`2.2.0`）、`dispatchCapabilities` 与数据库可读状态 |
 | `GET /api/board` | 获取完整看板快照：根对话卡片（含零延迟悬停预览字段）、统计指标、工作区、标签、设置与活跃 Swarm |
 | `GET /api/conversations/:id` | 获取单个对话详情（步骤清单、Swarm 讨论板、子代理树、产物、时间线、Token） |
 | `GET /api/conversations/:id/artifact?file=...` | 防目录穿越的 Markdown/文本产物读取接口（上限 512 KB） |

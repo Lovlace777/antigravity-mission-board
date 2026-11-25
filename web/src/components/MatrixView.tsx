@@ -2,6 +2,7 @@ import { Fragment, useMemo, useState } from 'react';
 import type { ConversationCard, LaneId } from '@shared/types';
 import {
   ArrowDown,
+  ArrowLeftRight,
   ArrowUp,
   CheckCheck,
   ChevronDown,
@@ -37,6 +38,7 @@ interface MatrixViewProps {
   onSelectConversation: (id: string) => void;
   onTogglePin: (card: ConversationCard) => void;
   onMarkReviewed: (card: ConversationCard) => void;
+  onOpenMoveMenu: (card: ConversationCard, x: number, y: number) => void;
   locale: Locale;
   t: Dictionary;
 }
@@ -48,6 +50,7 @@ export function MatrixView({
   onSelectConversation,
   onTogglePin,
   onMarkReviewed,
+  onOpenMoveMenu,
   locale,
   t,
 }: MatrixViewProps) {
@@ -281,10 +284,10 @@ export function MatrixView({
                               ) : (
                                 <ChevronDown className="h-3.5 w-3.5 text-[#8C867E]" />
                               )}
-                              <span className="font-mono text-xs font-semibold text-[#1C1917] dark:text-[#E7E5E0]">
+                              <span className="text-xs font-semibold text-[#1C1917] dark:text-[#E7E5E0]">
                                 {group.label}
                               </span>
-                              <span className="tabular-nums font-mono text-[11px] text-[#8C867E] dark:text-[#6E6D68]">
+                              <span className="tabular-nums text-[11px] text-[#8C867E] dark:text-[#6E6D68]">
                                 {group.items.length}
                               </span>
                               {runningInGroup > 0 && (
@@ -319,6 +322,11 @@ export function MatrixView({
                             <tr
                               key={`${group.key}-${card.id}`}
                               onClick={() => onSelectConversation(card.id)}
+                              onContextMenu={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                onOpenMoveMenu(card, e.clientX, e.clientY);
+                              }}
                               className={`group cursor-pointer transition-colors ${
                                 selected
                                   ? 'bg-[#EFECE6]/75 dark:bg-[#232320]'
@@ -397,7 +405,7 @@ export function MatrixView({
                               <td className="py-2.5 pr-3 align-middle">
                                 <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px]">
                                   {card.workspace && (
-                                    <span className="max-w-[140px] truncate font-mono text-[#57534E] dark:text-[#A1A09A]">
+                                    <span className="max-w-[140px] truncate text-[#57534E] dark:text-[#A1A09A]">
                                       {card.workspace}
                                     </span>
                                   )}
@@ -433,12 +441,12 @@ export function MatrixView({
                                         style={{ width: `${progressPct}%` }}
                                       />
                                     </div>
-                                    <span className="tabular-nums font-mono text-[11px] text-[#57534E] dark:text-[#9F9E98]">
+                                    <span className="tabular-nums text-[11px] text-[#57534E] dark:text-[#9F9E98]">
                                       {card.stepsCompleted}/{card.stepsTotal}
                                     </span>
                                   </div>
                                 ) : (
-                                  <span className="tabular-nums font-mono text-[11px] text-[#969088] dark:text-[#666560]">
+                                  <span className="tabular-nums text-[11px] text-[#969088] dark:text-[#666560]">
                                     {card.stepCount} {t.card.steps}
                                   </span>
                                 )}
@@ -447,14 +455,14 @@ export function MatrixView({
                               {/* Swarm / Subagents */}
                               <td className="py-2.5 pr-3 align-middle">
                                 {card.swarm ? (
-                                  <span className="tabular-nums inline-flex items-center gap-1 font-mono text-[11px] text-[#44403C] dark:text-[#D6D3CD]">
+                                  <span className="tabular-nums inline-flex items-center gap-1 text-[11px] text-[#44403C] dark:text-[#D6D3CD]">
                                     <Network className="h-3 w-3 opacity-65" />
                                     <span>
                                       {card.swarm.workingCount}/{card.swarm.totalMembers}
                                     </span>
                                   </span>
                                 ) : card.subagentCount > 0 ? (
-                                  <span className="tabular-nums inline-flex items-center gap-1 font-mono text-[11px] text-[#78716C] dark:text-[#9F9E98]">
+                                  <span className="tabular-nums inline-flex items-center gap-1 text-[11px] text-[#78716C] dark:text-[#9F9E98]">
                                     <Users className="h-3 w-3 opacity-65" />
                                     <span>{card.subagentCount}</span>
                                   </span>
@@ -467,10 +475,10 @@ export function MatrixView({
                               <td className="tabular-nums py-2.5 pr-3 text-right align-middle">
                                 {card.tokens.totalTokens > 0 ? (
                                   <div>
-                                    <div className="font-mono text-[11.5px] font-medium text-[#1C1917] dark:text-[#E7E5E0]">
+                                    <div className="text-[11.5px] font-medium text-[#1C1917] dark:text-[#E7E5E0]">
                                       {formatCompactNumber(card.tokens.totalTokens)}
                                     </div>
-                                    <div className="font-mono text-[10px] text-[#8C867E] dark:text-[#787771]">
+                                    <div className="text-[10px] text-[#8C867E] dark:text-[#787771]">
                                       {formatPercent(card.tokens.cacheHitRate)}
                                     </div>
                                   </div>
@@ -489,23 +497,38 @@ export function MatrixView({
 
                               {/* Quick Actions */}
                               <td className="py-2.5 pr-3.5 text-right align-middle whitespace-nowrap">
-                                {needsReview ? (
+                                <div className="inline-flex items-center justify-end gap-1">
                                   <button
                                     type="button"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      onMarkReviewed(card);
+                                      const rect = e.currentTarget.getBoundingClientRect();
+                                      onOpenMoveMenu(card, rect.left - 150, rect.bottom + 4);
                                     }}
-                                    className="inline-flex items-center gap-1 rounded-md border border-[#1C1917]/[0.1] bg-white px-2 py-1 text-[10.5px] font-medium whitespace-nowrap text-[#44403C] transition-colors hover:border-[#1C1917]/30 hover:bg-[#1C1917] hover:text-[#F6F5F1] dark:border-white/[0.1] dark:bg-[#222220] dark:text-[#D6D3CD] dark:hover:bg-[#F2F1EE] dark:hover:text-[#111110]"
+                                    title={t.moveMenu.triggerTooltip}
+                                    aria-label={t.moveMenu.triggerTooltip}
+                                    className="rounded-md p-1 text-[#8C867E] opacity-0 transition-all group-hover:opacity-100 hover:bg-[#1C1917]/[0.06] hover:text-[#1C1917] focus:opacity-100 dark:hover:bg-white/[0.08] dark:hover:text-[#F2F1EE]"
                                   >
-                                    <CheckCheck className="h-3 w-3 shrink-0" />
-                                    <span>{t.card.markReviewed}</span>
+                                    <ArrowLeftRight className="h-3.5 w-3.5" />
                                   </button>
-                                ) : (
-                                  <span className="text-[10.5px] whitespace-nowrap text-[#A8A29E] dark:text-[#575652]">
-                                    {t.card.reviewed}
-                                  </span>
-                                )}
+                                  {needsReview ? (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        onMarkReviewed(card);
+                                      }}
+                                      className="inline-flex items-center gap-1 rounded-md border border-[#1C1917]/[0.1] bg-white px-2 py-1 text-[10.5px] font-medium whitespace-nowrap text-[#44403C] transition-colors hover:border-[#1C1917]/30 hover:bg-[#1C1917] hover:text-[#F6F5F1] dark:border-white/[0.1] dark:bg-[#222220] dark:text-[#D6D3CD] dark:hover:bg-[#F2F1EE] dark:hover:text-[#111110]"
+                                    >
+                                      <CheckCheck className="h-3 w-3 shrink-0" />
+                                      <span>{t.card.markReviewed}</span>
+                                    </button>
+                                  ) : (
+                                    <span className="text-[10.5px] whitespace-nowrap text-[#A8A29E] dark:text-[#575652]">
+                                      {t.card.reviewed}
+                                    </span>
+                                  )}
+                                </div>
                               </td>
                             </tr>
                           );

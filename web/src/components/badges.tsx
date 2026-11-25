@@ -13,7 +13,7 @@ export function LivePulseDot({ className = '' }: { className?: string }) {
   );
 }
 
-/** Minimal typographic priority label (no loud boxed pill) */
+/** Minimal typographic priority label (clean humanist sans + tabular-nums) */
 export function PriorityBadge({
   priority,
   compact = false,
@@ -29,7 +29,7 @@ export function PriorityBadge({
   };
   return (
     <span
-      className={`inline-flex items-center font-mono font-semibold uppercase tracking-tight ${
+      className={`tabular-nums inline-flex items-center font-semibold uppercase tracking-tight ${
         compact ? 'text-[10px] leading-none' : 'text-[11px] leading-none'
       } ${styles[priority]}`}
     >
@@ -60,7 +60,7 @@ export function LanePill({
   );
 }
 
-/** Restrained editorial attention tag (used in Drawer & Matrix, never stacked neon pills) */
+/** Restrained editorial attention tag */
 export function AttentionReasonBadge({
   reason,
   t,
@@ -74,7 +74,8 @@ export function AttentionReasonBadge({
     reason === 'request_feedback' ||
     reason === 'unread_update' ||
     reason === 'marked_as_unread' ||
-    reason === 'follow_up_due';
+    reason === 'follow_up_due' ||
+    reason === 'manual_attention';
 
   const dotColor = isError
     ? 'bg-[#DC2626] dark:bg-[#EF4444]'
@@ -177,6 +178,7 @@ export function primaryAttentionReason(
     'needs_input',
     'request_feedback',
     'follow_up_due',
+    'manual_attention',
     'marked_as_unread',
     'unread_update',
   ];

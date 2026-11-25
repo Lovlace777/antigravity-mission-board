@@ -19,6 +19,7 @@ interface KanbanBoardProps {
   onTogglePin: (card: ConversationCardData) => void;
   onMarkReviewed: (card: ConversationCardData) => void;
   onCyclePriority: (card: ConversationCardData) => void;
+  onOpenMoveMenu: (card: ConversationCardData, x: number, y: number) => void;
   onMarkAllAttentionRead: (cards: ConversationCardData[]) => void;
   t: Dictionary;
 }
@@ -67,6 +68,7 @@ export function KanbanBoard({
   onTogglePin,
   onMarkReviewed,
   onCyclePriority,
+  onOpenMoveMenu,
   onMarkAllAttentionRead,
   t,
 }: KanbanBoardProps) {
@@ -183,7 +185,7 @@ export function KanbanBoard({
                   <h2 className="truncate text-xs font-semibold tracking-[-0.01em] text-[#44403C] dark:text-[#D6D3CD]">
                     {t.lanes[lane]}
                   </h2>
-                  <span className="tabular-nums font-mono text-[11px] text-[#969088] dark:text-[#6E6D68]">
+                  <span className="tabular-nums text-[11px] text-[#969088] dark:text-[#6E6D68]">
                     {cards.length}
                   </span>
                 </div>
@@ -229,6 +231,7 @@ export function KanbanBoard({
                       onMarkReviewed={onMarkReviewed}
                       onCyclePriority={onCyclePriority}
                       onResetManualLane={onResetManualLane}
+                      onOpenMoveMenu={onOpenMoveMenu}
                       onDragStart={handleDragStart}
                       onDragEnd={handleDragEnd}
                       t={t}
@@ -264,7 +267,7 @@ export function KanbanBoard({
               <h2 className="text-xs font-semibold text-[#57534E] dark:text-[#9F9E98]">
                 {t.lanes.archived}
               </h2>
-              <span className="tabular-nums font-mono text-[11px] text-[#969088] dark:text-[#666560]">
+              <span className="tabular-nums text-[11px] text-[#969088] dark:text-[#666560]">
                 {archivedCards.length}
               </span>
             </div>
@@ -304,6 +307,7 @@ export function KanbanBoard({
                   onMarkReviewed={onMarkReviewed}
                   onCyclePriority={onCyclePriority}
                   onResetManualLane={onResetManualLane}
+                  onOpenMoveMenu={onOpenMoveMenu}
                   onDragStart={handleDragStart}
                   onDragEnd={handleDragEnd}
                   t={t}
@@ -335,7 +339,7 @@ export function KanbanBoard({
           >
             <ChevronLeft className="h-4 w-4 shrink-0" />
             <Archive className="h-3.5 w-3.5 shrink-0" />
-            <span className="tabular-nums font-mono text-[11px] font-medium">
+            <span className="tabular-nums text-[11px] font-medium">
               {archivedCards.length}
             </span>
             <span

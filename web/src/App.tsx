@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
+  AttentionReason,
   BoardNotification,
   BoardResponse,
   BoardSettings,
@@ -30,6 +31,7 @@ import { MatrixView } from './components/MatrixView';
 import { RadarStrip, type RadarFilter } from './components/RadarStrip';
 import { ShortcutsModal } from './components/ShortcutsModal';
 import { SwarmClusterView } from './components/SwarmClusterView';
+import { TaskMoveMenu, type TaskMoveMenuState } from './components/TaskMoveMenu';
 import { ToastHost, type ToastItem } from './components/ToastHost';
 import {
   TopBar,
@@ -120,10 +122,17 @@ function applyOptimisticOverlay(
   const nextManualLane =
     patch.manualLane !== undefined ? patch.manualLane : card.overlay.manualLane;
   const nextLane: LaneId = nextManualLane ?? card.autoLane;
+  let nextReasons: AttentionReason[] = card.attentionReasons.filter(
+    (r) => r !== 'manual_attention',
+  );
+  if (nextManualLane === 'attention' && nextReasons.length === 0) {
+    nextReasons = ['manual_attention'];
+  }
   return {
     ...card,
     lane: nextLane,
     isManualLane: nextManualLane !== null,
+    attentionReasons: nextReasons,
     overlay: nextOverlay,
   };
 }
@@ -139,8 +148,13 @@ function applyOptimisticReview(
     };
   }
   const remainingReasons = card.attentionReasons.filter(
-    (r) => r !== 'unread_update' && r !== 'marked_as_unread',
+    (r) =>
+      r !== 'unread_update' &&
+      r !== 'marked_as_unread' &&
+      r !== 'manual_attention',
   );
+  const clearedManual =
+    card.overlay.manualLane === 'attention' ? null : card.overlay.manualLane;
   const nextAutoLane: LaneId =
     !card.isRunning &&
     !card.isArchived &&
@@ -153,8 +167,9 @@ function applyOptimisticReview(
     markedAsUnread: false,
     attentionReasons: remainingReasons,
     autoLane: nextAutoLane,
-    lane: card.overlay.manualLane ?? nextAutoLane,
-    overlay: { ...card.overlay, reviewedAt },
+    lane: clearedManual ?? nextAutoLane,
+    isManualLane: clearedManual !== null,
+    overlay: { ...card.overlay, reviewedAt, manualLane: clearedManual },
   };
 }
 
@@ -242,6 +257,7 @@ function MissionBoardApp() {
   const [drawerInitialTab, setDrawerInitialTab] = useState<DrawerTab>('overview');
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [shortcutsModalOpen, setShortcutsModalOpen] = useState(false);
+  const [moveMenu, setMoveMenu] = useState<TaskMoveMenuState | null>(null);
 
   // Toasts
   const [toasts, setToasts] = useState<ToastItem[]>([]);
@@ -737,9 +753,36 @@ function MissionBoardApp() {
     [handlePatchOverlay, pushToast],
   );
 
+  const handleSetPriority = useCallback(
+    (card: ConversationCard, priority: Priority) => {
+      const dict = dictionaries[localeRef.current];
+      const short = shortenTitle(card.title, dict.card.untitled);
+      void handlePatchOverlay(card.id, { priority }).then(() => {
+        pushToast(
+          {
+            title: priority
+              ? dict.toasts.prioritySet(short, priority.toUpperCase())
+              : dict.toasts.priorityCleared(short),
+            tone: 'info',
+          },
+          2600,
+        );
+      });
+    },
+    [handlePatchOverlay, pushToast],
+  );
+
+  const handleOpenMoveMenu = useCallback(
+    (card: ConversationCard, x: number, y: number) => {
+      setMoveMenu({ card, x, y });
+    },
+    [],
+  );
+
   const handleMarkReviewed = useCallback(
     async (card: ConversationCard) => {
       const prevReviewedAt = card.overlay.reviewedAt;
+      const prevManualLane = card.overlay.manualLane;
       const nowIso = new Date().toISOString();
       const dict = dictionaries[localeRef.current];
       const short = shortenTitle(card.title, dict.card.untitled);
@@ -776,6 +819,7 @@ function MissionBoardApp() {
             onClick: () => {
               void handlePatchOverlay(card.id, {
                 reviewedAt: prevReviewedAt,
+                manualLane: prevManualLane,
               }).then(() => {
                 void loadBoardData(false);
                 pushToast({ title: dict.toasts.undone, tone: 'info' }, 2200);
@@ -795,6 +839,12 @@ function MissionBoardApp() {
     async (cards: ConversationCard[]) => {
       if (cards.length === 0) return;
       const ids = cards.map((c) => c.id);
+      const restoreManualLanes: Record<string, LaneId | null> = {};
+      for (const c of cards) {
+        if (c.overlay.manualLane === 'attention') {
+          restoreManualLanes[c.id] = 'attention';
+        }
+      }
       const idSet = new Set(ids);
       const nowIso = new Date().toISOString();
       const dict = dictionaries[localeRef.current];
@@ -829,7 +879,11 @@ function MissionBoardApp() {
           action: {
             label: dict.toasts.undo,
             onClick: () => {
-              void reviewConversationsBatch({ ids, reviewedAt: null })
+              void reviewConversationsBatch({
+                ids,
+                reviewedAt: null,
+                restoreManualLanes,
+              })
                 .then((undoRes) => {
                   const revertedMap = new Map(undoRes.cards.map((c) => [c.id, c]));
                   setBoard((prev) => {
@@ -1110,6 +1164,7 @@ function MissionBoardApp() {
                 onTogglePin={handleTogglePin}
                 onMarkReviewed={(card) => void handleMarkReviewed(card)}
                 onCyclePriority={handleCyclePriority}
+                onOpenMoveMenu={handleOpenMoveMenu}
                 onMarkAllAttentionRead={(cards) =>
                   void handleMarkAllAttentionRead(cards)
                 }
@@ -1125,6 +1180,7 @@ function MissionBoardApp() {
                 onSelectConversation={(id) => handleOpenConversation(id, 'overview')}
                 onTogglePin={handleTogglePin}
                 onMarkReviewed={(card) => void handleMarkReviewed(card)}
+                onOpenMoveMenu={handleOpenMoveMenu}
                 locale={locale}
                 t={t}
               />
@@ -1209,6 +1265,17 @@ function MissionBoardApp() {
         toasts={toasts}
         onDismiss={dismissToast}
         onOpenConversation={(id) => handleOpenConversation(id, 'overview')}
+      />
+
+      <TaskMoveMenu
+        menu={moveMenu}
+        onClose={() => setMoveMenu(null)}
+        onMoveLane={handleMoveLane}
+        onResetManualLane={handleResetManualLane}
+        onTogglePin={handleTogglePin}
+        onSetPriority={handleSetPriority}
+        onMarkReviewed={(card) => void handleMarkReviewed(card)}
+        t={t}
       />
     </div>
   );

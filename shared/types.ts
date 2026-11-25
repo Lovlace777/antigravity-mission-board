@@ -11,7 +11,8 @@ export type AttentionReason =
   | 'needs_input'
   | 'request_feedback'
   | 'error'
-  | 'follow_up_due';
+  | 'follow_up_due'
+  | 'manual_attention';
 
 export type Priority = 'p0' | 'p1' | 'p2' | null;
 
@@ -59,6 +60,8 @@ export interface ReviewBatchRequest {
   ids: string[];
   /** ISO timestamp to apply; omit for current time, or pass `null` to clear `reviewedAt` (Undo). */
   reviewedAt?: string | null;
+  /** Optional per-ID manualLane map to restore on batch Undo (e.g. when clearing manually-flagged attention cards). */
+  restoreManualLanes?: Record<string, LaneId | null>;
 }
 
 export interface ReviewBatchResponse {

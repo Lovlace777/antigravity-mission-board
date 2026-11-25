@@ -113,12 +113,12 @@ export function RadarStrip({
         title={`${t.radar.totalConversations}: ${stats.total}`}
         className="tabular-nums inline-flex items-center gap-2 rounded-lg px-2 py-1 text-[11.5px] text-[#78716C] transition-colors hover:text-[#1C1917] dark:text-[#8C8B85] dark:hover:text-[#F2F1EE]"
       >
-        <span className="font-mono font-medium text-[#44403C] dark:text-[#D6D3CD]">
+        <span className="font-medium text-[#44403C] dark:text-[#D6D3CD]">
           {formatCompactNumber(stats.tokens.totalTokens)}
         </span>
         <span>tokens</span>
         <span className="opacity-40">·</span>
-        <span className="font-mono">{cachePct}</span>
+        <span className="tabular-nums font-medium">{cachePct}</span>
         <span className="hidden sm:inline">{t.radar.cacheHit}</span>
       </button>
     </section>

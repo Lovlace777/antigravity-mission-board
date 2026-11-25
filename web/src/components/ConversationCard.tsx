@@ -1,5 +1,6 @@
 import type { ConversationCard as ConversationCardData } from '@shared/types';
 import {
+  ArrowLeftRight,
   CalendarClock,
   CheckCheck,
   FileText,
@@ -28,6 +29,7 @@ interface ConversationCardProps {
   onMarkReviewed: (card: ConversationCardData) => void;
   onCyclePriority: (card: ConversationCardData) => void;
   onResetManualLane: (card: ConversationCardData) => void;
+  onOpenMoveMenu: (card: ConversationCardData, x: number, y: number) => void;
   onDragStart: (e: React.DragEvent, id: string) => void;
   onDragEnd: () => void;
   t: Dictionary;
@@ -50,6 +52,7 @@ export function ConversationCard({
   onMarkReviewed,
   onCyclePriority,
   onResetManualLane,
+  onOpenMoveMenu,
   onDragStart,
   onDragEnd,
   t,
@@ -86,6 +89,11 @@ export function ConversationCard({
       onDragStart={(e) => onDragStart(e, card.id)}
       onDragEnd={onDragEnd}
       onClick={() => onSelect(card.id)}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onOpenMoveMenu(card, e.clientX, e.clientY);
+      }}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
@@ -107,6 +115,20 @@ export function ConversationCard({
         onClick={(e) => e.stopPropagation()}
         className="absolute top-2 right-2 z-10 flex items-center gap-0.5 rounded-lg border border-[#1C1917]/[0.1] bg-white/95 p-0.5 opacity-0 shadow-sm backdrop-blur-md transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100 dark:border-white/[0.12] dark:bg-[#242421]/95"
       >
+        <button
+          type="button"
+          data-testid={`card-move-btn-${card.id}`}
+          onClick={(e) => {
+            const rect = e.currentTarget.getBoundingClientRect();
+            onOpenMoveMenu(card, rect.left - 120, rect.bottom + 4);
+          }}
+          title={t.moveMenu.triggerTooltip}
+          aria-label={t.moveMenu.triggerTooltip}
+          className="rounded-md p-1 text-[#8C867E] transition-colors hover:bg-[#1C1917]/[0.06] hover:text-[#1C1917] dark:hover:bg-white/[0.08] dark:hover:text-[#F2F1EE]"
+        >
+          <ArrowLeftRight className="h-3 w-3" />
+        </button>
+
         <button
           type="button"
           onClick={() => onTogglePin(card)}
@@ -154,7 +176,7 @@ export function ConversationCard({
           {card.workspace && (
             <span
               title={card.workspacePath || card.workspace}
-              className="truncate font-mono text-[11px] text-[#78716C] dark:text-[#8C8B85]"
+              className="truncate text-[11px] text-[#78716C] dark:text-[#8C8B85]"
             >
               {card.workspace}
             </span>
@@ -240,7 +262,7 @@ export function ConversationCard({
                   style={{ width: `${progressPct}%` }}
                 />
               </div>
-              <span className="tabular-nums font-mono text-[10px] text-[#78716C] dark:text-[#8C8B85]">
+              <span className="tabular-nums text-[10px] text-[#78716C] dark:text-[#8C8B85]">
                 {card.stepsCompleted}/{card.stepsTotal}
               </span>
             </div>
@@ -272,7 +294,7 @@ export function ConversationCard({
             <div className="tabular-nums ml-auto flex shrink-0 items-center gap-2.5">
               {card.swarm && (
                 <span
-                  className="inline-flex items-center gap-1 font-mono text-[10.5px] text-[#57534E] dark:text-[#A1A09A]"
+                  className="inline-flex items-center gap-1 text-[10.5px] text-[#57534E] dark:text-[#A1A09A]"
                   title={card.swarm.title || t.card.swarm}
                 >
                   <Network className="h-3 w-3 opacity-70" />
@@ -285,7 +307,7 @@ export function ConversationCard({
               )}
 
               {!card.swarm && card.subagentCount > 0 && (
-                <span className="inline-flex items-center gap-1 font-mono text-[10.5px]">
+                <span className="inline-flex items-center gap-1 text-[10.5px]">
                   <Users className="h-3 w-3 opacity-70" />
                   <span>{card.subagentCount}</span>
                 </span>
@@ -293,7 +315,7 @@ export function ConversationCard({
 
               {!isCompact && card.artifactCount > 0 && (
                 <span
-                  className="inline-flex items-center gap-0.5 font-mono text-[10.5px]"
+                  className="inline-flex items-center gap-0.5 text-[10.5px]"
                   title={`${card.artifactCount} ${t.card.artifacts}`}
                 >
                   <FileText className="h-3 w-3 opacity-70" />
@@ -301,7 +323,7 @@ export function ConversationCard({
                 </span>
               )}
 
-              <span className="font-mono text-[10.5px]">
+              <span className="text-[10.5px]">
                 {card.stepCount} {t.card.steps}
               </span>
             </div>

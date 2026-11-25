@@ -10,7 +10,7 @@ interface ShortcutsModalProps {
 
 function KeyCap({ children }: { children: string }) {
   return (
-    <kbd className="inline-flex min-w-[24px] items-center justify-center rounded-md border border-[#1C1917]/[0.1] bg-white px-1.5 py-0.5 font-mono text-[11px] font-medium text-[#44403C] shadow-[0_1px_0_rgba(28,25,23,0.06)] dark:border-white/[0.11] dark:bg-[#232320] dark:text-[#E7E5E0] dark:shadow-[0_1px_0_rgba(0,0,0,0.45)]">
+    <kbd className="inline-flex min-w-[24px] items-center justify-center rounded-md border border-[#1C1917]/[0.1] bg-white px-1.5 py-0.5 text-[11px] font-medium text-[#44403C] shadow-[0_1px_0_rgba(28,25,23,0.06)] dark:border-white/[0.11] dark:bg-[#232320] dark:text-[#E7E5E0] dark:shadow-[0_1px_0_rgba(0,0,0,0.45)]">
       {children}
     </kbd>
   );

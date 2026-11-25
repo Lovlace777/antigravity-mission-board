@@ -7,6 +7,7 @@ import type {
   DispatchRequest,
   DispatchResponse,
   HealthResponse,
+  LaneId,
   OverlayData,
   OverlayPatch,
   ReviewBatchResponse,
@@ -30,7 +31,11 @@ export interface IBoardService {
     patch: OverlayPatch,
   ): { overlay: OverlayData; card: ConversationCard | null };
   markReviewed(conversationId: string): { overlay: OverlayData; card: ConversationCard | null };
-  markReviewedBatch(ids: string[], reviewedAt?: string | null): ReviewBatchResponse;
+  markReviewedBatch(
+    ids: string[],
+    reviewedAt?: string | null,
+    restoreManualLanes?: Record<string, LaneId | null>,
+  ): ReviewBatchResponse;
   dispatchPrompt(conversationId: string, request: DispatchRequest): DispatchResponse | null;
   search(query: string): SearchResponse;
   getSettings(): BoardSettings;

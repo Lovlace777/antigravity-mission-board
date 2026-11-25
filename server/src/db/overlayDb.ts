@@ -211,12 +211,18 @@ export class OverlayStore {
   }
 
   markReviewed(conversationId: string, nowIso = new Date().toISOString()): OverlayData {
-    return this.patchOverlay(conversationId, { reviewedAt: nowIso });
+    const current = this.getOverlay(conversationId);
+    const patch: OverlayPatch = { reviewedAt: nowIso };
+    if (current.manualLane === 'attention') {
+      patch.manualLane = null;
+    }
+    return this.patchOverlay(conversationId, patch);
   }
 
   markReviewedBatch(
     conversationIds: string[],
     reviewedAt: string | null = new Date().toISOString(),
+    restoreManualLanes?: Record<string, LaneId | null>,
   ): OverlayData[] {
     const uniqueIds = Array.from(new Set(conversationIds));
     if (uniqueIds.length === 0) return [];
@@ -225,7 +231,16 @@ export class OverlayStore {
     this.db.exec('BEGIN IMMEDIATE');
     try {
       for (const id of uniqueIds) {
-        results.push(this.patchOverlay(id, { reviewedAt }));
+        const patch: OverlayPatch = { reviewedAt };
+        if (restoreManualLanes && Object.prototype.hasOwnProperty.call(restoreManualLanes, id)) {
+          patch.manualLane = restoreManualLanes[id];
+        } else if (reviewedAt !== null) {
+          const current = this.getOverlay(id);
+          if (current.manualLane === 'attention') {
+            patch.manualLane = null;
+          }
+        }
+        results.push(this.patchOverlay(id, patch));
       }
       this.db.exec('COMMIT');
     } catch (err) {

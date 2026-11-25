@@ -163,10 +163,40 @@ function validateReviewBatchRequest(body: unknown): {
     }
   }
 
+  let restoreManualLanes: Record<string, LaneId | null> | undefined;
+  if ('restoreManualLanes' in raw && raw.restoreManualLanes !== undefined) {
+    if (
+      !raw.restoreManualLanes ||
+      typeof raw.restoreManualLanes !== 'object' ||
+      Array.isArray(raw.restoreManualLanes)
+    ) {
+      return { error: 'Field `restoreManualLanes` must be an object mapping conversation IDs to lanes or null.' };
+    }
+    const entries = Object.entries(raw.restoreManualLanes as Record<string, unknown>);
+    if (entries.length > 200) {
+      return { error: 'Field `restoreManualLanes` supports at most 200 entries.' };
+    }
+    const map: Record<string, LaneId | null> = {};
+    for (const [k, v] of entries) {
+      if (!isValidConversationId(k)) {
+        return { error: 'All keys in `restoreManualLanes` must be valid conversation IDs.' };
+      }
+      if (v === null || v === '') {
+        map[k] = null;
+      } else if (typeof v === 'string' && VALID_LANES.has(v as LaneId)) {
+        map[k] = v as LaneId;
+      } else {
+        return { error: 'Invalid lane value inside `restoreManualLanes`.' };
+      }
+    }
+    restoreManualLanes = map;
+  }
+
   return {
     request: {
       ids: Array.from(new Set(ids)),
       ...(reviewedAt !== undefined ? { reviewedAt } : {}),
+      ...(restoreManualLanes !== undefined ? { restoreManualLanes } : {}),
     },
   };
 }
@@ -262,7 +292,11 @@ export function createApp(service: IBoardService, options: CreateAppOptions = {}
       return;
     }
 
-    const result = service.markReviewedBatch(request.ids, request.reviewedAt);
+    const result = service.markReviewedBatch(
+      request.ids,
+      request.reviewedAt,
+      request.restoreManualLanes,
+    );
     sseBroker.notifyMutation();
     res.json(result);
   });

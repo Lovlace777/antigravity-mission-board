@@ -10,6 +10,7 @@ import type {
   DispatchRequest,
   DispatchResponse,
   HealthResponse,
+  LaneId,
   OverlayData,
   OverlayPatch,
   ReviewBatchResponse,
@@ -593,11 +594,15 @@ export class LiveBoardService implements IBoardService {
     };
   }
 
-  markReviewedBatch(ids: string[], reviewedAt?: string | null): ReviewBatchResponse {
+  markReviewedBatch(
+    ids: string[],
+    reviewedAt?: string | null,
+    restoreManualLanes?: Record<string, LaneId | null>,
+  ): ReviewBatchResponse {
     const uniqueIds = Array.from(new Set(ids));
     const appliedReviewedAt =
       reviewedAt === undefined ? new Date().toISOString() : reviewedAt;
-    this.overlayStore.markReviewedBatch(uniqueIds, appliedReviewedAt);
+    this.overlayStore.markReviewedBatch(uniqueIds, appliedReviewedAt, restoreManualLanes);
     const idSet = new Set(uniqueIds);
     const hydrated = this.hydrateAll(idSet, false);
     return {

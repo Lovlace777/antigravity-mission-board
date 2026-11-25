@@ -320,7 +320,7 @@ export function TopBar({
                       ? t.liveConnecting
                       : t.liveDisconnected}
                 </span>
-                <span className="tabular-nums font-mono text-[10px] text-[#969088] dark:text-[#666560]">
+                <span className="tabular-nums text-[10px] text-[#969088] dark:text-[#666560]">
                   {formatClockTime(lastSyncedAt)}
                 </span>
               </div>
@@ -372,7 +372,7 @@ export function TopBar({
                   {isSearchingServer ? (
                     <span className="h-3 w-3 animate-spin rounded-full border border-[#D6D3D1] border-t-[#1C1917] dark:border-[#333330] dark:border-t-[#F2F1EE]" />
                   ) : serverSearchCount !== null ? (
-                    <span className="tabular-nums rounded bg-[#EFECE6] px-1.5 py-0.5 font-mono text-[10px] font-medium text-[#44403C] dark:bg-[#262623] dark:text-[#D6D3CD]">
+                    <span className="tabular-nums rounded bg-[#EFECE6] px-1.5 py-0.5 text-[10px] font-medium text-[#44403C] dark:bg-[#262623] dark:text-[#D6D3CD]">
                       {t.searchServerMatches(serverSearchCount)}
                     </span>
                   ) : null}
@@ -389,7 +389,7 @@ export function TopBar({
                   </button>
                 </div>
               ) : (
-                <kbd className="hidden shrink-0 rounded border border-[#1C1917]/[0.09] bg-[#F6F5F1] px-1.5 py-0.5 font-mono text-[10px] text-[#8C867E] sm:inline-block dark:border-white/[0.09] dark:bg-[#222220] dark:text-[#787771]">
+                <kbd className="hidden shrink-0 rounded border border-[#1C1917]/[0.09] bg-[#F6F5F1] px-1.5 py-0.5 text-[10px] text-[#8C867E] sm:inline-block dark:border-white/[0.09] dark:bg-[#222220] dark:text-[#787771]">
                   {t.searchShortcutHint}
                 </kbd>
               )}
@@ -607,14 +607,14 @@ export function TopBar({
                       <div className="space-y-1 border-t border-[#1C1917]/[0.07] pt-2.5 text-[11px] dark:border-white/[0.07]">
                         <div className="flex items-center justify-between text-[#78716C] dark:text-[#8C8B85]">
                           <span>{t.settings.mode}</span>
-                          <span className="font-mono text-[#1C1917] dark:text-[#E7E5E0]">
+                          <span className="text-[#1C1917] dark:text-[#E7E5E0]">
                             {health.mode} · v{health.version}
                           </span>
                         </div>
                         <div className="text-[#78716C] dark:text-[#8C8B85]">
                           <span>{t.settings.dataDir}:</span>
                           <div
-                            className="mt-0.5 truncate font-mono text-[10px] text-[#57534E] dark:text-[#9F9E98]"
+                            className="mt-0.5 truncate text-[10px] text-[#57534E] dark:text-[#9F9E98]"
                             title={health.dataDir}
                           >
                             {health.dataDir}
@@ -777,7 +777,7 @@ export function TopBar({
                                     }`}
                                   >
                                     <span className="truncate">#{tag}</span>
-                                    <span className="tabular-nums font-mono text-[10px] opacity-60">
+                                    <span className="tabular-nums text-[10px] opacity-60">
                                       {tagCounts[tag] ?? 0}
                                     </span>
                                   </button>

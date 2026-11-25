@@ -311,7 +311,7 @@ export function DetailDrawer({
                     type="button"
                     onClick={() => handleCopy('path', activeCard.workspacePath)}
                     title={t.drawer.copyPath}
-                    className="inline-flex max-w-[360px] items-center gap-1 rounded-md bg-[#F2F0EB] px-1.5 py-0.5 font-mono text-[10.5px] text-[#57534E] transition-colors hover:bg-[#E7E4DC] dark:bg-[#222220] dark:text-[#A1A09A] dark:hover:bg-[#2B2B28]"
+                    className="inline-flex max-w-[360px] items-center gap-1 rounded-md bg-[#F2F0EB] px-1.5 py-0.5 text-[10.5px] text-[#57534E] transition-colors hover:bg-[#E7E4DC] dark:bg-[#222220] dark:text-[#A1A09A] dark:hover:bg-[#2B2B28]"
                   >
                     <Folder className="h-3 w-3 shrink-0 opacity-65" />
                     <span className="truncate">{activeCard.workspacePath}</span>
@@ -327,7 +327,7 @@ export function DetailDrawer({
                   type="button"
                   onClick={() => handleCopy('id', conversationId)}
                   title={t.drawer.copyId}
-                  className="inline-flex items-center gap-1 rounded-md bg-[#F2F0EB] px-1.5 py-0.5 font-mono text-[10.5px] text-[#78716C] transition-colors hover:bg-[#E7E4DC] dark:bg-[#222220] dark:text-[#8C8B85] dark:hover:bg-[#2B2B28]"
+                  className="inline-flex items-center gap-1 rounded-md bg-[#F2F0EB] px-1.5 py-0.5 text-[10.5px] text-[#78716C] transition-colors hover:bg-[#E7E4DC] dark:bg-[#222220] dark:text-[#8C8B85] dark:hover:bg-[#2B2B28]"
                 >
                   <Hash className="h-2.5 w-2.5" />
                   <span>{conversationId.slice(0, 12)}</span>
@@ -354,7 +354,7 @@ export function DetailDrawer({
                   >
                     <ChevronLeft className="h-3.5 w-3.5" />
                   </button>
-                  <span className="tabular-nums px-1.5 font-mono text-[10.5px] text-[#78716C] dark:text-[#8C8B85]">
+                  <span className="tabular-nums px-1.5 text-[10.5px] text-[#78716C] dark:text-[#8C8B85]">
                     {currentIndex + 1}/{totalCount}
                   </span>
                   <button
@@ -510,7 +510,7 @@ export function DetailDrawer({
 
                   {followUpDateVal && (
                     <span
-                      className={`tabular-nums inline-flex shrink-0 items-center gap-1 font-mono text-[10.5px] font-medium ${
+                      className={`tabular-nums inline-flex shrink-0 items-center gap-1 text-[10.5px] font-medium ${
                         followUpOverdue
                           ? 'text-[#DC2626] dark:text-[#F87171]'
                           : 'text-[#78716C] dark:text-[#A1A09A]'
@@ -647,7 +647,7 @@ export function DetailDrawer({
                           type="date"
                           value={followUpDateVal}
                           onChange={(e) => handleFollowUpChange(e.target.value)}
-                          className="h-8 w-full rounded-lg border border-[#1C1917]/[0.1] bg-[#FAF9F6] px-2 font-mono text-xs text-[#1C1917] focus:border-[#1C1917]/40 focus:bg-white focus:outline-none dark:border-white/[0.09] dark:bg-[#141413] dark:text-[#F2F1EE]"
+                          className="h-8 w-full rounded-lg border border-[#1C1917]/[0.1] bg-[#FAF9F6] px-2 text-xs text-[#1C1917] focus:border-[#1C1917]/40 focus:bg-white focus:outline-none dark:border-white/[0.09] dark:bg-[#141413] dark:text-[#F2F1EE]"
                         />
                         {followUpDateVal && (
                           <button
@@ -714,7 +714,7 @@ export function DetailDrawer({
                   <Icon className="h-3.5 w-3.5" />
                   <span>{label}</span>
                   {count !== null && count > 0 && (
-                    <span className="tabular-nums font-mono text-[10.5px] opacity-65">
+                    <span className="tabular-nums text-[10.5px] opacity-65">
                       {count}
                     </span>
                   )}

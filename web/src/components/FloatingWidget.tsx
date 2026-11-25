@@ -4,10 +4,14 @@ import type {
   BoardResponse,
   ConversationCard,
   LaneId,
+  OverlayPatch,
+  Priority,
   SseEvent,
   StepItem,
 } from '@shared/types';
 import {
+  Archive,
+  ArrowLeftRight,
   ArrowUpRight,
   Check,
   CheckCheck,
@@ -49,6 +53,7 @@ import {
 import { dictionaries, loadSavedLocale, type Dictionary, type Locale } from '../i18n';
 import { formatClockTime, formatRelativeTime } from '../utils';
 import {
+  LANE_ORDER,
   LivePulseDot,
   PriorityBadge,
   laneAccentDot,
@@ -57,9 +62,10 @@ import {
 } from './badges';
 import { BrandMark } from './BrandMark';
 import { PushForwardComposer } from './PushForwardComposer';
+import { TaskMoveMenu, type TaskMoveMenuState } from './TaskMoveMenu';
 import type { ThemeMode } from './TopBar';
 
-type WidgetFilter = 'open' | 'running' | 'attention' | 'swarm';
+type WidgetFilter = 'open' | 'running' | 'attention' | 'swarm' | 'archived';
 
 const OPEN_LANES: LaneId[] = ['running', 'attention', 'active', 'stale'];
 
@@ -97,15 +103,61 @@ function loadSavedPreset(): WidgetPreset {
   return 'M';
 }
 
-function applyOptimisticReview(card: ConversationCard, reviewedAt: string | null): ConversationCard {
+function parseUrlHoverId(): string | null {
+  if (typeof window === 'undefined') return null;
+  const val = new URLSearchParams(window.location.search).get('hover');
+  return val && val.trim() ? val.trim() : null;
+}
+
+function applyOptimisticOverlay(
+  card: ConversationCard,
+  patch: OverlayPatch,
+): ConversationCard {
+  const nextOverlay = {
+    ...card.overlay,
+    ...patch,
+    updatedAt: new Date().toISOString(),
+  };
+  const nextManualLane =
+    patch.manualLane !== undefined ? patch.manualLane : card.overlay.manualLane;
+  const nextLane: LaneId = nextManualLane ?? card.autoLane;
+
+  let nextReasons: AttentionReason[] = card.attentionReasons.filter(
+    (r) => r !== 'manual_attention',
+  );
+  if (nextManualLane === 'attention' && nextReasons.length === 0) {
+    nextReasons = ['manual_attention'];
+  }
+
+  return {
+    ...card,
+    lane: nextLane,
+    isManualLane: nextManualLane !== null,
+    attentionReasons: nextReasons,
+    overlay: nextOverlay,
+  };
+}
+
+function applyOptimisticReview(
+  card: ConversationCard,
+  reviewedAt: string | null,
+): ConversationCard {
   if (reviewedAt === null) {
     return { ...card, overlay: { ...card.overlay, reviewedAt: null } };
   }
   const remaining = card.attentionReasons.filter(
-    (r) => r !== 'unread_update' && r !== 'marked_as_unread',
+    (r) =>
+      r !== 'unread_update' &&
+      r !== 'marked_as_unread' &&
+      r !== 'manual_attention',
   );
+  const clearedManual =
+    card.overlay.manualLane === 'attention' ? null : card.overlay.manualLane;
   const nextAuto: LaneId =
-    !card.isRunning && !card.isArchived && remaining.length === 0 && card.autoLane === 'attention'
+    !card.isRunning &&
+    !card.isArchived &&
+    remaining.length === 0 &&
+    card.autoLane === 'attention'
       ? 'active'
       : card.autoLane;
   return {
@@ -113,8 +165,9 @@ function applyOptimisticReview(card: ConversationCard, reviewedAt: string | null
     markedAsUnread: false,
     attentionReasons: remaining,
     autoLane: nextAuto,
-    lane: card.overlay.manualLane ?? nextAuto,
-    overlay: { ...card.overlay, reviewedAt },
+    lane: clearedManual ?? nextAuto,
+    isManualLane: clearedManual !== null,
+    overlay: { ...card.overlay, reviewedAt, manualLane: clearedManual },
   };
 }
 
@@ -150,12 +203,19 @@ function shortReasonText(reason: AttentionReason | null, t: Dictionary): string 
       return t.widget.shortDecision;
     case 'follow_up_due':
       return t.widget.shortDue;
+    case 'manual_attention':
+      return t.widget.shortFlagged;
     case 'unread_update':
     case 'marked_as_unread':
       return t.widget.shortUnread;
     default:
       return null;
   }
+}
+
+function shortenTitle(title: string, fallback: string): string {
+  const clean = (title || fallback).trim();
+  return clean.length > 20 ? `${clean.slice(0, 20)}…` : clean;
 }
 
 function MiniStepIcon({ status }: { status: StepItem['status'] }) {
@@ -173,17 +233,21 @@ function MiniStepIcon({ status }: { status: StepItem['status'] }) {
   }
 }
 
-/* ==================== Memoized Ultra-Dense Radar Title Row ==================== */
+/* ==================== Memoized Ultra-Dense Draggable Radar Title Row ==================== */
 
 interface RadarTitleRowProps {
   card: ConversationCard;
   dense: boolean;
   isActive: boolean;
   isLocked: boolean;
+  isDragging: boolean;
   onHover: (id: string) => void;
   onToggleLock: (id: string) => void;
   onMarkReviewed: (card: ConversationCard) => void;
   onOpenDetail: (id: string) => void;
+  onOpenMoveMenu: (card: ConversationCard, x: number, y: number) => void;
+  onDragStart: (e: React.DragEvent, id: string) => void;
+  onDragEnd: () => void;
   t: Dictionary;
 }
 
@@ -192,10 +256,14 @@ const RadarTitleRow = memo(function RadarTitleRow({
   dense,
   isActive,
   isLocked,
+  isDragging,
   onHover,
   onToggleLock,
   onMarkReviewed,
   onOpenDetail,
+  onOpenMoveMenu,
+  onDragStart,
+  onDragEnd,
   t,
 }: RadarTitleRowProps) {
   const topReason = primaryAttentionReason(card.attentionReasons);
@@ -219,6 +287,9 @@ const RadarTitleRow = memo(function RadarTitleRow({
 
   return (
     <div
+      draggable
+      onDragStart={(e) => onDragStart(e, card.id)}
+      onDragEnd={onDragEnd}
       role="button"
       tabIndex={0}
       data-testid={`radar-row-${card.id}`}
@@ -226,6 +297,11 @@ const RadarTitleRow = memo(function RadarTitleRow({
       onFocus={() => onHover(card.id)}
       onClick={() => onToggleLock(card.id)}
       onDoubleClick={() => onOpenDetail(card.id)}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onOpenMoveMenu(card, e.clientX, e.clientY);
+      }}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
@@ -233,14 +309,14 @@ const RadarTitleRow = memo(function RadarTitleRow({
         }
       }}
       className={`group flex cursor-pointer items-center gap-2 rounded-lg px-2 transition-colors select-none ${
-        dense ? 'h-[22.5px]' : 'h-[27px]'
+        dense ? 'h-[26px]' : 'h-[28px]'
       } ${
         isLocked
           ? 'bg-[#1C1917]/[0.09] text-[#1C1917] ring-1 ring-inset ring-[#1C1917]/[0.12] dark:bg-white/[0.11] dark:text-[#F2F1EE] dark:ring-white/[0.14]'
           : isActive
             ? 'bg-[#1C1917]/[0.055] text-[#1C1917] dark:bg-white/[0.065] dark:text-[#F2F1EE]'
             : 'text-[#44403C] hover:bg-[#1C1917]/[0.045] dark:text-[#D6D3CD] dark:hover:bg-white/[0.055]'
-      }`}
+      } ${isDragging ? 'opacity-40' : ''}`}
     >
       {/* 6px semantic status dot */}
       {card.isRunning ? (
@@ -249,10 +325,10 @@ const RadarTitleRow = memo(function RadarTitleRow({
         <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${dotColor}`} />
       )}
 
-      {/* Single crisp full title */}
+      {/* Crisp humanist title */}
       <span
         className={`min-w-0 flex-1 truncate tracking-[-0.01em] ${
-          dense ? 'text-[11.5px]' : 'text-[12.5px]'
+          dense ? 'text-[12px]' : 'text-[12.5px]'
         } ${
           card.isRunning || card.lane === 'attention' || isActive
             ? 'font-medium text-[#1C1917] dark:text-[#F2F1EE]'
@@ -262,13 +338,31 @@ const RadarTitleRow = memo(function RadarTitleRow({
         {card.title || t.card.untitled}
       </span>
 
-      {/* Lock indicator */}
+      {/* Subtle pin / lock indicators */}
+      {card.overlay.pinned && (
+        <Pin className="h-2.5 w-2.5 shrink-0 fill-current text-[#8C867E] dark:text-[#787771]" />
+      )}
       {isLocked && (
         <Lock className="h-2.5 w-2.5 shrink-0 text-[#78716C] dark:text-[#A1A09A]" />
       )}
 
-      {/* Right whisper metadata OR hover 1-click ✓ Mark Reviewed */}
-      <div className="flex shrink-0 items-center gap-1">
+      {/* Hover quick icons (⇄ Move + ✓ Mark Reviewed) or right whisper */}
+      <div className="flex shrink-0 items-center gap-0.5">
+        <button
+          type="button"
+          data-testid={`radar-move-btn-${card.id}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            const rect = e.currentTarget.getBoundingClientRect();
+            onOpenMoveMenu(card, rect.left - 140, rect.bottom + 4);
+          }}
+          title={t.moveMenu.triggerTooltip}
+          aria-label={t.moveMenu.triggerTooltip}
+          className="hidden h-5 w-5 items-center justify-center rounded text-[#78716C] transition-colors group-hover:inline-flex hover:bg-[#1C1917]/[0.08] hover:text-[#1C1917] dark:text-[#9F9E98] dark:hover:bg-white/[0.1] dark:hover:text-[#F2F1EE]"
+        >
+          <ArrowLeftRight className="h-3 w-3" />
+        </button>
+
         {needsReview && (
           <button
             type="button"
@@ -278,16 +372,14 @@ const RadarTitleRow = memo(function RadarTitleRow({
             }}
             title={t.card.markReviewed}
             aria-label={t.card.markReviewed}
-            className="hidden h-4.5 w-4.5 items-center justify-center rounded text-[#15803D] transition-colors group-hover:inline-flex hover:bg-[#16A34A]/15 dark:text-[#4ADE80] dark:hover:bg-[#22C55E]/15"
+            className="hidden h-5 w-5 items-center justify-center rounded text-[#15803D] transition-colors group-hover:inline-flex hover:bg-[#16A34A]/15 dark:text-[#4ADE80] dark:hover:bg-[#22C55E]/15"
           >
             <Check className="h-3 w-3" />
           </button>
         )}
 
         <span
-          className={`tabular-nums font-mono text-[10px] ${statusTone} ${
-            needsReview ? 'group-hover:hidden' : ''
-          }`}
+          className={`tabular-nums text-[10.5px] font-medium ${statusTone} group-hover:hidden`}
         >
           {shortStatus
             ? shortStatus
@@ -327,16 +419,44 @@ export function FloatingWidget() {
   const [sseStatus, setSseStatus] = useState<SseStatus>('connecting');
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
 
-  // Zero-latency hover + click-to-lock inspector state
-  const [hoveredId, setHoveredId] = useState<string | null>(null);
+  // Auto-hide hover state (null at rest!) + click-to-lock + grace leave timer
+  const [hoveredId, setHoveredId] = useState<string | null>(() => parseUrlHoverId());
   const [lockedId, setLockedId] = useState<string | null>(null);
   const [mediumComposerOpen, setMediumComposerOpen] = useState(false);
+  const leaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Drag-and-drop + Context/Move Menu state
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dragOverLane, setDragOverLane] = useState<LaneId | null>(null);
+  const [moveMenu, setMoveMenu] = useState<TaskMoveMenuState | null>(null);
 
   const [toast, setToast] = useState<MiniToast | null>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [, setClockTick] = useState(0);
 
   const t = dictionaries[locale];
+
+  const cancelLeaveTimer = useCallback(() => {
+    if (leaveTimerRef.current) {
+      clearTimeout(leaveTimerRef.current);
+      leaveTimerRef.current = null;
+    }
+  }, []);
+
+  const scheduleHoverClear = useCallback(() => {
+    cancelLeaveTimer();
+    leaveTimerRef.current = setTimeout(() => {
+      setHoveredId(null);
+      leaveTimerRef.current = null;
+    }, 260);
+  }, [cancelLeaveTimer]);
+
+  useEffect(() => {
+    return () => {
+      cancelLeaveTimer();
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, [cancelLeaveTimer]);
 
   // Configure transparent canvas classes for widget mode
   useEffect(() => {
@@ -387,7 +507,7 @@ export function FloatingWidget() {
     return () => window.removeEventListener('resize', onResize);
   }, [isElectron]);
 
-  // Sync Electron desktop state, widget layout, and visibility (for SSE sleep!)
+  // Sync Electron desktop state, widget layout, and visibility
   useEffect(() => {
     if (!bridge) return;
     bridge
@@ -421,7 +541,7 @@ export function FloatingWidget() {
     };
   }, [bridge]);
 
-  // Low-Resource SSE Lifecycle: disconnect SSE completely while hidden/sleeping!
+  // Low-Resource SSE Lifecycle: close SSE completely when hidden/sleeping
   useEffect(() => {
     if (!widgetVisible) {
       setSseStatus('disconnected');
@@ -477,17 +597,25 @@ export function FloatingWidget() {
     return () => clearInterval(id);
   }, [widgetVisible]);
 
-  // Esc unlocks locked row
+  // Esc dismisses move menu or locked preview cleanly
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && (lockedId || mediumComposerOpen)) {
-        setLockedId(null);
-        setMediumComposerOpen(false);
+      if (e.key === 'Escape') {
+        if (moveMenu) {
+          setMoveMenu(null);
+          return;
+        }
+        if (lockedId || hoveredId || mediumComposerOpen) {
+          cancelLeaveTimer();
+          setLockedId(null);
+          setHoveredId(null);
+          setMediumComposerOpen(false);
+        }
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [lockedId, mediumComposerOpen]);
+  }, [moveMenu, lockedId, hoveredId, mediumComposerOpen, cancelLeaveTimer]);
 
   const showToast = useCallback((next: MiniToast, durationMs?: number) => {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
@@ -546,9 +674,135 @@ export function FloatingWidget() {
     }
   }, [alwaysOnTop, bridge]);
 
+  // Optimistic Overlay Patch inside Widget
+  const handlePatchOverlay = useCallback(
+    async (id: string, patch: OverlayPatch): Promise<boolean> => {
+      let snapshot: BoardResponse | null = null;
+      setBoard((prev) => {
+        if (!prev) return prev;
+        snapshot = prev;
+        return recomputeCounts({
+          ...prev,
+          conversations: prev.conversations.map((c) =>
+            c.id === id ? applyOptimisticOverlay(c, patch) : c,
+          ),
+        });
+      });
+
+      try {
+        const res = await patchConversationOverlay(id, patch);
+        if (res.card) {
+          setBoard((prev) => {
+            if (!prev) return prev;
+            return recomputeCounts({
+              ...prev,
+              conversations: prev.conversations.map((c) =>
+                c.id === id ? res.card! : c,
+              ),
+            });
+          });
+        }
+        return true;
+      } catch {
+        if (snapshot) setBoard(snapshot);
+        showToast({ label: t.errors.updateFailed, tone: 'error' });
+        return false;
+      }
+    },
+    [showToast, t.errors.updateFailed],
+  );
+
+  const handleMoveLane = useCallback(
+    (card: ConversationCard, targetLane: LaneId) => {
+      const prevManualLane = card.overlay.manualLane;
+      const nextManualLane = targetLane === card.autoLane ? null : targetLane;
+      const short = shortenTitle(card.title, t.card.untitled);
+      void handlePatchOverlay(card.id, { manualLane: nextManualLane }).then((ok) => {
+        if (!ok) return;
+        showToast({
+          label: t.toasts.movedToLane(short, t.lanes[targetLane]),
+          tone: 'info',
+          onUndo: () => {
+            setToast(null);
+            void handlePatchOverlay(card.id, { manualLane: prevManualLane }).then(() =>
+              showToast({ label: t.toasts.undone, tone: 'info' }, 2200),
+            );
+          },
+        });
+      });
+    },
+    [handlePatchOverlay, showToast, t],
+  );
+
+  const handleResetManualLane = useCallback(
+    (card: ConversationCard) => {
+      const prevManualLane = card.overlay.manualLane;
+      const short = shortenTitle(card.title, t.card.untitled);
+      void handlePatchOverlay(card.id, { manualLane: null }).then((ok) => {
+        if (!ok) return;
+        showToast({
+          label: t.toasts.resetAutoLane(short),
+          tone: 'info',
+          onUndo:
+            prevManualLane !== null
+              ? () => {
+                  setToast(null);
+                  void handlePatchOverlay(card.id, {
+                    manualLane: prevManualLane,
+                  }).then(() =>
+                    showToast({ label: t.toasts.undone, tone: 'info' }, 2200),
+                  );
+                }
+              : undefined,
+        });
+      });
+    },
+    [handlePatchOverlay, showToast, t],
+  );
+
+  const handleTogglePin = useCallback(
+    (card: ConversationCard) => {
+      const nextPinned = !card.overlay.pinned;
+      const short = shortenTitle(card.title, t.card.untitled);
+      void handlePatchOverlay(card.id, { pinned: nextPinned }).then((ok) => {
+        if (ok) {
+          showToast(
+            {
+              label: nextPinned ? t.toasts.pinned(short) : t.toasts.unpinned(short),
+              tone: 'info',
+            },
+            2400,
+          );
+        }
+      });
+    },
+    [handlePatchOverlay, showToast, t],
+  );
+
+  const handleSetPriority = useCallback(
+    (card: ConversationCard, priority: Priority) => {
+      const short = shortenTitle(card.title, t.card.untitled);
+      void handlePatchOverlay(card.id, { priority }).then((ok) => {
+        if (ok) {
+          showToast(
+            {
+              label: priority
+                ? t.toasts.prioritySet(short, priority.toUpperCase())
+                : t.toasts.priorityCleared(short),
+              tone: 'info',
+            },
+            2400,
+          );
+        }
+      });
+    },
+    [handlePatchOverlay, showToast, t],
+  );
+
   const handleMarkReviewed = useCallback(
     async (card: ConversationCard) => {
       const prevReviewedAt = card.overlay.reviewedAt;
+      const prevManualLane = card.overlay.manualLane;
       const nowIso = new Date().toISOString();
       setBoard((prev) => {
         if (!prev) return prev;
@@ -573,15 +827,15 @@ export function FloatingWidget() {
             });
           });
         }
-        const short =
-          card.title.length > 18 ? `${card.title.slice(0, 18)}…` : card.title;
+        const short = shortenTitle(card.title, t.card.untitled);
         showToast({
-          label: t.toasts.markedReviewed(short || t.card.untitled),
+          label: t.toasts.markedReviewed(short),
           tone: 'success',
           onUndo: () => {
             setToast(null);
             void patchConversationOverlay(card.id, {
               reviewedAt: prevReviewedAt,
+              manualLane: prevManualLane,
             }).then(() => fetchBoard().then(setBoard).catch(() => {}));
           },
         });
@@ -600,6 +854,12 @@ export function FloatingWidget() {
   const handleMarkAllRead = useCallback(async () => {
     if (attentionCards.length === 0) return;
     const ids = attentionCards.map((c) => c.id);
+    const restoreManualLanes: Record<string, LaneId | null> = {};
+    for (const c of attentionCards) {
+      if (c.overlay.manualLane === 'attention') {
+        restoreManualLanes[c.id] = 'attention';
+      }
+    }
     const idSet = new Set(ids);
     const nowIso = new Date().toISOString();
     setBoard((prev) => {
@@ -627,7 +887,11 @@ export function FloatingWidget() {
         tone: 'success',
         onUndo: () => {
           setToast(null);
-          void reviewConversationsBatch({ ids, reviewedAt: null }).then((uRes) => {
+          void reviewConversationsBatch({
+            ids,
+            reviewedAt: null,
+            restoreManualLanes,
+          }).then((uRes) => {
             const uMap = new Map(uRes.cards.map((c) => [c.id, c]));
             setBoard((prev) => {
               if (!prev) return prev;
@@ -644,17 +908,59 @@ export function FloatingWidget() {
     }
   }, [attentionCards, showToast, t]);
 
-  const handleHoverRow = useCallback((id: string) => {
-    setHoveredId(id);
+  const handleHoverRow = useCallback(
+    (id: string) => {
+      cancelLeaveTimer();
+      setHoveredId(id);
+    },
+    [cancelLeaveTimer],
+  );
+
+  const handleToggleLockRow = useCallback(
+    (id: string) => {
+      cancelLeaveTimer();
+      setLockedId((prev) => {
+        const next = prev === id ? null : id;
+        setMediumComposerOpen(next !== null);
+        if (next === null) setHoveredId(null);
+        return next;
+      });
+    },
+    [cancelLeaveTimer],
+  );
+
+  const handleOpenMoveMenu = useCallback(
+    (card: ConversationCard, x: number, y: number) => {
+      cancelLeaveTimer();
+      setMoveMenu({ card, x, y });
+    },
+    [cancelLeaveTimer],
+  );
+
+  const handleDragStart = useCallback(
+    (e: React.DragEvent, id: string) => {
+      cancelLeaveTimer();
+      setMoveMenu(null);
+      setDraggingId(id);
+      e.dataTransfer.setData('text/plain', id);
+      e.dataTransfer.effectAllowed = 'move';
+    },
+    [cancelLeaveTimer],
+  );
+
+  const handleDragEnd = useCallback(() => {
+    setDraggingId(null);
+    setDragOverLane(null);
   }, []);
 
-  const handleToggleLockRow = useCallback((id: string) => {
-    setLockedId((prev) => {
-      const next = prev === id ? null : id;
-      setMediumComposerOpen(next !== null);
-      return next;
-    });
-  }, []);
+  const handleDragOverLane = useCallback(
+    (e: React.DragEvent, lane: LaneId) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      if (dragOverLane !== lane) setDragOverLane(lane);
+    },
+    [dragOverLane],
+  );
 
   const handleDispatchSuccess = useCallback(
     (msg: string, updatedCard: ConversationCard | null) => {
@@ -674,7 +980,7 @@ export function FloatingWidget() {
     [showToast],
   );
 
-  // Determine effective responsive view mode from preset + live free-resize dimensions
+  // Determine effective responsive view mode
   const activeWidth = isElectron ? viewportSize.width : layout.width;
   const activeHeight = isElectron ? viewportSize.height : layout.height;
   const effectiveMode: WidgetPreset =
@@ -684,10 +990,34 @@ export function FloatingWidget() {
         ? 'L'
         : 'M';
 
-  // Counts & Grouped Open Conversations
+  // Counts & Grouped Conversations
   const allConversations = board?.conversations ?? [];
+  const cardById = useMemo(() => {
+    const m = new Map<string, ConversationCard>();
+    for (const c of allConversations) m.set(c.id, c);
+    return m;
+  }, [allConversations]);
+
+  const handleDropOnLane = useCallback(
+    (e: React.DragEvent, targetLane: LaneId) => {
+      e.preventDefault();
+      const id = e.dataTransfer.getData('text/plain') || draggingId;
+      setDraggingId(null);
+      setDragOverLane(null);
+      if (!id) return;
+      const card = cardById.get(id);
+      if (!card || card.lane === targetLane) return;
+      handleMoveLane(card, targetLane);
+    },
+    [draggingId, cardById, handleMoveLane],
+  );
+
   const openConversations = useMemo(
     () => allConversations.filter((c) => c.lane !== 'archived'),
+    [allConversations],
+  );
+  const archivedConversations = useMemo(
+    () => allConversations.filter((c) => c.lane === 'archived'),
     [allConversations],
   );
   const runningCount = board?.stats.runningCount ?? 0;
@@ -699,7 +1029,8 @@ export function FloatingWidget() {
   const allClear = runningCount === 0 && attentionCount === 0;
 
   const filteredCards = useMemo(() => {
-    const base = openConversations.filter((c) => {
+    const source = filter === 'archived' ? archivedConversations : openConversations;
+    const base = source.filter((c) => {
       if (filter === 'running') return c.isRunning || c.lane === 'running';
       if (filter === 'attention') {
         return c.lane === 'attention' || c.attentionReasons.length > 0;
@@ -713,9 +1044,12 @@ export function FloatingWidget() {
       if (pDiff !== 0) return pDiff;
       return Date.parse(b.lastModifiedAt) - Date.parse(a.lastModifiedAt);
     });
-  }, [openConversations, filter]);
+  }, [openConversations, archivedConversations, filter]);
 
   const groupedLanes = useMemo(() => {
+    if (filter === 'archived') {
+      return [{ lane: 'archived' as LaneId, items: filteredCards }];
+    }
     const map: Record<LaneId, ConversationCard[]> = {
       running: [],
       attention: [],
@@ -726,31 +1060,24 @@ export function FloatingWidget() {
     for (const c of filteredCards) {
       map[c.lane].push(c);
     }
+    // While dragging, show all 4 open lanes even if empty so user can drop anywhere!
     return OPEN_LANES.map((lane) => ({ lane, items: map[lane] })).filter(
-      (g) => g.items.length > 0,
+      (g) => g.items.length > 0 || draggingId !== null,
     );
-  }, [filteredCards]);
+  }, [filteredCards, filter, draggingId]);
 
-  // Ordered flat list for default active preview
-  const orderedVisibleCards = useMemo(
-    () => groupedLanes.flatMap((g) => g.items),
-    [groupedLanes],
-  );
-
-  // Resolve active preview card (0ms pure memory lookup — 0 network calls on hover!)
+  // STRICT Auto-Hide Hover Resolution: null when resting (neither hovered nor locked)!
   const activePreviewCard = useMemo(() => {
-    const byId = (id: string | null) =>
-      id ? allConversations.find((c) => c.id === id) ?? null : null;
     if (lockedId) {
-      const locked = byId(lockedId);
+      const locked = cardById.get(lockedId);
       if (locked) return locked;
     }
     if (hoveredId) {
-      const hovered = byId(hoveredId);
+      const hovered = cardById.get(hoveredId);
       if (hovered) return hovered;
     }
-    return orderedVisibleCards[0] ?? openConversations[0] ?? null;
-  }, [lockedId, hoveredId, allConversations, orderedVisibleCards, openConversations]);
+    return null;
+  }, [lockedId, hoveredId, cardById]);
 
   const outerStageClass = isElectron
     ? 'flex h-screen w-screen items-stretch justify-stretch bg-transparent p-1.5 select-none'
@@ -774,7 +1101,6 @@ export function FloatingWidget() {
             data-testid="widget-pill"
             className="flex h-[42px] w-full items-center justify-between gap-1.5 rounded-full border border-[#1C1917]/[0.12] bg-white/96 pr-1.5 pl-2.5 text-[#1C1917] shadow-[0_10px_28px_-6px_rgba(28,25,23,0.22),0_1px_2px_rgba(28,25,23,0.08)] backdrop-blur-xl dark:border-white/[0.12] dark:bg-[#181816]/96 dark:text-[#F2F1EE] dark:shadow-[0_14px_34px_-6px_rgba(0,0,0,0.72),inset_0_1px_0_rgba(255,255,255,0.06)]"
           >
-            {/* Status summary */}
             <div className="flex min-w-0 flex-1 items-center gap-2">
               <BrandMark className="h-5 w-5" />
               {allClear ? (
@@ -807,7 +1133,6 @@ export function FloatingWidget() {
               )}
             </div>
 
-            {/* Crisp M / L quick-switch + Open Full Board */}
             <div style={NO_DRAG_STYLE} className="flex shrink-0 items-center gap-0.5">
               {(['M', 'L'] as const).map((presetKey) => (
                 <button
@@ -818,7 +1143,7 @@ export function FloatingWidget() {
                   title={
                     presetKey === 'M' ? t.widget.presetMTitle : t.widget.presetLTitle
                   }
-                  className="flex h-6 w-6 items-center justify-center rounded-full font-mono text-[10.5px] font-semibold text-[#57534E] transition-colors hover:bg-[#1C1917] hover:text-[#F6F5F1] dark:text-[#A1A09A] dark:hover:bg-[#F2F1EE] dark:hover:text-[#111110]"
+                  className="flex h-6 w-6 items-center justify-center rounded-full text-[10.5px] font-semibold text-[#57534E] transition-colors hover:bg-[#1C1917] hover:text-[#F6F5F1] dark:text-[#A1A09A] dark:hover:bg-[#F2F1EE] dark:hover:text-[#111110]"
                 >
                   {presetKey}
                 </button>
@@ -852,10 +1177,47 @@ export function FloatingWidget() {
           : WIDGET_PRESET_SIZES.M.height,
       };
 
+  const renderInlineLaneSelector = (card: ConversationCard) => (
+    <div className="relative inline-flex shrink-0 items-center">
+      <span
+        className={`pointer-events-none absolute left-2 h-1.5 w-1.5 rounded-full ${laneAccentDot(card.lane)}`}
+      />
+      <select
+        aria-label={t.drawer.laneControl}
+        data-testid="widget-inline-lane-select"
+        value={card.lane}
+        onChange={(e) => {
+          const val = e.target.value;
+          if (val === '__auto__') {
+            handleResetManualLane(card);
+          } else {
+            handleMoveLane(card, val as LaneId);
+          }
+        }}
+        className="h-6 cursor-pointer appearance-none rounded-md border border-[#1C1917]/[0.1] bg-[#FAF9F6] pr-5 pl-4.5 text-[10.5px] font-medium text-[#44403C] transition-colors hover:border-[#1C1917]/25 focus:border-[#1C1917]/40 focus:outline-none dark:border-white/[0.1] dark:bg-[#222220] dark:text-[#D6D3CD]"
+      >
+        {LANE_ORDER.map((laneId) => (
+          <option key={laneId} value={laneId}>
+            {t.lanes[laneId]}
+            {laneId === card.lane && card.isManualLane ? ` · ${t.lanes.manualBadge}` : ''}
+          </option>
+        ))}
+        {card.isManualLane && (
+          <option value="__auto__">↺ {t.lanes.resetAutoLane}</option>
+        )}
+      </select>
+      <ChevronDown className="pointer-events-none absolute right-1.5 h-3 w-3 text-[#8C867E]" />
+    </div>
+  );
+
   const renderRadarList = (dense: boolean) => (
     <div
       data-testid="widget-radar-list"
-      className={`flex-1 overflow-y-auto px-2 ${dense ? 'py-1' : 'py-1.5'}`}
+      onMouseEnter={cancelLeaveTimer}
+      onMouseLeave={() => {
+        if (!lockedId && !moveMenu) scheduleHoverClear();
+      }}
+      className={`flex-1 overflow-y-auto px-2 ${dense ? 'py-1.5' : 'py-2'}`}
     >
       {groupedLanes.length === 0 ? (
         <div className="flex h-full flex-col items-center justify-center px-4 text-center">
@@ -867,20 +1229,36 @@ export function FloatingWidget() {
           </p>
         </div>
       ) : (
-        <div className={dense ? 'space-y-1' : 'space-y-1.5'}>
+        <div className={dense ? 'space-y-1.5' : 'space-y-2'}>
           {groupedLanes.map(({ lane, items }) => {
-            const collapsed = Boolean(collapsedLanes[lane]);
+            const collapsed = Boolean(collapsedLanes[lane]) && draggingId === null;
+            const isDropTarget = dragOverLane === lane;
             return (
-              <div key={lane}>
+              <div
+                key={lane}
+                data-testid={`widget-lane-group-${lane}`}
+                onDragOver={(e) => handleDragOverLane(e, lane)}
+                onDragLeave={(e) => {
+                  if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                    setDragOverLane((prev) => (prev === lane ? null : prev));
+                  }
+                }}
+                onDrop={(e) => handleDropOnLane(e, lane)}
+                className={`rounded-xl transition-colors ${
+                  isDropTarget
+                    ? 'bg-[#EFECE6] ring-1 ring-dashed ring-[#1C1917]/35 dark:bg-[#232320] dark:ring-white/30'
+                    : draggingId
+                      ? 'bg-[#1C1917]/[0.02] dark:bg-white/[0.02]'
+                      : ''
+                }`}
+              >
                 {/* Tiny whisper group header */}
                 <button
                   type="button"
                   onClick={() =>
                     setCollapsedLanes((prev) => ({ ...prev, [lane]: !prev[lane] }))
                   }
-                  className={`flex w-full items-center gap-1.5 px-1.5 text-left text-[10px] font-semibold tracking-wider text-[#8C867E] uppercase transition-colors hover:text-[#44403C] dark:text-[#6E6D68] dark:hover:text-[#A1A09A] ${
-                    dense ? 'h-[17px]' : 'h-[20px]'
-                  }`}
+                  className="flex h-[20px] w-full items-center gap-1.5 px-1.5 text-left text-[10.5px] font-semibold tracking-wide text-[#8C867E] transition-colors hover:text-[#44403C] dark:text-[#6E6D68] dark:hover:text-[#A1A09A]"
                 >
                   {collapsed ? (
                     <ChevronRight className="h-2.5 w-2.5 shrink-0 opacity-70" />
@@ -891,27 +1269,37 @@ export function FloatingWidget() {
                     className={`h-1.5 w-1.5 shrink-0 rounded-full ${laneAccentDot(lane)}`}
                   />
                   <span>{t.lanes[lane]}</span>
-                  <span className="tabular-nums font-mono font-medium opacity-75">
+                  <span className="tabular-nums font-medium opacity-75">
                     {items.length}
                   </span>
                 </button>
 
                 {!collapsed && (
-                  <div className="mt-0.5 space-y-[1px]">
-                    {items.map((card) => (
-                      <RadarTitleRow
-                        key={card.id}
-                        card={card}
-                        dense={dense}
-                        isActive={activePreviewCard?.id === card.id}
-                        isLocked={lockedId === card.id}
-                        onHover={handleHoverRow}
-                        onToggleLock={handleToggleLockRow}
-                        onMarkReviewed={(c) => void handleMarkReviewed(c)}
-                        onOpenDetail={handleOpenMainBoard}
-                        t={t}
-                      />
-                    ))}
+                  <div className="mt-0.5 space-y-[1px] pb-0.5">
+                    {items.length === 0 && draggingId ? (
+                      <div className="px-2 py-1.5 text-center text-[10.5px] text-[#8C867E]">
+                        {t.lanes.dropHere}
+                      </div>
+                    ) : (
+                      items.map((card) => (
+                        <RadarTitleRow
+                          key={card.id}
+                          card={card}
+                          dense={dense}
+                          isActive={activePreviewCard?.id === card.id}
+                          isLocked={lockedId === card.id}
+                          isDragging={draggingId === card.id}
+                          onHover={handleHoverRow}
+                          onToggleLock={handleToggleLockRow}
+                          onMarkReviewed={(c) => void handleMarkReviewed(c)}
+                          onOpenDetail={handleOpenMainBoard}
+                          onOpenMoveMenu={handleOpenMoveMenu}
+                          onDragStart={handleDragStart}
+                          onDragEnd={handleDragEnd}
+                          t={t}
+                        />
+                      ))
+                    )}
                   </div>
                 )}
               </div>
@@ -923,11 +1311,38 @@ export function FloatingWidget() {
   );
 
   const renderLargeInspector = () => {
+    // Serene minimal resting state when NOT hovering and NOT click-locked
     if (!activePreviewCard) {
       return (
-        <div className="flex flex-1 items-center justify-center p-6 text-center text-xs text-[#8C867E] dark:text-[#666560]">
-          {t.widget.emptyFocus}
-        </div>
+        <aside
+          data-testid="widget-resting-pane"
+          className="flex h-full flex-col items-center justify-center border-l border-[#1C1917]/[0.07] bg-white/55 px-6 text-center dark:border-white/[0.06] dark:bg-[#181816]/80"
+        >
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#1C1917]/[0.07] bg-[#FAF9F6] text-[#8C867E] dark:border-white/[0.07] dark:bg-[#1E1E1C] dark:text-[#787771]">
+            <Compass className="h-4 w-4" />
+          </div>
+          <p className="mt-3 text-xs font-medium text-[#44403C] dark:text-[#D6D3CD]">
+            {t.widget.restingTitle}
+          </p>
+          <p className="mt-1 max-w-[220px] text-[11px] leading-relaxed text-[#8C867E] dark:text-[#6E6D68]">
+            {t.widget.restingHint}
+          </p>
+          <div className="tabular-nums mt-4 flex items-center gap-2.5 text-[11px] text-[#78716C] dark:text-[#8C8B85]">
+            <span className="inline-flex items-center gap-1.5">
+              {runningCount > 0 ? (
+                <LivePulseDot />
+              ) : (
+                <span className="h-1.5 w-1.5 rounded-full bg-[#A8A29E]" />
+              )}
+              {t.widget.runningShort(runningCount)}
+            </span>
+            <span className="opacity-35">·</span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#D97706] dark:bg-[#F59E0B]" />
+              {t.widget.attentionShort(attentionCount)}
+            </span>
+          </div>
+        </aside>
       );
     }
 
@@ -944,21 +1359,17 @@ export function FloatingWidget() {
     return (
       <aside
         data-testid="widget-hover-inspector"
-        className="flex h-full flex-col overflow-hidden border-l border-[#1C1917]/[0.07] bg-white/75 dark:border-white/[0.065] dark:bg-[#191917]/95"
+        onMouseEnter={cancelLeaveTimer}
+        onMouseLeave={() => {
+          if (!lockedId && !moveMenu) scheduleHoverClear();
+        }}
+        className="agmb-dock-enter flex h-full flex-col overflow-hidden border-l border-[#1C1917]/[0.07] bg-white/80 dark:border-white/[0.065] dark:bg-[#191917]/95"
       >
-        {/* Inspector scrollable detail */}
         <div className="flex-1 space-y-3 overflow-y-auto px-3.5 py-3">
-          {/* Status + Lock Hint */}
+          {/* Top bar: Inline Lane Selector + Lock badge */}
           <div className="flex items-center justify-between gap-2 text-[10.5px]">
             <div className="flex min-w-0 items-center gap-1.5">
-              {card.isRunning ? (
-                <LivePulseDot />
-              ) : (
-                <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${laneAccentDot(card.lane)}`} />
-              )}
-              <span className="font-medium text-[#57534E] dark:text-[#A1A09A]">
-                {t.lanes[card.lane]}
-              </span>
+              {renderInlineLaneSelector(card)}
               {topReason && (
                 <span
                   className={`truncate font-medium ${
@@ -967,7 +1378,7 @@ export function FloatingWidget() {
                       : 'text-[#B45309] dark:text-[#FBBF24]'
                   }`}
                 >
-                  · {t.attentionReasons[topReason]}
+                  {t.attentionReasons[topReason]}
                 </span>
               )}
             </div>
@@ -975,7 +1386,10 @@ export function FloatingWidget() {
             {isLocked ? (
               <button
                 type="button"
-                onClick={() => setLockedId(null)}
+                onClick={() => {
+                  setLockedId(null);
+                  setHoveredId(null);
+                }}
                 title={t.widget.unlockTooltip}
                 className="inline-flex shrink-0 items-center gap-1 rounded-md bg-[#1C1917] px-1.5 py-0.5 text-[10px] font-medium text-[#F6F5F1] dark:bg-[#F2F1EE] dark:text-[#111110]"
               >
@@ -996,7 +1410,7 @@ export function FloatingWidget() {
               {card.title || t.card.untitled}
             </h3>
             <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-[#78716C] dark:text-[#8C8B85]">
-              {card.workspace && <span className="font-mono">{card.workspace}</span>}
+              {card.workspace && <span className="font-medium">{card.workspace}</span>}
               <PriorityBadge priority={card.overlay.priority} compact />
               <span className="tabular-nums">
                 · {formatRelativeTime(card.lastModifiedAt, t)}
@@ -1034,7 +1448,7 @@ export function FloatingWidget() {
             <div>
               <div className="mb-1 flex items-center justify-between text-[10px] font-semibold tracking-wider text-[#969088] uppercase dark:text-[#666560]">
                 <span>{t.drawer.overview.checklist}</span>
-                <span className="tabular-nums font-mono">
+                <span className="tabular-nums">
                   {card.stepsCompleted}/{card.stepsTotal}
                 </span>
               </div>
@@ -1083,13 +1497,13 @@ export function FloatingWidget() {
                   </span>
                 </span>
                 {card.swarmPreview.workingAgents.length > 0 && (
-                  <span className="shrink-0 font-mono text-[10px] text-[#15803D] dark:text-[#4ADE80]">
+                  <span className="tabular-nums shrink-0 text-[10px] text-[#15803D] dark:text-[#4ADE80]">
                     {card.swarmPreview.workingAgents.length} {t.widget.workingAgentsLabel}
                   </span>
                 )}
               </div>
               {card.swarmPreview.workingAgents.length > 0 && (
-                <div className="mt-1 flex flex-wrap gap-1.5 text-[10px] font-mono text-[#78716C] dark:text-[#8C8B85]">
+                <div className="mt-1 flex flex-wrap gap-1.5 text-[10.5px] text-[#78716C] dark:text-[#8C8B85]">
                   {card.swarmPreview.workingAgents.map((a) => (
                     <span key={a} className="inline-flex items-center gap-1">
                       <span className="h-1.5 w-1.5 rounded-full bg-[#16A34A] dark:bg-[#22C55E]" />
@@ -1102,7 +1516,7 @@ export function FloatingWidget() {
                 <p className="mt-1.5 line-clamp-2 flex items-start gap-1 text-[10.5px] text-[#57534E] dark:text-[#9F9E98]">
                   <MessageSquare className="mt-0.5 h-3 w-3 shrink-0 opacity-60" />
                   <span>
-                    <strong className="font-mono font-medium">
+                    <strong className="font-semibold">
                       @{card.swarmPreview.latestPost.agent}:
                     </strong>{' '}
                     {card.swarmPreview.latestPost.text}
@@ -1121,7 +1535,7 @@ export function FloatingWidget() {
               {card.feedbackArtifacts.map((file) => (
                 <span
                   key={file}
-                  className="inline-flex items-center gap-1 rounded-md border border-[#D97706]/25 bg-[#FFFBEB] px-1.5 py-0.5 font-mono text-[10px] text-[#92400E] dark:border-[#F59E0B]/25 dark:bg-[#261E12] dark:text-[#FCD34D]"
+                  className="inline-flex items-center gap-1 rounded-md border border-[#D97706]/25 bg-[#FFFBEB] px-1.5 py-0.5 text-[10.5px] font-medium text-[#92400E] dark:border-[#F59E0B]/25 dark:bg-[#261E12] dark:text-[#FCD34D]"
                 >
                   <FileCheck2 className="h-2.5 w-2.5" />
                   {file}
@@ -1169,6 +1583,7 @@ export function FloatingWidget() {
     );
   };
 
+  // Auto-hide Bottom Hover Peek Dock in M mode (ONLY rendered when hovered OR click-locked!)
   const renderMediumPeekDock = () => {
     if (!activePreviewCard) return null;
     const card = activePreviewCard;
@@ -1185,9 +1600,13 @@ export function FloatingWidget() {
     return (
       <div
         data-testid="widget-hover-dock"
-        className="shrink-0 border-t border-[#1C1917]/[0.08] bg-white/95 px-3 py-2.5 dark:border-white/[0.08] dark:bg-[#1A1A18]"
+        onMouseEnter={cancelLeaveTimer}
+        onMouseLeave={() => {
+          if (!lockedId && !moveMenu) scheduleHoverClear();
+        }}
+        className="agmb-dock-enter shrink-0 border-t border-[#1C1917]/[0.08] bg-white/96 px-3 py-2.5 shadow-[0_-8px_24px_-12px_rgba(28,25,23,0.14)] dark:border-white/[0.08] dark:bg-[#1A1A18] dark:shadow-[0_-10px_28px_-10px_rgba(0,0,0,0.65)]"
       >
-        {/* Title + Quick Actions */}
+        {/* Row 1: Title + Quick Actions + Dismiss */}
         <div className="flex items-center justify-between gap-2">
           <div className="flex min-w-0 flex-1 items-center gap-1.5">
             {card.isRunning ? (
@@ -1198,19 +1617,6 @@ export function FloatingWidget() {
             <span className="truncate text-[12px] font-semibold text-[#1C1917] dark:text-[#F2F1EE]">
               {card.title || t.card.untitled}
             </span>
-            {isLocked && (
-              <button
-                type="button"
-                onClick={() => {
-                  setLockedId(null);
-                  setMediumComposerOpen(false);
-                }}
-                title={t.widget.unlockTooltip}
-                className="shrink-0 rounded bg-[#1C1917] px-1 py-0.5 text-[9.5px] font-medium text-[#F6F5F1] dark:bg-[#F2F1EE] dark:text-[#111110]"
-              >
-                <Lock className="inline h-2.5 w-2.5" />
-              </button>
-            )}
           </div>
 
           <div className="flex shrink-0 items-center gap-1">
@@ -1248,10 +1654,27 @@ export function FloatingWidget() {
               <span>{t.widget.detailShort}</span>
               <ArrowUpRight className="h-3 w-3" />
             </button>
+            {isLocked && (
+              <button
+                type="button"
+                data-testid="widget-dock-dismiss"
+                onClick={() => {
+                  cancelLeaveTimer();
+                  setLockedId(null);
+                  setHoveredId(null);
+                  setMediumComposerOpen(false);
+                }}
+                title={t.widget.closePreview}
+                aria-label={t.widget.closePreview}
+                className="rounded-md p-0.5 text-[#8C867E] transition-colors hover:bg-[#1C1917]/[0.07] hover:text-[#1C1917] dark:hover:bg-white/[0.08] dark:hover:text-[#F2F1EE]"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Concise Focus / Latest Output Excerpt */}
+        {/* Row 2: Inline Lane Switcher + Concise Excerpt */}
         {(topReason || excerpt) && (
           <p className="mt-1 line-clamp-2 text-[11px] leading-[1.45] text-[#57534E] dark:text-[#9F9E98]">
             {topReason && (
@@ -1270,27 +1693,27 @@ export function FloatingWidget() {
           </p>
         )}
 
-        {/* Meta strip: Workspace + Progress + Swarm + Feedback Artifact */}
-        <div className="mt-1.5 flex items-center gap-2 text-[10.5px] text-[#8C867E] dark:text-[#73726C]">
+        {/* Row 3: Inline Lane Switcher + Workspace + Progress + Swarm */}
+        <div className="mt-2 flex items-center gap-2 text-[10.5px] text-[#8C867E] dark:text-[#73726C]">
+          {renderInlineLaneSelector(card)}
+
           {card.workspace && (
-            <span className="max-w-[110px] truncate font-mono">{card.workspace}</span>
+            <span className="max-w-[96px] truncate font-medium text-[#78716C] dark:text-[#8C8B85]">
+              {card.workspace}
+            </span>
           )}
+
           {card.swarmPreview && (
-            <span className="tabular-nums inline-flex items-center gap-0.5 font-mono text-[#57534E] dark:text-[#A1A09A]">
+            <span className="tabular-nums inline-flex items-center gap-0.5 text-[#57534E] dark:text-[#A1A09A]">
               <Network className="h-2.5 w-2.5" />
               {card.swarm?.workingCount ?? card.swarmPreview.workingAgents.length}/
               {card.swarm?.totalMembers ?? card.swarmPreview.workingAgents.length}
             </span>
           )}
-          {card.feedbackArtifacts && card.feedbackArtifacts.length > 0 && (
-            <span className="inline-flex max-w-[110px] items-center gap-0.5 truncate font-mono text-[10px] text-[#B45309] dark:text-[#FBBF24]">
-              <FileCheck2 className="h-2.5 w-2.5 shrink-0" />
-              <span className="truncate">{card.feedbackArtifacts[0]}</span>
-            </span>
-          )}
+
           {card.stepsTotal > 0 ? (
             <div className="ml-auto flex items-center gap-1.5">
-              <div className="h-[2px] w-12 overflow-hidden rounded-full bg-[#1C1917]/[0.08] dark:bg-white/[0.08]">
+              <div className="h-[2px] w-10 overflow-hidden rounded-full bg-[#1C1917]/[0.08] dark:bg-white/[0.08]">
                 <div
                   className={`h-full rounded-full ${
                     card.hasError
@@ -1302,7 +1725,7 @@ export function FloatingWidget() {
                   style={{ width: `${progressPct}%` }}
                 />
               </div>
-              <span className="tabular-nums font-mono text-[10px]">
+              <span className="tabular-nums text-[10px]">
                 {card.stepsCompleted}/{card.stepsTotal}
               </span>
             </div>
@@ -1313,7 +1736,7 @@ export function FloatingWidget() {
           )}
         </div>
 
-        {/* Expandable Quick Push-Forward Composer (on click-to-lock or Push button) */}
+        {/* Expandable Quick Push-Forward Composer */}
         {showComposer && (
           <div className="mt-2 border-t border-[#1C1917]/[0.06] pt-2 dark:border-white/[0.06]">
             <PushForwardComposer
@@ -1355,7 +1778,6 @@ export function FloatingWidget() {
           </div>
 
           <div style={NO_DRAG_STYLE} className="flex shrink-0 items-center gap-1">
-            {/* Explicit S / M / L Preset Switcher */}
             <div
               role="group"
               aria-label="Widget size preset"
@@ -1376,7 +1798,7 @@ export function FloatingWidget() {
                           ? t.widget.presetMTitle
                           : t.widget.presetLTitle
                     }
-                    className={`flex h-5 w-5 items-center justify-center rounded font-mono text-[10px] font-semibold transition-colors ${
+                    className={`flex h-5 w-5 items-center justify-center rounded text-[10.5px] font-semibold transition-colors ${
                       active
                         ? 'bg-[#1C1917] text-[#F6F5F1] dark:bg-[#F2F1EE] dark:text-[#111110]'
                         : 'text-[#78716C] hover:text-[#1C1917] dark:text-[#8C8B85] dark:hover:text-[#F2F1EE]'
@@ -1388,7 +1810,6 @@ export function FloatingWidget() {
               })}
             </div>
 
-            {/* Always-on-Top Pin */}
             <button
               type="button"
               onClick={() => void handleToggleAlwaysOnTop()}
@@ -1403,7 +1824,6 @@ export function FloatingWidget() {
               <Pin className={`h-3 w-3 ${alwaysOnTop ? 'fill-current' : ''}`} />
             </button>
 
-            {/* Theme toggle */}
             <button
               type="button"
               onClick={() => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))}
@@ -1418,7 +1838,6 @@ export function FloatingWidget() {
               )}
             </button>
 
-            {/* Open Full Board */}
             <button
               type="button"
               onClick={() => handleOpenMainBoard()}
@@ -1431,15 +1850,16 @@ export function FloatingWidget() {
           </div>
         </header>
 
-        {/* Compact Filter Bar (Default: 未完成 All Open) */}
-        <div className="flex h-[30px] shrink-0 items-center justify-between gap-2 border-b border-[#1C1917]/[0.06] px-2.5 dark:border-white/[0.05]">
-          <div className="inline-flex items-center gap-0.5">
+        {/* Compact Filter Bar (incl. Archived toggle to retrieve archived items!) */}
+        <div className="flex h-[32px] shrink-0 items-center justify-between gap-1.5 border-b border-[#1C1917]/[0.06] px-2.5 dark:border-white/[0.05]">
+          <div className="flex min-w-0 items-center gap-0.5 overflow-x-auto">
             {(
               [
                 { id: 'open' as const, label: t.widget.tabOpen, count: openConversations.length },
                 { id: 'running' as const, label: t.widget.tabRunning, count: runningCount },
                 { id: 'attention' as const, label: t.widget.tabAttention, count: attentionCount },
                 { id: 'swarm' as const, label: t.widget.tabSwarm, count: swarmCount },
+                { id: 'archived' as const, label: t.widget.tabArchived, count: archivedConversations.length },
               ] as const
             ).map(({ id, label, count }) => {
               const active = filter === id;
@@ -1448,26 +1868,20 @@ export function FloatingWidget() {
                   key={id}
                   type="button"
                   onClick={() => setFilter(id)}
-                  className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors ${
+                  className={`inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium transition-colors ${
                     active
                       ? 'bg-[#1C1917] text-[#F6F5F1] dark:bg-[#F2F1EE] dark:text-[#111110]'
                       : 'text-[#57534E] hover:bg-[#1C1917]/[0.05] hover:text-[#1C1917] dark:text-[#9F9E98] dark:hover:bg-white/[0.06] dark:hover:text-[#F2F1EE]'
                   }`}
                 >
                   <span>{label}</span>
-                  <span className="tabular-nums font-mono text-[10px] opacity-65">
+                  <span className="tabular-nums text-[10px] opacity-65">
                     {count}
                   </span>
                 </button>
               );
             })}
           </div>
-
-          {isLargeSplit && (
-            <span className="tabular-nums hidden font-mono text-[10px] text-[#969088] sm:inline dark:text-[#666560]">
-              {runningCount} {t.radar.running} · {attentionCount} {t.radar.attention}
-            </span>
-          )}
         </div>
 
         {/* Main Adaptive Content Area */}
@@ -1482,6 +1896,24 @@ export function FloatingWidget() {
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
             {renderRadarList(true)}
             {renderMediumPeekDock()}
+          </div>
+        )}
+
+        {/* Drag-to-Archive Subtle Drop Bar (ONLY appears while dragging a row!) */}
+        {draggingId && (
+          <div
+            data-testid="widget-drop-archive"
+            onDragOver={(e) => handleDragOverLane(e, 'archived')}
+            onDragLeave={() => setDragOverLane((prev) => (prev === 'archived' ? null : prev))}
+            onDrop={(e) => handleDropOnLane(e, 'archived')}
+            className={`mx-2.5 mb-1.5 flex items-center justify-center gap-1.5 rounded-lg border border-dashed py-1.5 text-[11px] font-medium transition-colors ${
+              dragOverLane === 'archived'
+                ? 'border-[#1C1917]/50 bg-[#EFECE6] text-[#1C1917] dark:border-white/45 dark:bg-[#262623] dark:text-[#F2F1EE]'
+                : 'border-[#1C1917]/20 bg-white/60 text-[#78716C] dark:border-white/15 dark:bg-[#1C1C1A] dark:text-[#9F9E98]'
+            }`}
+          >
+            <Archive className="h-3.5 w-3.5" />
+            <span>{t.widget.dropToArchive}</span>
           </div>
         )}
 
@@ -1506,7 +1938,7 @@ export function FloatingWidget() {
           </div>
         )}
 
-        {/* Subtle Bottom Footer Bar */}
+        {/* Minimal Bottom Footer Bar */}
         <footer className="flex h-[30px] shrink-0 items-center justify-between border-t border-[#1C1917]/[0.07] bg-white/85 px-3 text-[11px] dark:border-white/[0.06] dark:bg-[#1A1A18]/95">
           {attentionCards.length > 0 ? (
             <button
@@ -1518,7 +1950,7 @@ export function FloatingWidget() {
               <span>{t.lanes.markAllRead}</span>
             </button>
           ) : (
-            <span className="tabular-nums font-mono text-[10px] text-[#969088] dark:text-[#666560]">
+            <span className="tabular-nums text-[10.5px] text-[#969088] dark:text-[#666560]">
               {formatClockTime(lastSyncedAt)}
             </span>
           )}
@@ -1533,6 +1965,18 @@ export function FloatingWidget() {
           </button>
         </footer>
       </div>
+
+      {/* Clamped Floating Move / Context Menu */}
+      <TaskMoveMenu
+        menu={moveMenu}
+        onClose={() => setMoveMenu(null)}
+        onMoveLane={handleMoveLane}
+        onResetManualLane={handleResetManualLane}
+        onTogglePin={handleTogglePin}
+        onSetPriority={handleSetPriority}
+        onMarkReviewed={(c) => void handleMarkReviewed(c)}
+        t={t}
+      />
     </div>
   );
 }

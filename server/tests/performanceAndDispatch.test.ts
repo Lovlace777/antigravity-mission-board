@@ -253,10 +253,10 @@ describe('v2.1.0 resource optimization, hover preview, runtime & dispatch', () =
 
     expect(handle.port).toBeGreaterThan(0);
 
-    // Health reports v2.1.0 + dispatchCapabilities
+    // Health reports v2.2.0 + dispatchCapabilities
     const health = (await fetch(`${handle.url}/api/health`).then((r) => r.json())) as HealthResponse;
     expect(health.ok).toBe(true);
-    expect(health.version).toBe('2.1.0');
+    expect(health.version).toBe('2.2.0');
     expect(health.dispatchCapabilities).toEqual({
       agyCliAvailable: false,
       protocolSchemeAvailable: false,

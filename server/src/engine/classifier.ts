@@ -122,6 +122,10 @@ export function classifyConversation(input: ClassificationInput): Classification
   const isManualLane = input.overlay.manualLane !== null;
   const lane: LaneId = input.overlay.manualLane ?? autoLane;
 
+  if (input.overlay.manualLane === 'attention' && attentionReasons.length === 0) {
+    attentionReasons.push('manual_attention');
+  }
+
   return {
     lane,
     autoLane,
@@ -173,7 +177,7 @@ export function buildBoardStats(cards: ConversationCard[]): BoardStats {
   for (const card of cards) {
     byLane[card.lane] += 1;
     if (card.isRunning) runningCount += 1;
-    if (!card.isRunning && !card.isArchived && card.attentionReasons.length > 0) {
+    if (card.lane === 'attention') {
       attentionCount += 1;
     }
     if (card.lane === 'stale') staleCount += 1;

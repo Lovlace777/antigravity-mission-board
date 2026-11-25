@@ -164,6 +164,52 @@ describe('lane classification engine', () => {
     expect(res.isRunning).toBe(true);
   });
 
+  it('supports moving stale, running, or archived cards into attention with manual_attention reason', () => {
+    const fourDaysAgo = new Date(BASE_NOW_MS - 96 * 3_600_000).toISOString();
+
+    const staleToAttention = classifyConversation(
+      makeInput({
+        lastModifiedAt: fourDaysAgo,
+        lastUserViewAt: fourDaysAgo,
+        overlay: {
+          ...createDefaultOverlay('conv-1'),
+          manualLane: 'attention',
+        },
+      }),
+    );
+    expect(staleToAttention.lane).toBe('attention');
+    expect(staleToAttention.autoLane).toBe('stale');
+    expect(staleToAttention.isManualLane).toBe(true);
+    expect(staleToAttention.attentionReasons).toEqual(['manual_attention']);
+
+    const runningToAttention = classifyConversation(
+      makeInput({
+        status: 'CASCADE_RUN_STATUS_RUNNING',
+        overlay: {
+          ...createDefaultOverlay('conv-1'),
+          manualLane: 'attention',
+        },
+      }),
+    );
+    expect(runningToAttention.lane).toBe('attention');
+    expect(runningToAttention.autoLane).toBe('running');
+    expect(runningToAttention.isRunning).toBe(true);
+    expect(runningToAttention.attentionReasons).toEqual(['manual_attention']);
+
+    const archivedToAttention = classifyConversation(
+      makeInput({
+        isArchived: true,
+        overlay: {
+          ...createDefaultOverlay('conv-1'),
+          manualLane: 'attention',
+        },
+      }),
+    );
+    expect(archivedToAttention.lane).toBe('attention');
+    expect(archivedToAttention.autoLane).toBe('archived');
+    expect(archivedToAttention.attentionReasons).toEqual(['manual_attention']);
+  });
+
   it('does not emit unread_update while actively running, while preserving explicit attention signals', () => {
     const runningModifiedAfterView = classifyConversation(
       makeInput({

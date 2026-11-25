@@ -103,7 +103,7 @@ export function SwarmClusterView({
             <div className="text-[10.5px] text-[#8C867E] dark:text-[#787771]">
               {t.swarmView.activeClusters}
             </div>
-            <div className="tabular-nums font-mono text-base font-semibold text-[#1C1917] dark:text-[#F2F1EE]">
+            <div className="tabular-nums text-base font-semibold text-[#1C1917] dark:text-[#F2F1EE]">
               {summary.activeClusters}
               <span className="text-xs font-normal text-[#969088]"> / {totalClusters}</span>
             </div>
@@ -113,7 +113,7 @@ export function SwarmClusterView({
             <div className="text-[10.5px] text-[#8C867E] dark:text-[#787771]">
               {t.swarmView.workingAgents}
             </div>
-            <div className="tabular-nums font-mono text-base font-semibold text-[#16A34A] dark:text-[#22C55E]">
+            <div className="tabular-nums text-base font-semibold text-[#16A34A] dark:text-[#22C55E]">
               {summary.workingAgents}
             </div>
           </div>
@@ -122,7 +122,7 @@ export function SwarmClusterView({
             <div className="text-[10.5px] text-[#8C867E] dark:text-[#787771]">
               {t.swarmView.totalSubagents}
             </div>
-            <div className="tabular-nums font-mono text-base font-semibold text-[#1C1917] dark:text-[#F2F1EE]">
+            <div className="tabular-nums text-base font-semibold text-[#1C1917] dark:text-[#F2F1EE]">
               {summary.totalSubagents}
             </div>
           </div>
@@ -160,7 +160,7 @@ export function SwarmClusterView({
                         <span className="truncate">{card.title}</span>
                       )}
                       {card.workspace && (
-                        <span className="font-mono text-[10.5px]">
+                        <span className="text-[10.5px]">
                           · {card.workspace}
                         </span>
                       )}
@@ -217,7 +217,7 @@ export function SwarmClusterView({
                             className="rounded-xl border border-[#1C1917]/[0.065] bg-[#FAF9F6]/70 p-2.5 dark:border-white/[0.06] dark:bg-[#151513]"
                           >
                             <div className="flex items-center gap-1.5">
-                              <span className="font-mono text-[10.5px] font-semibold text-[#78716C] dark:text-[#8C8B85]">
+                              <span className="text-[10.5px] font-semibold text-[#78716C] dark:text-[#8C8B85]">
                                 {thread.id}
                               </span>
                               <span className="truncate text-xs font-medium text-[#1C1917] dark:text-[#F2F1EE]">
@@ -266,7 +266,7 @@ export function SwarmClusterView({
                           >
                             <div className="flex items-center justify-between gap-2">
                               <div className="flex min-w-0 items-center gap-1.5">
-                                <span className="truncate font-mono text-xs font-semibold text-[#1C1917] dark:text-[#F2F1EE]">
+                                <span className="truncate text-xs font-semibold text-[#1C1917] dark:text-[#F2F1EE]">
                                   @{member.name}
                                 </span>
                                 {member.role === 'coordinator' && (
@@ -287,11 +287,11 @@ export function SwarmClusterView({
                               </p>
                             )}
                             <div className="mt-2 flex items-center justify-between gap-2 text-[10px] text-[#8C867E] dark:text-[#6E6D68]">
-                              <span className="truncate font-mono">
+                              <span className="truncate">
                                 {member.model ? shortModelName(member.model) : '—'}
                               </span>
                               {member.workspaceMode && (
-                                <span className="font-mono text-[9.5px] opacity-80">
+                                <span className="text-[9.5px] opacity-80">
                                   {member.workspaceMode}
                                 </span>
                               )}
@@ -320,10 +320,10 @@ export function SwarmClusterView({
                             key={msg.seq}
                             className="flex items-start gap-2 text-[11.5px] leading-relaxed"
                           >
-                            <span className="tabular-nums mt-0.5 shrink-0 font-mono text-[10px] text-[#969088] dark:text-[#666560]">
+                            <span className="tabular-nums mt-0.5 shrink-0 text-[10px] text-[#969088] dark:text-[#666560]">
                               #{msg.seq}
                             </span>
-                            <span className="mt-0.5 shrink-0 font-mono text-[10.5px] font-semibold text-[#44403C] dark:text-[#D6D3CD]">
+                            <span className="mt-0.5 shrink-0 text-[10.5px] font-semibold text-[#44403C] dark:text-[#D6D3CD]">
                               @{msg.agent}
                             </span>
                             <p className="line-clamp-2 min-w-0 flex-1 text-[#57534E] dark:text-[#9F9E98]">
@@ -361,7 +361,7 @@ export function SwarmClusterView({
                                 }`}
                               />
                             )}
-                            <span className="font-mono text-[10.5px] font-medium text-[#1C1917] dark:text-[#E7E5E0]">
+                            <span className="text-[10.5px] font-medium text-[#1C1917] dark:text-[#E7E5E0]">
                               {sub.typeName || sub.role || 'subagent'}
                             </span>
                             {sub.title && (
@@ -409,7 +409,7 @@ export function SwarmClusterView({
                       <div className="mt-1 flex flex-wrap items-center gap-2 text-[10.5px] text-[#78716C] dark:text-[#8C8B85]">
                         <LanePill lane={card.lane} t={t} isRunning={card.isRunning} />
                         {card.workspace && (
-                          <span className="font-mono">{card.workspace}</span>
+                          <span className="font-medium">{card.workspace}</span>
                         )}
                         <span className="tabular-nums">
                           {formatRelativeTime(card.lastModifiedAt, t)}
@@ -444,7 +444,7 @@ export function SwarmClusterView({
                               }`}
                             />
                           )}
-                          <span className="font-mono text-[10.5px] font-medium text-[#1C1917] dark:text-[#E7E5E0]">
+                          <span className="text-[10.5px] font-medium text-[#1C1917] dark:text-[#E7E5E0]">
                             {sub.typeName || sub.role || 'subagent'}
                           </span>
                           {sub.title && (

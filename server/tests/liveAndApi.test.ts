@@ -623,5 +623,65 @@ describe('DemoBoardService REST API', () => {
     expect(movedJson.card.lane).toBe('attention');
     expect(movedJson.card.autoLane).toBe('active');
     expect(movedJson.card.isManualLane).toBe(true);
+
+    // Move a stale card (demo-11) -> attention (gets manual_attention), review clears manualLane cleanly
+    const staleToAttn = (await fetch(`${srv.baseUrl}/api/conversations/demo-11/overlay`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ manualLane: 'attention' }),
+    }).then((r) => r.json())) as {
+      card: { lane: string; autoLane: string; attentionReasons: string[]; overlay: { manualLane: string | null } };
+    };
+    expect(staleToAttn.card.lane).toBe('attention');
+    expect(staleToAttn.card.autoLane).toBe('stale');
+    expect(staleToAttn.card.attentionReasons).toEqual(['manual_attention']);
+
+    // Mark reviewed clears manualLane === 'attention' so card cleanly exits attention
+    const reviewedStale = (await fetch(`${srv.baseUrl}/api/conversations/demo-11/review`, {
+      method: 'POST',
+    }).then((r) => r.json())) as {
+      card: { lane: string; attentionReasons: string[]; overlay: { manualLane: string | null } };
+    };
+    expect(reviewedStale.card.overlay.manualLane).toBeNull();
+    expect(reviewedStale.card.lane).toBe('stale');
+    expect(reviewedStale.card.attentionReasons).toEqual([]);
+
+    // Restore via PATCH /overlay and verify review-batch + restoreManualLanes Undo
+    await fetch(`${srv.baseUrl}/api/conversations/demo-11/overlay`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ manualLane: 'attention', reviewedAt: null }),
+    });
+    const batchClear = (await fetch(`${srv.baseUrl}/api/conversations/review-batch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: ['demo-11'] }),
+    }).then((r) => r.json())) as ReviewBatchResponse;
+    expect(batchClear.cards[0].lane).toBe('stale');
+    expect(batchClear.cards[0].overlay.manualLane).toBeNull();
+
+    const batchRestore = (await fetch(`${srv.baseUrl}/api/conversations/review-batch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ids: ['demo-11'],
+        reviewedAt: null,
+        restoreManualLanes: { 'demo-11': 'attention' },
+      }),
+    }).then((r) => r.json())) as ReviewBatchResponse;
+    expect(batchRestore.cards[0].lane).toBe('attention');
+    expect(batchRestore.cards[0].attentionReasons).toEqual(['manual_attention']);
+
+    // Move running card (demo-01) -> active while preserving isRunning, then reset to auto
+    const runMoved = (await fetch(`${srv.baseUrl}/api/conversations/demo-01/overlay`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ manualLane: 'active' }),
+    }).then((r) => r.json())) as {
+      card: { lane: string; autoLane: string; isRunning: boolean };
+    };
+    expect(runMoved.card.lane).toBe('active');
+    expect(runMoved.card.autoLane).toBe('running');
+    expect(runMoved.card.isRunning).toBe(true);
   });
 });
