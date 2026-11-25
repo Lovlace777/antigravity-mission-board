@@ -8,8 +8,8 @@
 
 <p>
   <a href="https://github.com/Lovlace777/antigravity-mission-board/actions/workflows/ci.yml"><img src="https://github.com/Lovlace777/antigravity-mission-board/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
-  <a href="https://github.com/Lovlace777/antigravity-mission-board/releases/tag/v2.0.0"><img src="https://img.shields.io/badge/Release-v2.0.0-1C1917" alt="Release v2.0.0" /></a>
-  <img src="https://img.shields.io/badge/%E6%A1%8C%E9%9D%A2%E7%AB%AF-%E7%BD%AE%E9%A1%B6%E6%B5%AE%E7%AA%97%20%2B%20%E7%B3%BB%E7%BB%9F%E6%89%98%E7%9B%98-292524" alt="桌面置顶浮窗与托盘" />
+  <a href="https://github.com/Lovlace777/antigravity-mission-board/releases/tag/v2.1.0"><img src="https://img.shields.io/badge/Release-v2.1.0-1C1917" alt="Release v2.1.0" /></a>
+  <img src="https://img.shields.io/badge/%E6%A1%8C%E9%9D%A2%E7%AB%AF-S%2FM%2FL%20%E8%87%AA%E7%94%B1%E7%BC%A9%E6%94%BE%E6%B5%AE%E7%AA%97-292524" alt="S/M/L 自由缩放桌面浮窗" />
   <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-%E2%89%A522.5-339933?logo=node.js&logoColor=white" alt="Node.js >= 22.5" /></a>
   <a href="https://nodejs.org/api/sqlite.html"><img src="https://img.shields.io/badge/SQLite-%E9%9B%B6%E5%8E%9F%E7%94%9F%20C%2B%2B%20%E4%BE%9D%E8%B5%96-0F766E" alt="零原生 C++ 依赖" /></a>
   <img src="https://img.shields.io/badge/%E5%AF%B9%20Antigravity%20%E6%95%B0%E6%8D%AE-100%25%20%E5%8F%AA%E8%AF%BB-16A34A" alt="100% 只读" />
@@ -89,13 +89,16 @@ powershell -ExecutionPolicy Bypass -File desktop/scripts/install-windows-shortcu
 
 ## 核心体验与高清图集
 
-### 1. 桌面置顶浮窗 + 系统托盘无感常驻
-轻轻停靠在屏幕一角，不抢焦点、不留终端黑框，写代码或看网页时余光就能掌握所有 Agent 动态：
-- **折叠胶囊态（`276×56`）：** 温润黑曜石 / 暖纸质胶囊，常驻呼吸绿点显示 `3 运行中 · 4 待关注`（全部处理完毕时转为安静的 `✓ 一切正常`），任意拖动并自动记住停靠位置。
-- **展开速览面板（`392×540`）：** 内置 `焦点 / 运行中 / Swarm / 全部` 分栏、极细 `2px` 进度条、悬停一键「已阅」与**撤销（Undo）**、明暗切换、置顶开关；点击任意条目直接唤醒完整看板并定位到对应详情抽屉。
-- **系统托盘与全局热键：** 关闭主窗口自动隐藏到托盘后台运行；随时按 `Ctrl+Shift+W` 显隐浮窗、`Ctrl+Shift+M` 呼出完整看板，并可在托盘菜单或设置面板一键开关**开机自动启动**。
+### 1. 自由缩放 `S / M / L` 置顶浮窗、零延迟悬停预览与快捷推进指令
+专为「全天开着也不占资源、扫一眼就知道所有未完成事项」深度打造的桌面灵动雷达：
+- **显式 `S / M / L` 三档尺寸 + 边缘自由拖拽缩放：** 顶栏或托盘菜单一键切换 **`S` 胶囊（`292×52`）**、**`M` 中型全标题雷达（`390×600`）**、**`L` 大型双栏全景（`700×580`）**，也可以直接拖拽窗口四边或四角调成任意尺寸并自动记忆（绝不擅自乱跳大小）。
+- **未完成标题一目了然 + 0 延迟鼠标悬停预览：** 所有未归档任务标题以紧凑单行分组同屏呈现，无需翻页寻找；鼠标划过任意标题即在底部预览栏（`M`）或右侧双栏检视器（`L`）**0 HTTP 请求秒出详情**（实时焦点、最新回复摘录、步骤清单、Swarm 成员状态与待审文档）。
+- **浮窗内直接发指令推进对话：** 点击任意条目锁定后，直接输入下一步指令或点选快捷芯片（`继续推进` / `总结当前进展` / `检查报错并修复`）—— 若本机安装了官方 `agy` CLI 则通过文档化 `agy --conversation <id> --prompt ...` 直接派发，否则一键复制指令并自动切换焦点到 Antigravity Desktop 窗口，按 `Ctrl+V` 回车即推进（零 Hack、100% 安全）。
+- **极致轻量化与托盘常驻：** 后端直嵌 Electron 主进程，彻底消灭独立 `node.exe` 子进程（**私有内存直降 42%**）；关闭主看板窗口即刻销毁渲染进程释放 ~150 MB 内存；随时通过 `Ctrl+Shift+W` 显隐浮窗、`Ctrl+Shift+M` 呼出完整看板。
 
-![桌面置顶浮窗 — 折叠胶囊与深浅展开速览面板](docs/screenshots/floating-widget.png)
+![桌面置顶浮窗 — S 胶囊、M 全标题雷达与 L 双栏全景](docs/screenshots/floating-widget.png)
+
+![中文 L 大型双栏全景浮窗与快捷推进指令](docs/screenshots/widget-panorama-zh.png)
 
 ### 2. 去 AI 化温润编辑感设计 + `Ctrl+K` 浮动命令面板
 彻底告别刺眼的赛博蓝黑、彩虹左边框与堆叠胶囊；以 Things 3 / Linear / Dieter Rams 的暖石纸面（`#F6F5F1`）与暖黑曜石（`#111110`）重构视觉层次。按下 `Ctrl+K` 或 `/` 即刻呼出浮动命令面板，支持本地 + 全文检索直达对话与键盘执行所有快捷操作；拖拽换栏与一键「全部已阅」均自带右下角 **撤销（Undo）**。
@@ -118,9 +121,12 @@ powershell -ExecutionPolicy Bypass -File desktop/scripts/install-windows-shortcu
 ![高密度项目矩阵视图](docs/screenshots/matrix-dark.png)
 
 <details>
-<summary><strong>更多截图：暖纸面浅色模式 &amp; 英文界面</strong></summary>
+<summary><strong>更多截图：暖浅色全景浮窗、暖纸面浅色看板 &amp; 英文界面</strong></summary>
 
 <br />
+
+#### 暖纸面浅色 L 大型全景浮窗
+![浅色大型全景浮窗](docs/screenshots/widget-panorama-light.png)
 
 #### 暖纸面中文浅色看板
 ![中文浅色模式看板](docs/screenshots/kanban-zh-light.png)
@@ -160,34 +166,43 @@ powershell -ExecutionPolicy Bypass -File desktop/scripts/install-windows-shortcu
 
 ---
 
-## 系统架构
+## 系统架构与极致轻量化引擎
+
+专为全天候后台伴随运行而优化，长时间挂着也不吃电脑资源：
+
+- **主进程内嵌服务（0 独立 `node.exe`）：** Electron 主进程直接以 ESM 加载 `server/dist/server/src/runtime.js`，相比外挂 Node 进程**私有提交内存直降 42%**（`253 MB → 146 MB`）；关闭主看板窗口（`×`）时真正销毁渲染进程，立刻归还 **~150 MB** 内存。
+- **亚毫秒级 Stat 指纹快路径（`<1 ms`）：** 每次轮询先极速检测 `conversation_summaries.db`、`-wal`、`annotations/` 与本地 overlay 版本号；无变化时彻底跳过 SQLite 打开与解析（`0` 次数据库 IO，空闲 CPU 趋近 `0%`）。
+- **休眠 / 锁屏 / 隐藏自动冻结：** 浮窗隐藏、系统锁屏或休眠时自动断开 SSE、停止轮询并暂停 CSS 呼吸动画；活跃执行期 `2s` 刷新，空闲期自动退避至 `6s`。
+- **长期运行内存不膨胀：** 看板轮询自动懒跳过已归档对话日志；大于 256 KB 的超大 `transcript.jsonl` 仅读取尾部 256 KB 窗口；所有文件缓存上限锁定 200 条 LRU。
 
 ```mermaid
 flowchart LR
     subgraph Local["本机环境 (127.0.0.1)"]
         AG["~/.gemini/antigravity<br/>conversation_summaries.db (WAL)<br/>annotations/*.pbtxt<br/>brain/&lt;id&gt;/.system_generated/*"]
-        OV["~/.antigravity-mission-board<br/>overlay.db + desktop-state.json<br/>手动分组、标签、备注、已阅与浮窗位置"]
+        OV["~/.antigravity-mission-board<br/>overlay.db + desktop-state.json<br/>手动分组、标签、备注与浮窗尺寸位置"]
 
-        subgraph Server["Express + TypeScript 后端 (Node 22)"]
+        subgraph Runtime["内嵌主进程或独立服务 (Node 22+ / Electron Main)"]
+            FP["Stat 指纹快路径<br/>&lt;1ms 空闲跳过 · 0 SQLite IO"]
             DB["AntigravityReadOnlyDb<br/>node:sqlite { readOnly: true }"]
-            CACHE["FileStatCache（mtimeMs + size 缓存）<br/>pbtxt / transcript / swarm / artifacts"]
-            CLS["五列自动分栏与关注引擎<br/>+ SSE 状态跃迁通知检测"]
-            API["REST API + SSE 实时广播<br/>+ 静态托管 web/dist"]
+            CACHE["200 条 LRU 缓存 + 256KB 尾读<br/>归档日志懒解析"]
+            CLS["五列分栏 + 0ms 悬停预览<br/>+ 自适应 SSE (2s/6s/休眠暂停)"]
+            API["REST API + /dispatch + SSE<br/>+ 静态托管 web/dist"]
         end
 
         subgraph Clients["无感桌面与前端层"]
-            DESK["Electron 桌面外壳（可选）<br/>置顶浮窗 · 主窗口 · 系统托盘 · 全局热键"]
+            DESK["Electron 桌面外壳<br/>S/M/L 自由缩放浮窗 · 懒创建主窗口<br/>系统托盘 · powerMonitor 休眠联动"]
             UI["React 19 + Tailwind v4 SPA<br/>看板 · 矩阵 · Swarm · /?mode=widget"]
         end
     end
 
-    AG -- "100% 严格只读" --> DB
-    AG -- "100% 严格只读" --> CACHE
+    AG -- "100% 严格只读" --> FP
+    FP --> DB
+    FP --> CACHE
     DB --> CLS
     CACHE --> CLS
     OV <--> CLS
     CLS --> API
-    DESK -. "静默拉起服务 & IPC" .-> API
+    DESK -. "主进程内嵌 Runtime & IPC" .-> API
     API <-- "REST + SSE /api/events" --> UI
     DESK --> UI
 ```
@@ -237,13 +252,14 @@ flowchart LR
 
 | 接口 | 用途 |
 | --- | --- |
-| `GET /api/health` | 运行模式（`live` / `demo`）、版本（`2.0.0`）、数据目录与数据库可读状态 |
-| `GET /api/board` | 获取完整看板快照：根对话卡片、统计指标、工作区、标签、设置与活跃 Swarm |
+| `GET /api/health` | 运行模式（`live` / `demo`）、版本（`2.1.0`）、`dispatchCapabilities` 与数据库可读状态 |
+| `GET /api/board` | 获取完整看板快照：根对话卡片（含零延迟悬停预览字段）、统计指标、工作区、标签、设置与活跃 Swarm |
 | `GET /api/conversations/:id` | 获取单个对话详情（步骤清单、Swarm 讨论板、子代理树、产物、时间线、Token） |
 | `GET /api/conversations/:id/artifact?file=...` | 防目录穿越的 Markdown/文本产物读取接口（上限 512 KB） |
 | `PATCH /api/conversations/:id/overlay` | 更新手动泳道、置顶、优先级、标签、备注、提醒日期或已阅时间 |
 | `POST /api/conversations/:id/review` | 单条标为已阅（`reviewedAt = now`） |
 | `POST /api/conversations/review-batch` | 批量标为已阅（最多 200 条，传入 `reviewedAt: null` 支持撤销） |
+| `POST /api/conversations/:id/dispatch` | 快捷推进指令（支持官方 `agy --conversation <id> --prompt ...` 或安全剪贴板 + 焦点切回 Antigravity 交接） |
 | `GET /api/search?q=...` | 全文检索（FTS5 / 影子表自动回退）+ 标题、预览、标签与备注搜索 |
 | `GET /api/settings` · `PATCH /api/settings` | 读取或修改久未跟进阈值（`staleAfterHours`）与轮询间隔（`pollIntervalMs`） |
 | `GET /api/events` | SSE 实时推送流（`connected`、`heartbeat`、`board_update`、`notification`） |

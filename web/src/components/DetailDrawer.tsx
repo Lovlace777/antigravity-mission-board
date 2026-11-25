@@ -61,6 +61,7 @@ interface DetailDrawerProps {
   onPatchOverlay: (id: string, patch: OverlayPatch) => Promise<void>;
   onMarkReviewed: (card: ConversationCard) => Promise<void>;
   onCopySuccess?: (kind: 'id' | 'path') => void;
+  onDispatchNotice?: (message: string, tone: 'success' | 'error') => void;
   locale: Locale;
   t: Dictionary;
 }
@@ -80,6 +81,7 @@ export function DetailDrawer({
   onPatchOverlay,
   onMarkReviewed,
   onCopySuccess,
+  onDispatchNotice,
   locale,
   t,
 }: DetailDrawerProps) {
@@ -733,7 +735,13 @@ export function DetailDrawer({
           ) : detail ? (
             <>
               {activeTab === 'overview' && (
-                <OverviewTab detail={detail} locale={locale} t={t} />
+                <OverviewTab
+                  detail={detail}
+                  onDispatched={(msg) => onDispatchNotice?.(msg, 'success')}
+                  onDispatchError={(msg) => onDispatchNotice?.(msg, 'error')}
+                  locale={locale}
+                  t={t}
+                />
               )}
               {activeTab === 'agents' && <AgentsTab detail={detail} t={t} />}
               {activeTab === 'artifacts' && (

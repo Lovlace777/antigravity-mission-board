@@ -37,6 +37,7 @@ export function createDefaultOverlay(conversationId: string): OverlayData {
  */
 export class OverlayStore {
   private readonly db: DatabaseSync;
+  private _version = 0;
 
   constructor(dbPath: string) {
     if (dbPath !== ':memory:') {
@@ -48,6 +49,11 @@ export class OverlayStore {
     }
     this.db.exec('PRAGMA busy_timeout = 3000');
     this.initSchema();
+  }
+
+  /** Monotonic mutation version used by the stat-fingerprint fast path to detect local overlay changes. */
+  get version(): number {
+    return this._version;
   }
 
   private initSchema(): void {
@@ -189,6 +195,8 @@ export class OverlayStore {
         nowIso,
       );
 
+    this._version += 1;
+
     return {
       conversationId,
       manualLane,
@@ -270,6 +278,8 @@ export class OverlayStore {
     );
     stmt.run('staleAfterHours', String(next.staleAfterHours));
     stmt.run('pollIntervalMs', String(next.pollIntervalMs));
+
+    this._version += 1;
 
     return next;
   }

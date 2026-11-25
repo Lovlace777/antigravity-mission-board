@@ -4,6 +4,8 @@ import type {
   BoardSettings,
   ConversationCard,
   ConversationDetail,
+  DispatchRequest,
+  DispatchResponse,
   HealthResponse,
   OverlayData,
   OverlayPatch,
@@ -81,6 +83,19 @@ export function reviewConversationsBatch(
     method: 'POST',
     body: JSON.stringify(body),
   });
+}
+
+export function dispatchConversationPrompt(
+  id: string,
+  body: DispatchRequest,
+): Promise<DispatchResponse> {
+  return requestJson<DispatchResponse>(
+    `/api/conversations/${encodeURIComponent(id)}/dispatch`,
+    {
+      method: 'POST',
+      body: JSON.stringify(body),
+    },
+  );
 }
 
 export function searchConversations(

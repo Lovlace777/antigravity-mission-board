@@ -5,6 +5,8 @@ import type {
   BoardSettings,
   ConversationCard,
   ConversationDetail,
+  DispatchRequest,
+  DispatchResponse,
   HealthResponse,
   OverlayData,
   OverlayPatch,
@@ -22,10 +24,11 @@ import { APP_VERSION } from '../config.js';
 import { OverlayStore } from '../db/overlayDb.js';
 import { summarizeSubagents } from '../parsers/subagents.js';
 import { toSwarmSummary } from '../parsers/swarm.js';
-import { finalizeTokenUsage } from '../parsers/transcript.js';
+import { buildCompactPreview, finalizeTokenUsage } from '../parsers/transcript.js';
 import { isValidConversationId } from '../utils/pathSafety.js';
+import { buildSwarmHoverPreview } from './boardService.js';
 import { assembleBoardResponse, classifyConversation } from './classifier.js';
-import type { IBoardService } from './types.js';
+import type { IBoardService, ServiceMetrics } from './types.js';
 
 interface DemoSeedRecord {
   id: string;
@@ -1351,6 +1354,10 @@ export class DemoBoardService implements IBoardService {
   private readonly seedById = new Map<string, DemoSeedRecord>();
   private readonly overlayStore: OverlayStore;
   private readonly startedAt = Date.now();
+  private cachedVersion = -1;
+  private cachedBoard: BoardResponse | null = null;
+  private _pollCount = 0;
+  private _skippedIdlePolls = 0;
 
   constructor() {
     this.seeds = buildDemoSeeds(this.baseMs);
@@ -1393,6 +1400,16 @@ export class DemoBoardService implements IBoardService {
     });
 
     const stepsCompleted = seed.steps.filter((s) => s.status === 'done').length;
+    const latestTurn =
+      seed.timeline.length > 0 ? seed.timeline[seed.timeline.length - 1] : null;
+    const latestMessagePreview =
+      buildCompactPreview(seed.lastError) ??
+      buildCompactPreview(seed.pendingQuestionText) ??
+      buildCompactPreview(latestTurn?.text) ??
+      buildCompactPreview(seed.preview);
+    const feedbackArtifacts = artifacts
+      .filter((a) => a.requestFeedback)
+      .map((a) => a.fileName);
 
     return {
       id: seed.id,
@@ -1438,6 +1455,11 @@ export class DemoBoardService implements IBoardService {
       artifactCount: artifacts.length,
       sideQuestionCount: seed.sideQuestions.length,
 
+      latestMessagePreview,
+      stepsPreview: seed.steps.slice(0, 10),
+      swarmPreview: buildSwarmHoverPreview(swarm),
+      feedbackArtifacts,
+
       overlay,
     };
   }
@@ -1452,13 +1474,26 @@ export class DemoBoardService implements IBoardService {
       dbAccessible: true,
       conversationCount: this.seeds.length,
       uptimeSec: Math.floor((Date.now() - this.startedAt) / 1000),
+      dispatchCapabilities: {
+        agyCliAvailable: false,
+        protocolSchemeAvailable: false,
+        mode: 'handoff',
+      },
     };
   }
 
   getBoard(): BoardResponse {
+    this._pollCount += 1;
+    if (this.cachedBoard && this.cachedVersion === this.overlayStore.version) {
+      this._skippedIdlePolls += 1;
+      return this.cachedBoard;
+    }
     const settings = this.overlayStore.getSettings();
     const cards = this.seeds.map((s) => this.buildCard(s, settings));
-    return assembleBoardResponse('demo', cards, settings);
+    const board = assembleBoardResponse('demo', cards, settings);
+    this.cachedBoard = board;
+    this.cachedVersion = this.overlayStore.version;
+    return board;
   }
 
   getConversationDetail(conversationId: string): ConversationDetail | null {
@@ -1547,6 +1582,45 @@ export class DemoBoardService implements IBoardService {
       updatedCount: uniqueIds.length,
       reviewedAt: appliedReviewedAt,
       cards,
+    };
+  }
+
+  dispatchPrompt(conversationId: string, request: DispatchRequest): DispatchResponse | null {
+    if (!isValidConversationId(conversationId)) return null;
+    const seed = this.seedById.get(conversationId);
+    if (!seed) return null;
+
+    const prompt = request.prompt.trim();
+    let noteSaved = false;
+    const settings = this.overlayStore.getSettings();
+
+    if (request.saveToNotes) {
+      const existing = this.overlayStore.getOverlay(conversationId);
+      const entryLine = `[Demo] → ${prompt}`;
+      const nextNotes = existing.notes.trim()
+        ? `${existing.notes.trim()}\n${entryLine}`
+        : entryLine;
+      this.overlayStore.patchOverlay(conversationId, { notes: nextNotes });
+      noteSaved = true;
+    }
+
+    const card = this.buildCard(seed, settings);
+    return {
+      ok: true,
+      mode: 'handoff',
+      copiedPrompt: prompt,
+      conversationId,
+      noteSaved,
+      message: 'Prompt prepared for Antigravity Desktop handoff (Demo Mode).',
+      card,
+    };
+  }
+
+  getMetrics(): ServiceMetrics {
+    return {
+      pollCount: this._pollCount,
+      cacheHits: this._skippedIdlePolls,
+      skippedIdlePolls: this._skippedIdlePolls,
     };
   }
 

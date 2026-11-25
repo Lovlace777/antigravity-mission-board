@@ -23,10 +23,34 @@ const api = Object.freeze({
   isDesktop: true,
   platform: process.platform,
 
+  // v2.1.0 Explicit Presets & Free Resize (NO unsolicited auto-resizing)
+  setWidgetPreset(preset) {
+    return ipcRenderer.invoke('desktop:set-widget-preset', preset);
+  },
+
+  getWidgetLayout() {
+    return ipcRenderer.invoke('desktop:get-widget-layout');
+  },
+
+  onWidgetLayoutChange(cb) {
+    return subscribe('desktop:widget-layout-change', cb);
+  },
+
+  onWidgetVisibilityChange(cb) {
+    return subscribe('desktop:visibility-change', cb);
+  },
+
+  // Legacy compatibility alias (explicit resize only)
   resizeWidget(opts) {
     return ipcRenderer.invoke('desktop:resize-widget', opts);
   },
 
+  // v2.1.0 Safe Push-Forward Handoff
+  copyAndFocusAntigravity(text) {
+    return ipcRenderer.invoke('desktop:copy-and-focus-antigravity', typeof text === 'string' ? text : '');
+  },
+
+  // Window & Tray Controls
   openMainBoard(conversationId) {
     return ipcRenderer.invoke(
       'desktop:open-main-board',

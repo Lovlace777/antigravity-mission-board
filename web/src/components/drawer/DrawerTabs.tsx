@@ -49,6 +49,7 @@ import {
   shortModelName,
 } from '../../utils';
 import { LivePulseDot, SwarmStateBadge } from '../badges';
+import { PushForwardComposer } from '../PushForwardComposer';
 
 /* ==================== 1. Overview Tab ==================== */
 
@@ -69,10 +70,14 @@ function StepIcon({ status }: { status: StepItem['status'] }) {
 
 export function OverviewTab({
   detail,
+  onDispatched,
+  onDispatchError,
   locale,
   t,
 }: {
   detail: ConversationDetail;
+  onDispatched?: (message: string) => void;
+  onDispatchError?: (message: string) => void;
   locale: Locale;
   t: Dictionary;
 }) {
@@ -126,6 +131,19 @@ export function OverviewTab({
             </span>
           )}
         </p>
+      </section>
+
+      {/* Quick Push-Forward Composer */}
+      <section className="rounded-xl border border-[#1C1917]/[0.07] bg-white p-3.5 dark:border-white/[0.065] dark:bg-[#191917]">
+        <div className="mb-2 text-[10.5px] font-semibold tracking-wider text-[#8C867E] uppercase dark:text-[#6E6D68]">
+          {t.widget.pushTitle}
+        </div>
+        <PushForwardComposer
+          conversationId={detail.id}
+          onDispatched={(msg) => onDispatched?.(msg)}
+          onError={(msg) => onDispatchError?.(msg)}
+          t={t}
+        />
       </section>
 
       {/* Steps Checklist */}

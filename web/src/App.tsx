@@ -354,7 +354,9 @@ function MissionBoardApp() {
   }, [board, desktopBridge]);
 
   useEffect(() => {
-    const timer = setInterval(() => setRelativeClockTick((n) => n + 1), 30_000);
+    const timer = setInterval(() => {
+      if (!document.hidden) setRelativeClockTick((n) => n + 1);
+    }, 30_000);
     return () => clearInterval(timer);
   }, []);
 
@@ -1161,6 +1163,9 @@ function MissionBoardApp() {
             },
             2200,
           )
+        }
+        onDispatchNotice={(message, tone) =>
+          pushToast({ title: message, tone }, 4800)
         }
         locale={locale}
         t={t}

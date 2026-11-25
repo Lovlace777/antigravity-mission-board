@@ -8,8 +8,8 @@
 
 <p>
   <a href="https://github.com/Lovlace777/antigravity-mission-board/actions/workflows/ci.yml"><img src="https://github.com/Lovlace777/antigravity-mission-board/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
-  <a href="https://github.com/Lovlace777/antigravity-mission-board/releases/tag/v2.0.0"><img src="https://img.shields.io/badge/Release-v2.0.0-1C1917" alt="Release v2.0.0" /></a>
-  <img src="https://img.shields.io/badge/Desktop-Floating%20Widget%20%2B%20Tray-292524" alt="Desktop Floating Widget" />
+  <a href="https://github.com/Lovlace777/antigravity-mission-board/releases/tag/v2.1.0"><img src="https://img.shields.io/badge/Release-v2.1.0-1C1917" alt="Release v2.1.0" /></a>
+  <img src="https://img.shields.io/badge/Desktop-S%2FM%2FL%20Floating%20Widget-292524" alt="Desktop Floating Widget" />
   <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-%E2%89%A522.5-339933?logo=node.js&logoColor=white" alt="Node.js >= 22.5" /></a>
   <a href="https://nodejs.org/api/sqlite.html"><img src="https://img.shields.io/badge/SQLite-Zero%20Native%20Deps-0F766E" alt="Zero Native Deps" /></a>
   <img src="https://img.shields.io/badge/Antigravity%20Data-100%25%20Read--Only-16A34A" alt="100% Read-Only" />
@@ -89,13 +89,14 @@ Open **http://127.0.0.1:3777** — your local Antigravity sessions appear immedi
 
 ## Visual Tour
 
-### 1. Always-On-Top Desktop Floating Widget & Zero-Terminal Tray App
-A featherweight frameless desktop HUD that stays neatly anchored to your screen edge above your editor or browser — zero console window, zero clutter:
-- **Collapsed Capsule (`276×56`):** Live breathing status dot (`3 Running · 4 Attention` or calm `All clear`), draggable anywhere on screen with persisted position.
-- **Expanded Triage Panel (`392×540`):** Instant `Focus / Running / Swarm / All` tabs, whisper-thin progress bars, 1-click hover `Read` + **Undo**, Light/Dark sync, Always-on-Top pin, and direct click-through to any conversation's Detail Drawer in the full window.
-- **System Tray + Global Hotkeys:** Closing the full board hides quietly to the System Tray; summon the Floating Widget (`Ctrl+Shift+W`) or Full Board (`Ctrl+Shift+M`) from anywhere, and toggle **Launch at Login** in one click.
+### 1. Resizable `S / M / L` Desktop Floating Widget, Zero-Latency Hover Inspector & Quick Push-Forward
+A featherweight frameless desktop radar built to stay open all day with **ultra-low RAM & 0% idle CPU**:
+- **Explicit `S / M / L` Size Presets + Free Drag Resize:** Switch cleanly between **`S` Pill (`292×52`)**, **`M` Medium All-Titles Radar (`390×600`)**, and **`L` Large Split Panorama (`700×580`)** from the header or System Tray — or freely drag any edge/corner to a custom size (persisted automatically, zero unsolicited auto-resizing).
+- **All Unfinished Titles At-a-Glance + `0ms` Hover Inspector:** Every open conversation sits simultaneously visible without scrolling. Gliding your cursor across titles updates the live Bottom Peek Dock (`M`) or Right Split Inspector (`L`) with **0 extra HTTP requests** — showing focus, latest output excerpt, visual step checklist, Swarm status, and pending review artifacts.
+- **Safe Quick Push-Forward Composer:** Click any row to lock it and fire a follow-up prompt directly from the widget (or Detail Drawer) — dispatches via documented `agy --conversation <id> --prompt ...` when the `agy` CLI is installed, or seamlessly copies your prompt and brings Antigravity Desktop to foreground (`handoff` mode, zero hacks).
+- **System Tray + Global Hotkeys:** Closing the full board destroys its renderer to reclaim ~150 MB RAM immediately; summon the Floating Widget (`Ctrl+Shift+W`) or Full Board (`Ctrl+Shift+M`) anytime, and toggle **Launch at Login** in one click.
 
-![Always-On-Top Desktop Floating Widget — Collapsed Pill & Expanded Dark/Light Panels](docs/screenshots/floating-widget.png)
+![Desktop Floating Widget — S Pill, M All-Titles Radar & L Split Panorama](docs/screenshots/floating-widget.png)
 
 ### 2. Floating Command Palette (`Ctrl+K` / `/`) & Instant Triage
 Jump to any conversation via live local + full-text search, switch views, toggle themes or compact density, or mark every pending alert reviewed without touching the mouse. Hovering any Kanban card reveals quiet quick actions (`Pin` · `Priority` · `Mark Reviewed`), and every batch review or drag-and-drop move supports instant **Undo**.
@@ -118,9 +119,12 @@ Managing 30+ conversations across repositories? Press `2` for **Project Matrix**
 ![High-Density Project Matrix View](docs/screenshots/matrix-dark.png)
 
 <details>
-<summary><strong>More Screenshots: Warm Alabaster Light Mode &amp; Simplified Chinese UI (中文界面)</strong></summary>
+<summary><strong>More Screenshots: Light Split Panorama, Warm Alabaster Kanban &amp; Chinese UI (中文界面)</strong></summary>
 
 <br />
+
+#### Large Split Panorama Widget (Warm Paper Light Mode)
+![Warm Light Split Panorama Floating Widget](docs/screenshots/widget-panorama-light.png)
 
 #### Warm Alabaster Paper Light Mode
 ![Warm Alabaster Light Mode Kanban](docs/screenshots/kanban-light.png)
@@ -160,34 +164,43 @@ Managing 30+ conversations across repositories? Press `2` for **Project Matrix**
 
 ---
 
-## Architecture
+## Architecture & Low-Resource Engine
+
+Designed to stay open all day alongside Antigravity Desktop without taxing your laptop:
+
+- **In-Process Desktop Runtime:** Runs the Express + `node:sqlite` server directly inside Electron Main (`server/dist/server/src/runtime.js`) — **eliminating the separate `node.exe` process and cutting private RAM by 42%** (`253 MB → 146 MB`), while destroying the full board window on close (`×`) to reclaim **~150 MB** immediately.
+- **Sub-Millisecond Idle Fast Path (`<1 ms`):** Stats only `conversation_summaries.db`, `-wal`, `annotations/`, and local overlay version before opening SQLite; unchanged idle polls skip SQLite completely (`0` DB opens, `~0%` CPU).
+- **Sleep / Lock / Hidden-Widget Pause:** Stops SSE polling & CSS animations completely when the widget is hidden, minimized, or the OS sleeps/locks; adapts between `2s` (active runs) and `6s` (idle).
+- **Bounded Memory Over Weeks:** Lazily skips archived `transcript.jsonl` during board polls, tail-reads only the last 256 KB of huge transcripts, and caps file caches to a 200-entry LRU.
 
 ```mermaid
 flowchart LR
     subgraph Local["Local Machine (127.0.0.1)"]
         AG["~/.gemini/antigravity<br/>conversation_summaries.db (WAL)<br/>annotations/*.pbtxt<br/>brain/&lt;id&gt;/.system_generated/*"]
-        OV["~/.antigravity-mission-board<br/>overlay.db + desktop-state.json<br/>manualLane, tags, notes, reviewedAt"]
+        OV["~/.antigravity-mission-board<br/>overlay.db + desktop-state.json<br/>manualLane, tags, notes, widget bounds"]
 
-        subgraph Server["Express + TypeScript Server (Node 22)"]
+        subgraph Runtime["In-Process or Standalone Server (Node 22+ / Electron Main)"]
+            FP["Stat-Fingerprint Fast Path<br/>&lt;1ms idle skip · 0 SQLite opens"]
             DB["AntigravityReadOnlyDb<br/>node:sqlite { readOnly: true }"]
-            CACHE["FileStatCache (mtimeMs + size)<br/>pbtxt / transcript / swarm / artifacts"]
-            CLS["5-Lane & Attention Classifier<br/>+ SSE Transition Detector"]
-            API["REST API + SSE Broker<br/>+ Static web/dist"]
+            CACHE["200-Entry LRU Cache + 256KB Tail-Read<br/>Lazy archived transcript skip"]
+            CLS["5-Lane Classifier + Hover Previews<br/>+ Adaptive SSE (2s/6s/idle pause)"]
+            API["REST API + /dispatch + SSE<br/>+ Static web/dist"]
         end
 
         subgraph Clients["Zero-Terminal Clients"]
-            DESK["Electron Desktop Shell (Optional)<br/>Floating Widget · Main Window<br/>System Tray · Global Hotkeys"]
+            DESK["Electron Desktop Shell<br/>Resizable S/M/L Widget · Lazy Main Window<br/>System Tray · powerMonitor Idle Sync"]
             UI["React 19 + Tailwind v4 SPA<br/>Kanban · Matrix · Swarm · /?mode=widget"]
         end
     end
 
-    AG -- "100% Read-Only" --> DB
-    AG -- "100% Read-Only" --> CACHE
+    AG -- "100% Read-Only" --> FP
+    FP --> DB
+    FP --> CACHE
     DB --> CLS
     CACHE --> CLS
     OV <--> CLS
     CLS --> API
-    DESK -. "Silent spawn & IPC" .-> API
+    DESK -. "In-Process Runtime & IPC" .-> API
     API <-- "REST + SSE /api/events" --> UI
     DESK --> UI
 ```
@@ -229,13 +242,14 @@ All endpoints are served under `http://127.0.0.1:3777`:
 
 | Endpoint | Description |
 | --- | --- |
-| `GET /api/health` | Runtime mode (`live` \| `demo`), version (`2.0.0`), data directory & DB accessibility, uptime |
-| `GET /api/board` | Full board snapshot: root `ConversationCard[]`, `stats`, `workspaces`, `projects`, `tags`, `settings`, `activeSwarms` |
+| `GET /api/health` | Runtime mode (`live` \| `demo`), version (`2.1.0`), `dispatchCapabilities`, data directory & DB status |
+| `GET /api/board` | Full board snapshot: root `ConversationCard[]` (incl. zero-latency hover preview fields), `stats`, `workspaces`, `tags`, `settings`, `activeSwarms` |
 | `GET /api/conversations/:id` | Detailed `ConversationDetail` (checklist, Swarm detail & board feed, recursive subagent tree, artifacts, timeline, tokens) |
 | `GET /api/conversations/:id/artifact?file=...` | Path-traversal-safe artifact Markdown/text reader (max 512 KB) |
 | `PATCH /api/conversations/:id/overlay` | Update `manualLane`, `pinned`, `priority`, `tags`, `notes`, `followUpAt`, or `reviewedAt` |
 | `POST /api/conversations/:id/review` | Set `reviewedAt = now` to clear pending attention alerts for one conversation |
 | `POST /api/conversations/review-batch` | Batch update `reviewedAt` for up to 200 conversation IDs (supports `reviewedAt: null` for Undo) |
+| `POST /api/conversations/:id/dispatch` | Push a follow-up prompt (`agy --conversation <id> --prompt ...` when CLI available, else clean Desktop handoff + optional note) |
 | `GET /api/search?q=...` | Full-text search across transcripts (FTS5 / shadow fallback), titles, previews, tags, and notes |
 | `GET /api/settings` · `PATCH /api/settings` | Read or update `staleAfterHours` and `pollIntervalMs` |
 | `GET /api/events` | Server-Sent Events stream (`connected`, `heartbeat`, snapshot-diff `board_update`, semantic `notification`) |

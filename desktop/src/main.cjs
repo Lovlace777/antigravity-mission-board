@@ -2,22 +2,36 @@
 
 const fs = require('node:fs');
 const http = require('node:http');
+const net = require('node:net');
 const os = require('node:os');
 const path = require('node:path');
-const { spawn, spawnSync } = require('node:child_process');
+const { pathToFileURL } = require('node:url');
+const { execFile, spawn, spawnSync } = require('node:child_process');
 const {
   app,
   BrowserWindow,
   Menu,
   Tray,
+  clipboard,
   dialog,
   globalShortcut,
   ipcMain,
   nativeImage,
   nativeTheme,
+  powerMonitor,
   screen,
   shell,
 } = require('electron');
+
+// ---------------------------------------------------------------------------
+// Lean Electron Memory & Resource Switches (applied prior to app.whenReady)
+// ---------------------------------------------------------------------------
+if (process.env.ENABLE_GPU !== '1') {
+  // Software Skia compositor keeps transparent widget crisp on Windows while saving ~85-100MB GPU RAM & VRAM
+  app.disableHardwareAcceleration();
+}
+app.commandLine.appendSwitch('js-flags', '--max-old-space-size=128');
+app.commandLine.appendSwitch('disk-cache-size', '16777216');
 
 const APP_NAME = 'Antigravity Mission Board';
 const APP_ID = 'com.antigravity.mission-board';
@@ -26,15 +40,27 @@ const REPO_ROOT = path.resolve(DESKTOP_ROOT, '..');
 const ASSETS_DIR = path.join(DESKTOP_ROOT, 'assets');
 const PRELOAD_PATH = path.join(__dirname, 'preload.cjs');
 
-const COLLAPSED_DEFAULT = { width: 276, height: 56 };
+const WIDGET_PRESETS = Object.freeze({
+  S: Object.freeze({ width: 292, height: 52 }),
+  M: Object.freeze({ width: 390, height: 600 }),
+  L: Object.freeze({ width: 700, height: 580 }),
+});
+
+const WIDGET_LIMITS = Object.freeze({
+  minWidth: 264,
+  minHeight: 48,
+  maxWidth: 860,
+  maxHeight: 920,
+});
+
 const MAIN_DEFAULT = { width: 1380, height: 860, minWidth: 960, minHeight: 620 };
 const SCREEN_MARGIN = 14;
 
 const PKG_VERSION = (() => {
   try {
-    return JSON.parse(fs.readFileSync(path.join(DESKTOP_ROOT, 'package.json'), 'utf8')).version || '2.0.0';
+    return JSON.parse(fs.readFileSync(path.join(DESKTOP_ROOT, 'package.json'), 'utf8')).version || '2.1.0';
   } catch {
-    return '2.0.0';
+    return '2.1.0';
   }
 })();
 
@@ -50,7 +76,7 @@ function parseCliArgs(argv) {
   let autoStartLaunch = false;
   let showMainOnStart = false;
   let smokeTest = false;
-  let forceElectronNode = false;
+  let forceChildServer = false;
 
   for (let i = 0; i < args.length; i += 1) {
     const arg = args[i];
@@ -62,8 +88,8 @@ function parseCliArgs(argv) {
       showMainOnStart = true;
     } else if (arg === '--smoke-test') {
       smokeTest = true;
-    } else if (arg === '--force-electron-node') {
-      forceElectronNode = true;
+    } else if (arg === '--force-child-server') {
+      forceChildServer = true;
     } else if (arg.startsWith('--port=')) {
       const parsed = Number.parseInt(arg.slice('--port='.length), 10);
       if (Number.isFinite(parsed) && parsed > 0 && parsed <= 65535) {
@@ -95,7 +121,7 @@ function parseCliArgs(argv) {
     autoStartLaunch,
     showMainOnStart,
     smokeTest,
-    forceElectronNode,
+    forceChildServer,
   };
 }
 
@@ -107,43 +133,92 @@ const CLI = parseCliArgs(process.argv);
 const STATE_DIR = path.join(os.homedir(), '.antigravity-mission-board');
 const STATE_FILE = path.join(STATE_DIR, 'desktop-state.json');
 
-const DEFAULT_PERSISTED_STATE = {
-  alwaysOnTop: true,
-  widgetVisible: true,
-  widgetAnchor: {
-    horizontal: 'right',
-    vertical: 'top',
-    anchorX: null,
-    anchorY: null,
-  },
-  mainBounds: {
-    x: null,
-    y: null,
-    width: MAIN_DEFAULT.width,
-    height: MAIN_DEFAULT.height,
-    maximized: false,
-  },
-  theme: 'system',
-};
+function clampWidgetDimensions(width, height) {
+  const w = Number.isFinite(Number(width))
+    ? Math.max(WIDGET_LIMITS.minWidth, Math.min(WIDGET_LIMITS.maxWidth, Math.round(Number(width))))
+    : WIDGET_PRESETS.M.width;
+  const h = Number.isFinite(Number(height))
+    ? Math.max(WIDGET_LIMITS.minHeight, Math.min(WIDGET_LIMITS.maxHeight, Math.round(Number(height))))
+    : WIDGET_PRESETS.M.height;
+  return { width: w, height: h };
+}
+
+function normalizeAnchor(raw) {
+  return {
+    horizontal: raw?.horizontal === 'left' ? 'left' : 'right',
+    vertical: raw?.vertical === 'bottom' ? 'bottom' : 'top',
+    anchorX: Number.isFinite(raw?.anchorX) ? Math.round(raw.anchorX) : null,
+    anchorY: Number.isFinite(raw?.anchorY) ? Math.round(raw.anchorY) : null,
+  };
+}
+
+function makeDefaultPersistedState() {
+  return {
+    alwaysOnTop: true,
+    widgetVisible: true,
+    widgetLayout: {
+      preset: 'M',
+      width: WIDGET_PRESETS.M.width,
+      height: WIDGET_PRESETS.M.height,
+    },
+    widgetAnchor: normalizeAnchor(null),
+    presetAnchors: {},
+    mainBounds: {
+      x: null,
+      y: null,
+      width: MAIN_DEFAULT.width,
+      height: MAIN_DEFAULT.height,
+      maximized: false,
+    },
+    theme: 'system',
+  };
+}
 
 function loadPersistedState() {
   if (CLI.smokeTest) {
-    return JSON.parse(JSON.stringify(DEFAULT_PERSISTED_STATE));
+    return makeDefaultPersistedState();
   }
   try {
     if (!fs.existsSync(STATE_FILE)) {
-      return JSON.parse(JSON.stringify(DEFAULT_PERSISTED_STATE));
+      return makeDefaultPersistedState();
     }
     const raw = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
+
+    let widgetLayout = {
+      preset: 'M',
+      width: WIDGET_PRESETS.M.width,
+      height: WIDGET_PRESETS.M.height,
+    };
+
+    if (raw.widgetLayout && typeof raw.widgetLayout === 'object') {
+      const p = raw.widgetLayout.preset;
+      if (p === 'S' || p === 'M' || p === 'L') {
+        widgetLayout = {
+          preset: p,
+          width: WIDGET_PRESETS[p].width,
+          height: WIDGET_PRESETS[p].height,
+        };
+      } else if (p === 'custom') {
+        const dims = clampWidgetDimensions(raw.widgetLayout.width, raw.widgetLayout.height);
+        widgetLayout = { preset: 'custom', width: dims.width, height: dims.height };
+      }
+    }
+
+    const presetAnchors = {};
+    if (raw.presetAnchors && typeof raw.presetAnchors === 'object') {
+      for (const key of ['S', 'M', 'L', 'custom']) {
+        if (raw.presetAnchors[key] && typeof raw.presetAnchors[key] === 'object') {
+          presetAnchors[key] = normalizeAnchor(raw.presetAnchors[key]);
+        }
+      }
+    }
+
     return {
       alwaysOnTop: typeof raw.alwaysOnTop === 'boolean' ? raw.alwaysOnTop : true,
       widgetVisible: typeof raw.widgetVisible === 'boolean' ? raw.widgetVisible : true,
-      widgetAnchor: {
-        horizontal: raw.widgetAnchor?.horizontal === 'left' ? 'left' : 'right',
-        vertical: raw.widgetAnchor?.vertical === 'bottom' ? 'bottom' : 'top',
-        anchorX: Number.isFinite(raw.widgetAnchor?.anchorX) ? Math.round(raw.widgetAnchor.anchorX) : null,
-        anchorY: Number.isFinite(raw.widgetAnchor?.anchorY) ? Math.round(raw.widgetAnchor.anchorY) : null,
-      },
+      widgetLayout,
+      widgetAnchor: normalizeAnchor(raw.widgetAnchor),
+      presetAnchors,
       mainBounds: {
         x: Number.isFinite(raw.mainBounds?.x) ? Math.round(raw.mainBounds.x) : null,
         y: Number.isFinite(raw.mainBounds?.y) ? Math.round(raw.mainBounds.y) : null,
@@ -158,26 +233,35 @@ function loadPersistedState() {
       theme: raw.theme === 'light' || raw.theme === 'dark' ? raw.theme : 'system',
     };
   } catch {
-    return JSON.parse(JSON.stringify(DEFAULT_PERSISTED_STATE));
+    return makeDefaultPersistedState();
   }
 }
 
 let persistedState = loadPersistedState();
 let saveTimer = null;
 
+function flushStateNow() {
+  if (CLI.smokeTest) return;
+  if (saveTimer) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+  }
+  try {
+    fs.mkdirSync(STATE_DIR, { recursive: true });
+    const tmp = `${STATE_FILE}.tmp`;
+    fs.writeFileSync(tmp, JSON.stringify(persistedState, null, 2), 'utf8');
+    fs.renameSync(tmp, STATE_FILE);
+  } catch {
+    // Non-fatal: ignore persistence write failures
+  }
+}
+
 function scheduleSaveState() {
   if (CLI.smokeTest) return;
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
     saveTimer = null;
-    try {
-      fs.mkdirSync(STATE_DIR, { recursive: true });
-      const tmp = `${STATE_FILE}.tmp`;
-      fs.writeFileSync(tmp, JSON.stringify(persistedState, null, 2), 'utf8');
-      fs.renameSync(tmp, STATE_FILE);
-    } catch {
-      // Non-fatal: ignore persistence write failures
-    }
+    flushStateNow();
   }, 220);
 }
 
@@ -186,6 +270,7 @@ function scheduleSaveState() {
 // ---------------------------------------------------------------------------
 let activeHost = CLI.host;
 let activePort = CLI.port;
+let inProcessServer = null;
 let managedServerChild = null;
 let serverLogRing = [];
 let tray = null;
@@ -193,9 +278,10 @@ let widgetWindow = null;
 let mainWindow = null;
 let mainWindowReady = false;
 let isQuitting = false;
-let isResizingWidget = false;
-let widgetExpanded = false;
-let widgetSize = { ...COLLAPSED_DEFAULT };
+let isProgrammaticWidgetBounds = false;
+let widgetResizeDebounceTimer = null;
+let systemSleeping = false;
+let lastBroadcastWidgetVisibility = null;
 let pendingConversationId = null;
 let traySummary = { running: 0, attention: 0, initialized: false };
 let lastIpcSummaryAt = 0;
@@ -238,7 +324,7 @@ function getTrayIcon() {
 }
 
 // ---------------------------------------------------------------------------
-// Embedded Zero-Terminal Local Server Lifecycle
+// Embedded In-Process Server (Zero Separate node.exe) + Fallback Lifecycle
 // ---------------------------------------------------------------------------
 function isHealthOk(health) {
   return Boolean(health && (health.ok === true || health.status === 'ok'));
@@ -281,21 +367,46 @@ function checkHealth(host, port) {
   return httpGetJson(`http://${host}:${port}/api/health`, 900);
 }
 
-function resolveServerPaths() {
+function resolveWebDistDir() {
   const candidates = [];
+  if (app.isPackaged && process.resourcesPath) {
+    candidates.push(path.join(process.resourcesPath, 'web', 'dist'));
+  }
+  candidates.push(path.join(REPO_ROOT, 'web', 'dist'));
+  for (const dir of candidates) {
+    if (fs.existsSync(path.join(dir, 'index.html'))) {
+      return dir;
+    }
+  }
+  return null;
+}
 
+function resolveServerRuntimeEntry() {
+  const candidates = [];
+  if (app.isPackaged && process.resourcesPath) {
+    candidates.push(path.join(process.resourcesPath, 'server', 'dist', 'server', 'src', 'runtime.js'));
+  }
+  candidates.push(path.join(REPO_ROOT, 'server', 'dist', 'server', 'src', 'runtime.js'));
+  for (const file of candidates) {
+    if (fs.existsSync(file)) {
+      return file;
+    }
+  }
+  return null;
+}
+
+function resolveServerCliPaths() {
+  const candidates = [];
   if (app.isPackaged && process.resourcesPath) {
     candidates.push({
       entry: path.join(process.resourcesPath, 'server', 'dist', 'server', 'src', 'index.js'),
       cwd: process.resourcesPath,
     });
   }
-
   candidates.push({
     entry: path.join(REPO_ROOT, 'server', 'dist', 'server', 'src', 'index.js'),
     cwd: REPO_ROOT,
   });
-
   for (const candidate of candidates) {
     if (fs.existsSync(candidate.entry)) {
       return candidate;
@@ -304,49 +415,8 @@ function resolveServerPaths() {
   return null;
 }
 
-function resolveSystemNodeBinary() {
-  const candidates = process.platform === 'win32'
-    ? ['node.exe', 'node', path.join(process.env.ProgramFiles || 'C:\\Program Files', 'nodejs', 'node.exe')]
-    : ['node'];
-
-  for (const bin of candidates) {
-    try {
-      const probe = spawnSync(bin, ['-e', "import('node:sqlite').then(() => process.exit(0)).catch(() => process.exit(1))"], {
-        windowsHide: true,
-        stdio: 'ignore',
-        timeout: 2500,
-      });
-      if (probe.status === 0) {
-        return bin;
-      }
-    } catch {
-      // Try next candidate
-    }
-  }
-  return null;
-}
-
-function canElectronRunAsNodeSqlite() {
-  try {
-    const probe = spawnSync(
-      process.execPath,
-      ['-e', "import('node:sqlite').then(() => process.exit(0)).catch(() => process.exit(1))"],
-      {
-        env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
-        windowsHide: true,
-        stdio: 'ignore',
-        timeout: 2500,
-      }
-    );
-    return probe.status === 0;
-  } catch {
-    return false;
-  }
-}
-
 function isPortListening(host, port) {
   return new Promise((resolve) => {
-    const net = require('node:net');
     const socket = net.createConnection({ host, port });
     socket.setTimeout(400);
     socket.once('connect', () => {
@@ -372,62 +442,139 @@ async function findFreeLocalPort(host, startPort) {
   return startPort;
 }
 
-async function spawnServerWithRuntime({ binary, env, entry, cwd, demoMode, host, port }) {
-  const args = [entry, ...(demoMode ? ['--demo'] : [])];
-
-  const child = spawn(binary, args, {
-    cwd,
-    env: {
-      ...env,
-      HOST: host,
-      PORT: String(port),
-      ...(demoMode ? { DEMO_MODE: '1' } : {}),
-    },
-    windowsHide: true,
-    stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
-  });
-
-  let exited = false;
-  let exitCode = null;
-  let spawnErr = null;
-
-  child.stdout?.on('data', pushServerLog);
-  child.stderr?.on('data', pushServerLog);
-  child.on('error', (err) => {
-    spawnErr = err;
-    exited = true;
-    pushServerLog(`[spawn-error] ${err.message}`);
-  });
-  child.on('exit', (code) => {
-    exited = true;
-    exitCode = code;
-    if (managedServerChild === child) {
-      managedServerChild = null;
-    }
-  });
-
-  const deadline = Date.now() + 12_000;
-  while (Date.now() < deadline) {
-    if (exited) {
-      return {
-        ok: false,
-        reason: spawnErr ? spawnErr.message : `Server exited early with code ${exitCode}`,
-      };
-    }
-    const health = await checkHealth(host, port);
-    if (isHealthOk(health)) {
-      managedServerChild = child;
-      return { ok: true, health, child };
-    }
-    await new Promise((r) => setTimeout(r, 150));
+async function startInProcessServer(host, port) {
+  const runtimeEntry = resolveServerRuntimeEntry();
+  if (!runtimeEntry) {
+    return { ok: false, reason: 'server/dist/server/src/runtime.js not found' };
   }
 
   try {
-    child.kill();
-  } catch {
-    // ignore
+    const mod = await import(pathToFileURL(runtimeEntry).href);
+    if (typeof mod.startMissionBoardServer !== 'function') {
+      return { ok: false, reason: 'startMissionBoardServer export missing in runtime.js' };
+    }
+
+    const staticDir = resolveWebDistDir();
+    const runtime = await mod.startMissionBoardServer({
+      host,
+      port,
+      demoMode: CLI.demoMode,
+      staticDir,
+      silent: true,
+    });
+
+    inProcessServer = runtime;
+    activePort = runtime.port || port;
+    const health = await checkHealth(host, activePort);
+    if (!isHealthOk(health)) {
+      await runtime.close().catch(() => {});
+      inProcessServer = null;
+      return { ok: false, reason: 'In-process server started but /api/health did not respond ok' };
+    }
+
+    return { ok: true, runtime: 'in-process', health };
+  } catch (err) {
+    return {
+      ok: false,
+      reason: err instanceof Error ? err.message : String(err),
+    };
   }
-  return { ok: false, reason: 'Timed out waiting for local server /api/health' };
+}
+
+function resolveSystemNodeBinary() {
+  const candidates = process.platform === 'win32'
+    ? ['node.exe', 'node', path.join(process.env.ProgramFiles || 'C:\\Program Files', 'nodejs', 'node.exe')]
+    : ['node'];
+
+  for (const bin of candidates) {
+    try {
+      const probe = spawnSync(bin, ['-e', "import('node:sqlite').then(() => process.exit(0)).catch(() => process.exit(1))"], {
+        windowsHide: true,
+        stdio: 'ignore',
+        timeout: 2500,
+      });
+      if (probe.status === 0) {
+        return bin;
+      }
+    } catch {
+      // Try next candidate
+    }
+  }
+  return null;
+}
+
+async function spawnChildServerFallback(host, port) {
+  const serverPaths = resolveServerCliPaths();
+  if (!serverPaths) {
+    return { ok: false, reason: 'Built server CLI entrypoint (server/dist/server/src/index.js) not found' };
+  }
+
+  const runtimes = [];
+  const systemNode = resolveSystemNodeBinary();
+  if (systemNode) {
+    const cleanEnv = { ...process.env };
+    delete cleanEnv.ELECTRON_RUN_AS_NODE;
+    runtimes.push({ label: `child:system:${systemNode}`, binary: systemNode, env: cleanEnv });
+  }
+  runtimes.push({
+    label: 'child:electron-node',
+    binary: process.execPath,
+    env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
+  });
+
+  let lastReason = 'Unknown child spawn failure';
+  for (const rt of runtimes) {
+    const args = [serverPaths.entry, ...(CLI.demoMode ? ['--demo'] : [])];
+    const child = spawn(rt.binary, args, {
+      cwd: serverPaths.cwd,
+      env: {
+        ...rt.env,
+        HOST: host,
+        PORT: String(port),
+        ...(CLI.demoMode ? { DEMO_MODE: '1' } : {}),
+      },
+      windowsHide: true,
+      stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
+    });
+
+    let exited = false;
+    let exitCode = null;
+    let spawnErr = null;
+    child.stdout?.on('data', pushServerLog);
+    child.stderr?.on('data', pushServerLog);
+    child.on('error', (err) => {
+      spawnErr = err;
+      exited = true;
+      pushServerLog(`[spawn-error] ${err.message}`);
+    });
+    child.on('exit', (code) => {
+      exited = true;
+      exitCode = code;
+      if (managedServerChild === child) {
+        managedServerChild = null;
+      }
+    });
+
+    const deadline = Date.now() + 12_000;
+    while (Date.now() < deadline) {
+      if (exited) break;
+      const health = await checkHealth(host, port);
+      if (isHealthOk(health)) {
+        managedServerChild = child;
+        return { ok: true, runtime: rt.label, health };
+      }
+      await new Promise((r) => setTimeout(r, 150));
+    }
+
+    try {
+      child.kill();
+    } catch {
+      // ignore
+    }
+    lastReason = `${rt.label}: ${spawnErr ? spawnErr.message : exited ? `exited with code ${exitCode}` : 'health timeout'}`;
+  }
+
+  return { ok: false, reason: lastReason };
 }
 
 async function ensureLocalServer() {
@@ -435,77 +582,61 @@ async function ensureLocalServer() {
   if (isHealthOk(existing)) {
     const existingIsDemo = existing.mode === 'demo';
     if (CLI.demoMode && !existingIsDemo && !CLI.explicitPort) {
-      // Never expose live user data when --demo was explicitly requested!
+      // Never expose live user data when --demo was requested
       activePort = await findFreeLocalPort(activeHost, activePort + 1);
     } else if (!CLI.demoMode && existingIsDemo && !CLI.explicitPort) {
-      // Don't accidentally attach live app to a stray demo server
+      // Never attach live desktop app to a stray demo server
       activePort = await findFreeLocalPort(activeHost, activePort + 1);
     } else {
-      return { spawned: false, health: existing };
+      return { mode: 'existing', runtime: 'existing', spawnedChild: false, health: existing };
     }
   }
 
-  const serverPaths = resolveServerPaths();
-  if (!serverPaths) {
-    throw new Error(
-      'Built server bundle was not found (server/dist/server/src/index.js). Please run `npm run build` from the repository root first.'
-    );
-  }
-
-  // Build ordered runtime candidates: prefer system Node (>=22.5 with node:sqlite),
-  // fall back to Electron's bundled Node via ELECTRON_RUN_AS_NODE=1.
-  const runtimes = [];
-  if (!CLI.forceElectronNode) {
-    const systemNode = resolveSystemNodeBinary();
-    if (systemNode) {
-      const cleanEnv = { ...process.env };
-      delete cleanEnv.ELECTRON_RUN_AS_NODE;
-      runtimes.push({ label: `system:${systemNode}`, binary: systemNode, env: cleanEnv });
+  // Primary path (v2.1.0): run Mission Board server directly IN-PROCESS inside Electron Main
+  // (eliminates separate node.exe process, saving ~55-80MB RAM).
+  let inProcReason = '';
+  if (!CLI.forceChildServer) {
+    const inProc = await startInProcessServer(activeHost, activePort);
+    if (inProc.ok) {
+      return { mode: 'in-process', runtime: inProc.runtime, spawnedChild: false, health: inProc.health };
     }
-  }
-  if (canElectronRunAsNodeSqlite()) {
-    runtimes.push({
-      label: 'electron-node',
-      binary: process.execPath,
-      env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
-    });
+    inProcReason = inProc.reason;
+    pushServerLog(`[in-process-fallback] ${inProcReason}`);
   }
 
-  if (runtimes.length === 0) {
-    throw new Error(
-      'No compatible Node.js runtime with `node:sqlite` support was found. Install Node.js >= 22.5.0.'
-    );
-  }
-
-  let lastReason = 'Unknown startup error';
-  for (const rt of runtimes) {
-    const result = await spawnServerWithRuntime({
-      binary: rt.binary,
-      env: rt.env,
-      entry: serverPaths.entry,
-      cwd: serverPaths.cwd,
-      demoMode: CLI.demoMode,
-      host: activeHost,
-      port: activePort,
-    });
-    if (result.ok) {
-      return { spawned: true, runtime: rt.label, health: result.health };
-    }
-    lastReason = `${rt.label}: ${result.reason}`;
+  // Fallback path: silent hidden child process
+  const childRes = await spawnChildServerFallback(activeHost, activePort);
+  if (childRes.ok) {
+    return { mode: 'child-process', runtime: childRes.runtime, spawnedChild: true, health: childRes.health };
   }
 
   const tail = serverLogRing.slice(-8).join('\n');
-  throw new Error(`Failed to start local Mission Board server (${lastReason}).${tail ? `\n\n${tail}` : ''}`);
+  throw new Error(
+    `Failed to start local Mission Board server (in-process: ${inProcReason || 'skipped'}; fallback: ${childRes.reason}).${tail ? `\n\n${tail}` : ''}`
+  );
 }
 
-function stopManagedServer() {
+async function stopManagedServer() {
+  if (inProcessServer) {
+    const srv = inProcessServer;
+    inProcessServer = null;
+    try {
+      await Promise.race([
+        srv.close(),
+        new Promise((r) => setTimeout(r, 2000)),
+      ]);
+    } catch {
+      // ignore
+    }
+  }
+
   const child = managedServerChild;
   managedServerChild = null;
   if (!child || child.exitCode !== null || child.killed) {
-    return Promise.resolve();
+    return;
   }
 
-  return new Promise((resolve) => {
+  await new Promise((resolve) => {
     let settled = false;
     const finish = () => {
       if (settled) return;
@@ -536,7 +667,6 @@ function stopManagedServer() {
     });
 
     try {
-      // Prefer graceful Node IPC shutdown (exits cleanly in ~10ms on Windows even with live SSE)
       if (typeof child.send === 'function' && child.connected) {
         child.send('shutdown');
       } else {
@@ -554,13 +684,153 @@ function stopManagedServer() {
 }
 
 // ---------------------------------------------------------------------------
+// PowerMonitor & Idle / Visibility Lifecycle (0.0% Idle CPU)
+// ---------------------------------------------------------------------------
+function isWidgetCurrentlyVisible() {
+  return Boolean(widgetWindow && !widgetWindow.isDestroyed() && widgetWindow.isVisible());
+}
+
+function isMainCurrentlyVisible() {
+  return Boolean(
+    mainWindow &&
+      !mainWindow.isDestroyed() &&
+      mainWindow.isVisible() &&
+      !mainWindow.isMinimized()
+  );
+}
+
+function syncIdleAndVisibility() {
+  const widgetVis = !systemSleeping && isWidgetCurrentlyVisible();
+  const anyVisible = !systemSleeping && (isWidgetCurrentlyVisible() || isMainCurrentlyVisible());
+
+  if (inProcessServer && typeof inProcessServer.setIdleMode === 'function') {
+    try {
+      inProcessServer.setIdleMode(!anyVisible);
+    } catch {
+      // ignore
+    }
+  }
+
+  if (lastBroadcastWidgetVisibility !== widgetVis) {
+    lastBroadcastWidgetVisibility = widgetVis;
+    if (widgetWindow && !widgetWindow.isDestroyed() && !widgetWindow.webContents.isDestroyed()) {
+      widgetWindow.webContents.send('desktop:visibility-change', widgetVis);
+    }
+  }
+}
+
+function registerPowerMonitor() {
+  const onSleep = () => {
+    systemSleeping = true;
+    syncIdleAndVisibility();
+  };
+  const onWake = () => {
+    systemSleeping = false;
+    syncIdleAndVisibility();
+  };
+
+  powerMonitor.on('suspend', onSleep);
+  powerMonitor.on('lock-screen', onSleep);
+  powerMonitor.on('resume', onWake);
+  powerMonitor.on('unlock-screen', onWake);
+}
+
+// ---------------------------------------------------------------------------
+// Safe "Copy Prompt & Focus Antigravity" IPC Handoff
+// ---------------------------------------------------------------------------
+function focusAntigravityDesktopWindow() {
+  if (CLI.smokeTest) {
+    return Promise.resolve(false);
+  }
+
+  if (process.platform === 'win32') {
+    const psScript = [
+      'Add-Type -TypeDefinition @"',
+      'using System;',
+      'using System.Runtime.InteropServices;',
+      'public static class AgWinFocus {',
+      '  [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);',
+      '  [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr hWnd);',
+      '  [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);',
+      '  [DllImport("user32.dll")] public static extern bool AllowSetForegroundWindow(int dwProcessId);',
+      '}',
+      '"@ -ErrorAction Stop',
+      `$selfPid = ${process.pid}`,
+      '$procs = Get-Process -ErrorAction SilentlyContinue | Where-Object {',
+      '  $_.Id -ne $selfPid -and $_.MainWindowHandle -ne 0 -and (',
+      '    $_.ProcessName -match "^Antigravity" -or',
+      '    ($_.MainWindowTitle -like "*Antigravity*" -and $_.MainWindowTitle -notlike "*Mission Board*")',
+      '  )',
+      '}',
+      '$target = $procs | Select-Object -First 1',
+      'if ($null -eq $target) { Write-Output "FOCUSED=0"; exit 0 }',
+      '$hwnd = $target.MainWindowHandle',
+      '[AgWinFocus]::AllowSetForegroundWindow($target.Id) | Out-Null',
+      'if ([AgWinFocus]::IsIconic($hwnd)) { [AgWinFocus]::ShowWindow($hwnd, 9) | Out-Null }',
+      'else { [AgWinFocus]::ShowWindow($hwnd, 5) | Out-Null }',
+      '$ok = [AgWinFocus]::SetForegroundWindow($hwnd)',
+      'if (-not $ok) {',
+      '  try { $ws = New-Object -ComObject WScript.Shell; $ok = [bool]$ws.AppActivate($target.Id) } catch {}',
+      '}',
+      'if ($ok) { Write-Output "FOCUSED=1" } else { Write-Output "FOCUSED=0" }',
+    ].join('\n');
+
+    return new Promise((resolve) => {
+      execFile(
+        'powershell.exe',
+        ['-NoProfile', '-NonInteractive', '-WindowStyle', 'Hidden', '-Command', psScript],
+        { windowsHide: true, timeout: 2200 },
+        (err, stdout) => {
+          if (err) {
+            resolve(false);
+            return;
+          }
+          resolve(String(stdout || '').includes('FOCUSED=1'));
+        }
+      );
+    });
+  }
+
+  if (process.platform === 'darwin') {
+    return new Promise((resolve) => {
+      execFile(
+        'osascript',
+        ['-e', 'tell application "Antigravity" to activate'],
+        { timeout: 1500 },
+        (err) => resolve(!err)
+      );
+    });
+  }
+
+  return Promise.resolve(false);
+}
+
+async function copyAndFocusAntigravity(text) {
+  const payload = typeof text === 'string' ? text : '';
+  let copied = false;
+
+  if (!CLI.smokeTest) {
+    try {
+      clipboard.writeText(payload);
+      copied = true;
+    } catch {
+      copied = false;
+    }
+  } else {
+    // Do not clobber user's OS clipboard during automated smoke verification
+    copied = true;
+  }
+
+  const focused = await focusAntigravityDesktopWindow();
+  return { ok: copied, copied, focused };
+}
+
+// ---------------------------------------------------------------------------
 // Login Item (Launch at Login)
 // ---------------------------------------------------------------------------
 function getLoginItemOptions() {
   if (app.isPackaged) {
-    return {
-      args: ['--autostart'],
-    };
+    return { args: ['--autostart'] };
   }
   return {
     path: process.execPath,
@@ -605,16 +875,33 @@ function setAutoStartEnabled(enabled) {
 // ---------------------------------------------------------------------------
 // Desktop State & Broadcast
 // ---------------------------------------------------------------------------
+function getWidgetLayoutState() {
+  return {
+    preset: persistedState.widgetLayout.preset,
+    width: persistedState.widgetLayout.width,
+    height: persistedState.widgetLayout.height,
+  };
+}
+
 function getDesktopState() {
-  const visible = Boolean(widgetWindow && !widgetWindow.isDestroyed() && widgetWindow.isVisible());
   return {
     alwaysOnTop: Boolean(persistedState.alwaysOnTop),
     autoStart: getAutoStartEnabled(),
-    widgetVisible: visible,
+    widgetVisible: isWidgetCurrentlyVisible(),
     version: PKG_VERSION,
     demoMode: CLI.demoMode,
     platform: process.platform,
+    widgetLayout: getWidgetLayoutState(),
   };
+}
+
+function broadcastWidgetLayout() {
+  const layout = getWidgetLayoutState();
+  for (const win of [widgetWindow, mainWindow]) {
+    if (win && !win.isDestroyed() && !win.webContents.isDestroyed()) {
+      win.webContents.send('desktop:widget-layout-change', layout);
+    }
+  }
 }
 
 function broadcastDesktopState() {
@@ -628,7 +915,7 @@ function broadcastDesktopState() {
 }
 
 // ---------------------------------------------------------------------------
-// Window A — Always-On-Top Desktop Floating Widget
+// Window A — Resizable Always-On-Top Desktop Floating Widget (S / M / L / Custom)
 // ---------------------------------------------------------------------------
 function clampBoundsToDisplay(x, y, width, height) {
   const display = screen.getDisplayMatching({
@@ -638,10 +925,10 @@ function clampBoundsToDisplay(x, y, width, height) {
     height: Math.max(1, Math.round(height)),
   });
   const wa = display.workArea;
-  const maxW = Math.max(180, wa.width - SCREEN_MARGIN * 2);
-  const maxH = Math.max(44, wa.height - SCREEN_MARGIN * 2);
-  const w = Math.min(Math.round(width), maxW);
-  const h = Math.min(Math.round(height), maxH);
+  const maxW = Math.min(WIDGET_LIMITS.maxWidth, Math.max(WIDGET_LIMITS.minWidth, wa.width - SCREEN_MARGIN * 2));
+  const maxH = Math.min(WIDGET_LIMITS.maxHeight, Math.max(WIDGET_LIMITS.minHeight, wa.height - SCREEN_MARGIN * 2));
+  const w = Math.max(WIDGET_LIMITS.minWidth, Math.min(Math.round(width), maxW));
+  const h = Math.max(WIDGET_LIMITS.minHeight, Math.min(Math.round(height), maxH));
   const minX = wa.x + 8;
   const maxX = Math.max(minX, wa.x + wa.width - w - 8);
   const minY = wa.y + 8;
@@ -655,8 +942,16 @@ function clampBoundsToDisplay(x, y, width, height) {
   };
 }
 
-function computeAnchoredWidgetBounds(targetWidth, targetHeight) {
-  const anchor = persistedState.widgetAnchor;
+function getEffectiveAnchorForPreset(presetKey) {
+  const perPreset = persistedState.presetAnchors?.[presetKey];
+  if (perPreset && perPreset.anchorX !== null && perPreset.anchorY !== null) {
+    return perPreset;
+  }
+  return persistedState.widgetAnchor;
+}
+
+function computeAnchoredWidgetBounds(targetWidth, targetHeight, presetKey) {
+  const anchor = getEffectiveAnchorForPreset(presetKey || persistedState.widgetLayout.preset);
   const primaryWa = screen.getPrimaryDisplay().workArea;
 
   if (anchor.anchorX === null || anchor.anchorY === null) {
@@ -683,7 +978,7 @@ function computeAnchoredWidgetBounds(targetWidth, targetHeight) {
 }
 
 function captureAnchorFromCurrentWidget() {
-  if (!widgetWindow || widgetWindow.isDestroyed() || isResizingWidget) return;
+  if (!widgetWindow || widgetWindow.isDestroyed() || isProgrammaticWidgetBounds) return;
   const b = widgetWindow.getBounds();
   const wa = screen.getDisplayMatching(b).workArea;
   const centerX = b.x + b.width / 2;
@@ -691,13 +986,101 @@ function captureAnchorFromCurrentWidget() {
   const horizontal = centerX >= wa.x + wa.width / 2 ? 'right' : 'left';
   const vertical = centerY >= wa.y + wa.height / 2 ? 'bottom' : 'top';
 
-  persistedState.widgetAnchor = {
+  const anchor = {
     horizontal,
     vertical,
     anchorX: horizontal === 'right' ? b.x + b.width : b.x,
     anchorY: vertical === 'bottom' ? b.y + b.height : b.y,
   };
+
+  persistedState.widgetAnchor = anchor;
+  persistedState.presetAnchors[persistedState.widgetLayout.preset] = anchor;
   scheduleSaveState();
+}
+
+function applyWidgetBoundsProgrammatically(bounds) {
+  if (!widgetWindow || widgetWindow.isDestroyed()) return;
+  isProgrammaticWidgetBounds = true;
+  try {
+    widgetWindow.setBounds(
+      { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height },
+      false
+    );
+  } finally {
+    setTimeout(() => {
+      isProgrammaticWidgetBounds = false;
+    }, 90);
+  }
+}
+
+function setWidgetPreset(preset) {
+  if (preset !== 'S' && preset !== 'M' && preset !== 'L') {
+    return getWidgetLayoutState();
+  }
+  const target = WIDGET_PRESETS[preset];
+  persistedState.widgetLayout = {
+    preset,
+    width: target.width,
+    height: target.height,
+  };
+
+  if (widgetWindow && !widgetWindow.isDestroyed()) {
+    const anchored = computeAnchoredWidgetBounds(target.width, target.height, preset);
+    persistedState.widgetLayout.width = anchored.width;
+    persistedState.widgetLayout.height = anchored.height;
+    applyWidgetBoundsProgrammatically(anchored);
+  }
+
+  scheduleSaveState();
+  broadcastWidgetLayout();
+  broadcastDesktopState();
+  return getWidgetLayoutState();
+}
+
+function handleUserWidgetResize() {
+  if (!widgetWindow || widgetWindow.isDestroyed() || isProgrammaticWidgetBounds) return;
+  const b = widgetWindow.getBounds();
+  const dims = clampWidgetDimensions(b.width, b.height);
+
+  const prev = persistedState.widgetLayout;
+  const changed = prev.preset !== 'custom' || prev.width !== dims.width || prev.height !== dims.height;
+
+  persistedState.widgetLayout = {
+    preset: 'custom',
+    width: dims.width,
+    height: dims.height,
+  };
+
+  captureAnchorFromCurrentWidget();
+  scheduleSaveState();
+  if (changed) {
+    broadcastWidgetLayout();
+    broadcastDesktopState();
+  }
+}
+
+function resizeWidgetExplicit(opts) {
+  if (!opts || typeof opts !== 'object') return;
+  const dims = clampWidgetDimensions(opts.width, opts.height);
+  let matchedPreset = 'custom';
+  for (const key of ['S', 'M', 'L']) {
+    if (Math.abs(WIDGET_PRESETS[key].width - dims.width) <= 4 && Math.abs(WIDGET_PRESETS[key].height - dims.height) <= 4) {
+      matchedPreset = key;
+      break;
+    }
+  }
+  persistedState.widgetLayout = {
+    preset: matchedPreset,
+    width: dims.width,
+    height: dims.height,
+  };
+  if (widgetWindow && !widgetWindow.isDestroyed()) {
+    const anchored = computeAnchoredWidgetBounds(dims.width, dims.height, matchedPreset);
+    applyWidgetBoundsProgrammatically(anchored);
+  }
+  scheduleSaveState();
+  broadcastWidgetLayout();
+  broadcastDesktopState();
 }
 
 function applyWidgetAlwaysOnTop(enabled) {
@@ -717,65 +1100,29 @@ function applyWidgetAlwaysOnTop(enabled) {
   return persistedState.alwaysOnTop;
 }
 
-function applyWidgetBounds(bounds) {
-  if (!widgetWindow || widgetWindow.isDestroyed()) return;
-  isResizingWidget = true;
-  try {
-    // Windows high-DPI workaround: unlock resizability during programmatic resize
-    widgetWindow.setResizable(true);
-    widgetWindow.setMinimumSize(140, 40);
-    widgetWindow.setMaximumSize(700, 960);
-    widgetWindow.setBounds(
-      { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height },
-      false
-    );
-    widgetWindow.setContentSize(bounds.width, bounds.height);
-    widgetWindow.setResizable(false);
-  } finally {
-    setTimeout(() => {
-      isResizingWidget = false;
-    }, 60);
-  }
-}
-
-function resizeWidgetWindow(opts) {
-  if (!widgetWindow || widgetWindow.isDestroyed()) return;
-  const rawW = Number(opts?.width);
-  const rawH = Number(opts?.height);
-  const expanded = Boolean(opts?.expanded);
-
-  const targetW = Number.isFinite(rawW)
-    ? Math.max(180, Math.min(560, Math.round(rawW)))
-    : expanded ? 392 : COLLAPSED_DEFAULT.width;
-  const targetH = Number.isFinite(rawH)
-    ? Math.max(44, Math.min(820, Math.round(rawH)))
-    : expanded ? 540 : COLLAPSED_DEFAULT.height;
-
-  widgetExpanded = expanded;
-  widgetSize = { width: targetW, height: targetH };
-
-  const targetBounds = computeAnchoredWidgetBounds(targetW, targetH);
-  applyWidgetBounds(targetBounds);
-}
-
 function createWidgetWindow() {
   if (widgetWindow && !widgetWindow.isDestroyed()) {
     return widgetWindow;
   }
 
-  const initialBounds = computeAnchoredWidgetBounds(widgetSize.width, widgetSize.height);
+  const layout = getWidgetLayoutState();
+  const initialBounds = computeAnchoredWidgetBounds(layout.width, layout.height, layout.preset);
 
   widgetWindow = new BrowserWindow({
     width: initialBounds.width,
     height: initialBounds.height,
     x: initialBounds.x,
     y: initialBounds.y,
+    minWidth: WIDGET_LIMITS.minWidth,
+    minHeight: WIDGET_LIMITS.minHeight,
+    maxWidth: WIDGET_LIMITS.maxWidth,
+    maxHeight: WIDGET_LIMITS.maxHeight,
     frame: false,
     transparent: true,
     backgroundColor: '#00000000',
     alwaysOnTop: Boolean(persistedState.alwaysOnTop),
     skipTaskbar: true,
-    resizable: false,
+    resizable: true,
     maximizable: false,
     minimizable: false,
     fullscreenable: false,
@@ -788,7 +1135,8 @@ function createWidgetWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
-      backgroundThrottling: false,
+      backgroundThrottling: true,
+      spellcheck: false,
     },
   });
 
@@ -807,20 +1155,40 @@ function createWidgetWindow() {
   });
 
   widgetWindow.on('moved', () => {
-    if (!isResizingWidget) {
+    if (!isProgrammaticWidgetBounds) {
       captureAnchorFromCurrentWidget();
     }
+  });
+
+  widgetWindow.on('resize', () => {
+    if (isProgrammaticWidgetBounds) return;
+    if (widgetResizeDebounceTimer) clearTimeout(widgetResizeDebounceTimer);
+    widgetResizeDebounceTimer = setTimeout(() => {
+      widgetResizeDebounceTimer = null;
+      handleUserWidgetResize();
+    }, 60);
+  });
+
+  widgetWindow.on('resized', () => {
+    if (isProgrammaticWidgetBounds) return;
+    if (widgetResizeDebounceTimer) {
+      clearTimeout(widgetResizeDebounceTimer);
+      widgetResizeDebounceTimer = null;
+    }
+    handleUserWidgetResize();
   });
 
   widgetWindow.on('show', () => {
     persistedState.widgetVisible = true;
     scheduleSaveState();
+    syncIdleAndVisibility();
     broadcastDesktopState();
   });
 
   widgetWindow.on('hide', () => {
     persistedState.widgetVisible = false;
     scheduleSaveState();
+    syncIdleAndVisibility();
     broadcastDesktopState();
   });
 
@@ -833,16 +1201,14 @@ function createWidgetWindow() {
 
   widgetWindow.on('closed', () => {
     widgetWindow = null;
+    syncIdleAndVisibility();
   });
 
   widgetWindow.once('ready-to-show', () => {
-    if (!widgetWindow || widgetWindow.isDestroyed()) return;
-    if (CLI.smokeTest) {
-      // Keep smoke test non-intrusive while still exercising full renderer lifecycle
-      return;
-    }
+    if (!widgetWindow || widgetWindow.isDestroyed() || CLI.smokeTest) return;
     if (persistedState.widgetVisible || !CLI.showMainOnStart) {
       widgetWindow.showInactive();
+      syncIdleAndVisibility();
     }
   });
 
@@ -856,8 +1222,9 @@ function setWidgetVisibility(visible) {
     createWidgetWindow();
   }
   if (visible) {
-    const clamped = computeAnchoredWidgetBounds(widgetSize.width, widgetSize.height);
-    applyWidgetBounds(clamped);
+    const layout = getWidgetLayoutState();
+    const clamped = computeAnchoredWidgetBounds(layout.width, layout.height, layout.preset);
+    applyWidgetBoundsProgrammatically(clamped);
     widgetWindow.show();
     if (persistedState.alwaysOnTop) {
       widgetWindow.setAlwaysOnTop(true, 'floating');
@@ -868,12 +1235,13 @@ function setWidgetVisibility(visible) {
   }
   persistedState.widgetVisible = Boolean(visible);
   scheduleSaveState();
+  syncIdleAndVisibility();
   broadcastDesktopState();
   return persistedState.widgetVisible;
 }
 
 // ---------------------------------------------------------------------------
-// Window B — Full Mission Board Window
+// Window B — Lazy Full Mission Board (Destroyed on Close to Free ~150MB RAM)
 // ---------------------------------------------------------------------------
 function resolveMainWindowBounds() {
   const saved = persistedState.mainBounds;
@@ -901,6 +1269,25 @@ function resolveMainWindowBounds() {
   return { x, y, width: clampedW, height: clampedH, maximized: Boolean(saved.maximized) };
 }
 
+function saveMainGeometryNow() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (mainWindow.isMinimized()) return;
+  const maximized = mainWindow.isMaximized();
+  if (!maximized) {
+    const b = mainWindow.getBounds();
+    persistedState.mainBounds = {
+      x: b.x,
+      y: b.y,
+      width: b.width,
+      height: b.height,
+      maximized: false,
+    };
+  } else {
+    persistedState.mainBounds.maximized = true;
+  }
+  scheduleSaveState();
+}
+
 function createMainWindow(conversationId) {
   if (mainWindow && !mainWindow.isDestroyed()) {
     return mainWindow;
@@ -926,6 +1313,8 @@ function createMainWindow(conversationId) {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      backgroundThrottling: true,
+      spellcheck: false,
     },
   });
 
@@ -936,40 +1325,24 @@ function createMainWindow(conversationId) {
     return { action: 'deny' };
   });
 
-  const saveMainGeometry = () => {
-    if (!mainWindow || mainWindow.isDestroyed()) return;
-    if (mainWindow.isMinimized()) return;
-    const maximized = mainWindow.isMaximized();
-    if (!maximized) {
-      const b = mainWindow.getBounds();
-      persistedState.mainBounds = {
-        x: b.x,
-        y: b.y,
-        width: b.width,
-        height: b.height,
-        maximized: false,
-      };
-    } else {
-      persistedState.mainBounds.maximized = true;
-    }
-    scheduleSaveState();
-  };
+  mainWindow.on('resize', saveMainGeometryNow);
+  mainWindow.on('move', saveMainGeometryNow);
+  mainWindow.on('maximize', saveMainGeometryNow);
+  mainWindow.on('unmaximize', saveMainGeometryNow);
+  mainWindow.on('minimize', syncIdleAndVisibility);
+  mainWindow.on('restore', syncIdleAndVisibility);
+  mainWindow.on('show', syncIdleAndVisibility);
 
-  mainWindow.on('resize', saveMainGeometry);
-  mainWindow.on('move', saveMainGeometry);
-  mainWindow.on('maximize', saveMainGeometry);
-  mainWindow.on('unmaximize', saveMainGeometry);
-
-  mainWindow.on('close', (event) => {
-    if (!isQuitting) {
-      event.preventDefault();
-      mainWindow.hide();
-    }
+  // v2.1.0 RAM Diet: Save bounds and truly destroy mainWindow on close (releasing ~150MB renderer!)
+  mainWindow.on('close', () => {
+    saveMainGeometryNow();
+    flushStateNow();
   });
 
   mainWindow.on('closed', () => {
     mainWindow = null;
     mainWindowReady = false;
+    syncIdleAndVisibility();
   });
 
   mainWindowReady = false;
@@ -995,6 +1368,7 @@ function createMainWindow(conversationId) {
     }
     mainWindow.show();
     mainWindow.focus();
+    syncIdleAndVisibility();
   });
 
   if (conversationId) {
@@ -1020,6 +1394,7 @@ function openMainBoard(conversationId) {
   if (!CLI.smokeTest) {
     mainWindow.show();
     mainWindow.focus();
+    syncIdleAndVisibility();
   }
 
   if (cleanId) {
@@ -1033,14 +1408,15 @@ function openMainBoard(conversationId) {
 
 function toggleMainBoard() {
   if (mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible() && mainWindow.isFocused()) {
-    mainWindow.hide();
+    // Destroy cleanly to reclaim RAM when toggled off
+    mainWindow.close();
     return;
   }
   openMainBoard();
 }
 
 // ---------------------------------------------------------------------------
-// System Tray + Dynamic Tooltip & Menu
+// System Tray + Dynamic Tooltip & Size Preset Controls
 // ---------------------------------------------------------------------------
 function formatTraySummaryText() {
   const { running, attention, initialized } = traySummary;
@@ -1071,8 +1447,51 @@ function refreshTrayMenu() {
 
   tray.setToolTip(formatTraySummaryText());
 
-  const widgetVisible = Boolean(widgetWindow && !widgetWindow.isDestroyed() && widgetWindow.isVisible());
+  const widgetVisible = isWidgetCurrentlyVisible();
   const autoStart = getAutoStartEnabled();
+  const layout = getWidgetLayoutState();
+
+  const sizeSubmenu = [
+    {
+      label: `S 胶囊 (${WIDGET_PRESETS.S.width}×${WIDGET_PRESETS.S.height})`,
+      type: 'radio',
+      checked: layout.preset === 'S',
+      click: () => {
+        setWidgetPreset('S');
+        if (!isWidgetCurrentlyVisible()) setWidgetVisibility(true);
+      },
+    },
+    {
+      label: `M 中型 (${WIDGET_PRESETS.M.width}×${WIDGET_PRESETS.M.height})`,
+      type: 'radio',
+      checked: layout.preset === 'M',
+      click: () => {
+        setWidgetPreset('M');
+        if (!isWidgetCurrentlyVisible()) setWidgetVisibility(true);
+      },
+    },
+    {
+      label: `L 大型 (${WIDGET_PRESETS.L.width}×${WIDGET_PRESETS.L.height})`,
+      type: 'radio',
+      checked: layout.preset === 'L',
+      click: () => {
+        setWidgetPreset('L');
+        if (!isWidgetCurrentlyVisible()) setWidgetVisibility(true);
+      },
+    },
+  ];
+
+  if (layout.preset === 'custom') {
+    sizeSubmenu.push(
+      { type: 'separator' },
+      {
+        label: `自定义 (${layout.width}×${layout.height})`,
+        type: 'radio',
+        checked: true,
+        enabled: false,
+      }
+    );
+  }
 
   const menu = Menu.buildFromTemplate([
     {
@@ -1091,6 +1510,10 @@ function refreshTrayMenu() {
         : '显示桌面浮窗 (Show Floating Widget)',
       accelerator: 'CommandOrControl+Shift+W',
       click: () => setWidgetVisibility(!widgetVisible),
+    },
+    {
+      label: '尺寸: S 胶囊 / M 中型 / L 大型',
+      submenu: sizeSubmenu,
     },
     { type: 'separator' },
     {
@@ -1132,8 +1555,7 @@ function createTray() {
   tray.setToolTip(formatTraySummaryText());
 
   tray.on('click', () => {
-    const visible = Boolean(widgetWindow && !widgetWindow.isDestroyed() && widgetWindow.isVisible());
-    setWidgetVisibility(!visible);
+    setWidgetVisibility(!isWidgetCurrentlyVisible());
   });
 
   tray.on('double-click', () => {
@@ -1162,9 +1584,10 @@ function updateTraySummary(running, attention, fromIpc = true) {
 }
 
 async function pollTraySummaryFallback() {
-  if (isQuitting) return;
-  // Skip fallback polling if renderer has pushed fresh stats within the last 12s
-  if (Date.now() - lastIpcSummaryAt < 12_000) return;
+  if (isQuitting || systemSleeping) return;
+  // Do not wake backend when both windows are hidden (0.0% idle CPU policy)
+  if (!isWidgetCurrentlyVisible() && !isMainCurrentlyVisible()) return;
+  if (Date.now() - lastIpcSummaryAt < 15_000) return;
 
   const board = await httpGetJson(`${getBaseUrl()}/api/board`, 1500);
   if (board && board.stats) {
@@ -1186,8 +1609,7 @@ function registerGlobalShortcuts() {
 
   try {
     globalShortcut.register('CommandOrControl+Shift+W', () => {
-      const visible = Boolean(widgetWindow && !widgetWindow.isDestroyed() && widgetWindow.isVisible());
-      setWidgetVisibility(!visible);
+      setWidgetVisibility(!isWidgetCurrentlyVisible());
     });
   } catch {
     // Non-fatal if another app claimed the shortcut
@@ -1197,8 +1619,9 @@ function registerGlobalShortcuts() {
 function registerDisplayWatchers() {
   const reclamp = () => {
     if (!widgetWindow || widgetWindow.isDestroyed()) return;
-    const clamped = computeAnchoredWidgetBounds(widgetSize.width, widgetSize.height);
-    applyWidgetBounds(clamped);
+    const layout = getWidgetLayoutState();
+    const clamped = computeAnchoredWidgetBounds(layout.width, layout.height, layout.preset);
+    applyWidgetBoundsProgrammatically(clamped);
   };
   screen.on('display-metrics-changed', reclamp);
   screen.on('display-removed', reclamp);
@@ -1208,8 +1631,20 @@ function registerDisplayWatchers() {
 // IPC Handlers
 // ---------------------------------------------------------------------------
 function registerIpcHandlers() {
+  ipcMain.handle('desktop:set-widget-preset', (_event, preset) => {
+    return setWidgetPreset(preset);
+  });
+
+  ipcMain.handle('desktop:get-widget-layout', () => {
+    return getWidgetLayoutState();
+  });
+
   ipcMain.handle('desktop:resize-widget', (_event, opts) => {
-    resizeWidgetWindow(opts);
+    resizeWidgetExplicit(opts);
+  });
+
+  ipcMain.handle('desktop:copy-and-focus-antigravity', (_event, text) => {
+    return copyAndFocusAntigravity(text);
   });
 
   ipcMain.handle('desktop:open-main-board', (_event, conversationId) => {
@@ -1263,6 +1698,8 @@ async function quitApp(exitCode = 0) {
   if (isQuitting) return;
   isQuitting = true;
 
+  flushStateNow();
+
   if (fallbackPollTimer) {
     clearInterval(fallbackPollTimer);
     fallbackPollTimer = null;
@@ -1296,17 +1733,21 @@ async function runSmokeVerification(serverInfo) {
   const report = {
     ok: false,
     url: getBaseUrl(),
-    serverSpawned: Boolean(serverInfo.spawned),
-    serverRuntime: serverInfo.runtime || 'existing',
+    serverMode: serverInfo.mode,
+    serverRuntime: serverInfo.runtime,
+    spawnedChildNode: Boolean(serverInfo.spawnedChild),
     health: serverInfo.health,
     widgetLoaded: false,
+    widgetResizable: false,
     preloadExposed: false,
-    collapsedBounds: null,
-    expandedBounds: null,
-    recollapsedBounds: null,
+    presets: {},
+    customResizeLayout: null,
+    handoffResult: null,
     mainLoaded: false,
     openConversationIpc: false,
+    mainDestroyedOnClose: false,
     trayCreated: Boolean(tray && !tray.isDestroyed()),
+    runtimeMetrics: null,
     errors: [],
   };
 
@@ -1323,33 +1764,60 @@ async function runSmokeVerification(serverInfo) {
       });
     });
     report.widgetLoaded = true;
+    report.widgetResizable = widgetWindow.isResizable();
 
     const bridgeCheck = await widgetWindow.webContents.executeJavaScript(`
       (async () => {
         const api = window.missionBoardDesktop;
         if (!api || api.isDesktop !== true) return { ok: false };
         const state = await api.getDesktopState();
+        const layout = await api.getWidgetLayout();
         api.updateTraySummary({ running: 3, attention: 4 });
-        return { ok: true, state };
+        return {
+          ok: true,
+          state,
+          layout,
+          hasNewMethods: Boolean(
+            typeof api.setWidgetPreset === 'function' &&
+            typeof api.getWidgetLayout === 'function' &&
+            typeof api.onWidgetLayoutChange === 'function' &&
+            typeof api.onWidgetVisibilityChange === 'function' &&
+            typeof api.copyAndFocusAntigravity === 'function'
+          ),
+        };
       })()
     `);
-    report.preloadExposed = Boolean(bridgeCheck && bridgeCheck.ok);
+    report.preloadExposed = Boolean(bridgeCheck?.ok && bridgeCheck?.hasNewMethods);
     report.initialDesktopState = bridgeCheck?.state ?? null;
 
-    report.collapsedBounds = widgetWindow.getBounds();
-    await widgetWindow.webContents.executeJavaScript(
-      'window.missionBoardDesktop.resizeWidget({ width: 392, height: 540, expanded: true })'
-    );
-    await new Promise((r) => setTimeout(r, 120));
-    report.expandedBounds = widgetWindow.getBounds();
+    // Test explicit S / M / L presets + layout change event
+    for (const preset of ['S', 'L', 'M']) {
+      const layoutRes = await widgetWindow.webContents.executeJavaScript(
+        `window.missionBoardDesktop.setWidgetPreset(${JSON.stringify(preset)})`
+      );
+      await new Promise((r) => setTimeout(r, 120));
+      report.presets[preset] = {
+        returned: layoutRes,
+        actualBounds: widgetWindow.getBounds(),
+      };
+    }
 
-    await widgetWindow.webContents.executeJavaScript(
-      'window.missionBoardDesktop.resizeWidget({ width: 276, height: 56, expanded: false })'
+    // Simulate user free-drag resize -> should switch layout preset to 'custom'
+    isProgrammaticWidgetBounds = false;
+    const cur = widgetWindow.getBounds();
+    widgetWindow.setBounds({ x: cur.x, y: cur.y, width: 480, height: 510 }, false);
+    handleUserWidgetResize();
+    await new Promise((r) => setTimeout(r, 80));
+    report.customResizeLayout = await widgetWindow.webContents.executeJavaScript(
+      'window.missionBoardDesktop.getWidgetLayout()'
     );
-    await new Promise((r) => setTimeout(r, 120));
-    report.recollapsedBounds = widgetWindow.getBounds();
 
-    // Open main window and verify IPC delivery
+    // Test safe copyAndFocusAntigravity IPC contract (clipboard-safe in smoke mode)
+    report.handoffResult = await widgetWindow.webContents.executeJavaScript(
+      'window.missionBoardDesktop.copyAndFocusAntigravity("smoke prompt")'
+    );
+
+    // Open main window lazily, test IPC, then close and confirm true destruction (RAM diet)
     openMainBoard('demo-smoke-conv-1');
     await new Promise((resolve, reject) => {
       const timeout = setTimeout(() => reject(new Error('mainWindow load timeout')), 12_000);
@@ -1363,14 +1831,12 @@ async function runSmokeVerification(serverInfo) {
       });
     });
     report.mainLoaded = true;
-    // Allow initial pendingConversationId message to flush before testing a second IPC dispatch
     await new Promise((r) => setTimeout(r, 150));
 
-    // Register listeners in mainWindow and verify both openConversation & stateChange IPC
     const ipcProbe = await mainWindow.webContents.executeJavaScript(`
       new Promise((resolve) => {
         try {
-          const timer = setTimeout(() => resolve({ status: 'timeout', hasApi: Boolean(window.missionBoardDesktop) }), 2500);
+          const timer = setTimeout(() => resolve({ status: 'timeout' }), 2500);
           let gotConv = null;
           let gotState = false;
           const finishIfDone = () => {
@@ -1401,19 +1867,55 @@ async function runSmokeVerification(serverInfo) {
     report.ipcProbe = ipcProbe;
     report.openConversationIpc = ipcProbe?.id === 'demo-ipc-check-42' && ipcProbe?.stateChanged === true;
 
-    const resizedUp =
-      report.expandedBounds.width >= 380 && report.expandedBounds.height >= 500;
-    const resizedBack =
-      report.recollapsedBounds.width <= 290 && report.recollapsedBounds.height <= 70;
+    // Close mainWindow and verify it is truly destroyed (not kept hidden in RAM)
+    const closedPromise = new Promise((resolve) => {
+      if (!mainWindow || mainWindow.isDestroyed()) {
+        resolve(true);
+        return;
+      }
+      mainWindow.once('closed', () => resolve(true));
+      setTimeout(() => resolve(false), 2000);
+    });
+    mainWindow.close();
+    await closedPromise;
+    report.mainDestroyedOnClose = mainWindow === null;
+
+    if (inProcessServer && typeof inProcessServer.getRuntimeMetrics === 'function') {
+      report.runtimeMetrics = inProcessServer.getRuntimeMetrics();
+    }
+
+    const sOk =
+      report.presets.S?.returned?.preset === 'S' &&
+      Math.abs(report.presets.S.actualBounds.width - WIDGET_PRESETS.S.width) <= 8 &&
+      Math.abs(report.presets.S.actualBounds.height - WIDGET_PRESETS.S.height) <= 8;
+    const mOk =
+      report.presets.M?.returned?.preset === 'M' &&
+      Math.abs(report.presets.M.actualBounds.width - WIDGET_PRESETS.M.width) <= 8 &&
+      Math.abs(report.presets.M.actualBounds.height - WIDGET_PRESETS.M.height) <= 8;
+    const lOk =
+      report.presets.L?.returned?.preset === 'L' &&
+      Math.abs(report.presets.L.actualBounds.width - WIDGET_PRESETS.L.width) <= 8 &&
+      Math.abs(report.presets.L.actualBounds.height - WIDGET_PRESETS.L.height) <= 8;
+    const customOk =
+      report.customResizeLayout?.preset === 'custom' &&
+      Math.abs(report.customResizeLayout.width - 480) <= 8 &&
+      Math.abs(report.customResizeLayout.height - 510) <= 8;
 
     report.ok = Boolean(
-      report.widgetLoaded &&
+      report.serverMode === 'in-process' &&
+        !report.spawnedChildNode &&
+        report.widgetLoaded &&
+        report.widgetResizable &&
         report.preloadExposed &&
+        sOk &&
+        mOk &&
+        lOk &&
+        customOk &&
+        report.handoffResult?.ok === true &&
         report.mainLoaded &&
         report.openConversationIpc &&
-        report.trayCreated &&
-        resizedUp &&
-        resizedBack
+        report.mainDestroyedOnClose &&
+        report.trayCreated
     );
   } catch (err) {
     report.errors.push(err instanceof Error ? err.message : String(err));
@@ -1430,7 +1932,6 @@ if (process.platform === 'win32') {
   app.setAppUserModelId(APP_ID);
 }
 
-// Apply persisted nativeTheme preference
 if (persistedState.theme === 'light' || persistedState.theme === 'dark') {
   nativeTheme.themeSource = persistedState.theme;
 }
@@ -1445,8 +1946,7 @@ if (!hasSingleInstanceLock) {
       openMainBoard();
       return;
     }
-    const widgetVisible = Boolean(widgetWindow && !widgetWindow.isDestroyed() && widgetWindow.isVisible());
-    if (!widgetVisible) {
+    if (!isWidgetCurrentlyVisible()) {
       setWidgetVisibility(true);
     } else {
       openMainBoard();
@@ -1454,7 +1954,7 @@ if (!hasSingleInstanceLock) {
   });
 
   app.on('window-all-closed', (event) => {
-    // Keep app running silently in the System Tray until explicit Quit
+    // Keep app alive silently in the System Tray until explicit Quit
     event.preventDefault();
   });
 
@@ -1483,6 +1983,7 @@ if (!hasSingleInstanceLock) {
     try {
       const serverInfo = await ensureLocalServer();
       registerIpcHandlers();
+      registerPowerMonitor();
       createTray();
       createWidgetWindow();
       registerDisplayWatchers();
@@ -1492,11 +1993,10 @@ if (!hasSingleInstanceLock) {
         if (CLI.showMainOnStart && !CLI.autoStartLaunch) {
           openMainBoard();
         }
-        // Populate initial tray tooltip promptly and maintain background fallback poll
         void pollTraySummaryFallback();
         fallbackPollTimer = setInterval(() => {
           void pollTraySummaryFallback();
-        }, 15_000);
+        }, 20_000);
       } else {
         await runSmokeVerification(serverInfo);
       }

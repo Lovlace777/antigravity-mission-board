@@ -1,6 +1,6 @@
 {
   "name": "antigravity-mission-board",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "private": true,
   "description": "Local Kanban & Mission Control desktop app for Google Antigravity Desktop 2.0",
   "license": "MIT",

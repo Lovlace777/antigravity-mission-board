@@ -85,13 +85,42 @@ export interface Dictionary {
     openFullBoard: string;
     pinTopTooltip: string;
     tabFocus: string;
+    tabOpen: string;
     tabRunning: string;
+    tabAttention: string;
     tabSwarm: string;
     tabAll: string;
     emptyFocus: string;
     emptyTab: string;
     markReadShort: string;
     previewBadge: string;
+    presetS: string;
+    presetM: string;
+    presetL: string;
+    presetSTitle: string;
+    presetMTitle: string;
+    presetLTitle: string;
+    shortError: string;
+    shortFeedback: string;
+    shortDecision: string;
+    shortUnread: string;
+    shortDue: string;
+    hoverHint: string;
+    lockedLabel: string;
+    unlockTooltip: string;
+    latestOutput: string;
+    feedbackArtifacts: string;
+    pushTitle: string;
+    pushPlaceholder: string;
+    pushButton: string;
+    quickPrompts: [string, string, string];
+    dispatchSuccessCli: string;
+    dispatchHandoffFocused: string;
+    dispatchHandoffCopied: string;
+    dispatchFailed: string;
+    detailShort: string;
+    pushShort: string;
+    workingAgentsLabel: string;
   };
   theme: {
     light: string;
@@ -451,13 +480,42 @@ export const dictionaries: Record<Locale, Dictionary> = {
       openFullBoard: '打开完整看板',
       pinTopTooltip: '浮窗始终置顶',
       tabFocus: '焦点',
+      tabOpen: '未完成',
       tabRunning: '运行中',
+      tabAttention: '待关注',
       tabSwarm: 'Swarm',
       tabAll: '全部',
-      emptyFocus: '当前没有运行中或待关注的对话',
+      emptyFocus: '当前没有未完成的对话',
       emptyTab: '暂无符合条件的对话',
       markReadShort: '已阅',
       previewBadge: '浮窗预览',
+      presetS: 'S',
+      presetM: 'M',
+      presetL: 'L',
+      presetSTitle: 'S 胶囊浮窗 (292×52)',
+      presetMTitle: 'M 中型纵览 (390×600)',
+      presetLTitle: 'L 大型全景 (700×580)',
+      shortError: '出错',
+      shortFeedback: '待审',
+      shortDecision: '决策',
+      shortUnread: '未读',
+      shortDue: '到期',
+      hoverHint: '悬停预览 · 点击锁定',
+      lockedLabel: '已锁定',
+      unlockTooltip: '取消锁定，恢复悬停跟随',
+      latestOutput: '最新进展',
+      feedbackArtifacts: '待审产物',
+      pushTitle: '快捷推进对话',
+      pushPlaceholder: '输入下一步指令，回车推进对话…',
+      pushButton: '推进',
+      quickPrompts: ['继续推进', '总结当前进展', '检查报错并修复'],
+      dispatchSuccessCli: '已通过 agy CLI 派发指令',
+      dispatchHandoffFocused: '已复制指令并切到 Antigravity — 直接 Ctrl+V 回车即可推进',
+      dispatchHandoffCopied: '已复制指令 — 切到 Antigravity 后 Ctrl+V 回车即可推进',
+      dispatchFailed: '推进指令发送失败',
+      detailShort: '详情',
+      pushShort: '推进',
+      workingAgentsLabel: '执行中',
     },
     theme: {
       light: '浅色',
@@ -827,13 +885,42 @@ export const dictionaries: Record<Locale, Dictionary> = {
       openFullBoard: 'Open Full Board',
       pinTopTooltip: 'Keep widget always on top',
       tabFocus: 'Focus',
+      tabOpen: 'Open',
       tabRunning: 'Running',
+      tabAttention: 'Attention',
       tabSwarm: 'Swarm',
       tabAll: 'All',
-      emptyFocus: 'Nothing running or waiting for you right now',
+      emptyFocus: 'All conversations are clear or archived',
       emptyTab: 'No conversations in this filter',
       markReadShort: 'Read',
       previewBadge: 'Widget Preview',
+      presetS: 'S',
+      presetM: 'M',
+      presetL: 'L',
+      presetSTitle: 'Small Pill (292×52)',
+      presetMTitle: 'Medium Radar (390×600)',
+      presetLTitle: 'Large Panorama (700×580)',
+      shortError: 'Err',
+      shortFeedback: 'Rev',
+      shortDecision: 'Ask',
+      shortUnread: 'New',
+      shortDue: 'Due',
+      hoverHint: 'Hover to preview · Click to lock',
+      lockedLabel: 'Locked',
+      unlockTooltip: 'Unlock to resume hover preview',
+      latestOutput: 'Latest Output',
+      feedbackArtifacts: 'Pending Review',
+      pushTitle: 'Quick Push-Forward',
+      pushPlaceholder: 'Type follow-up prompt, Enter to push…',
+      pushButton: 'Push',
+      quickPrompts: ['Continue', 'Summarize progress', 'Check & fix errors'],
+      dispatchSuccessCli: 'Dispatched directly via agy CLI',
+      dispatchHandoffFocused: 'Copied & focused Antigravity — press Ctrl+V + Enter to push',
+      dispatchHandoffCopied: 'Prompt copied — switch to Antigravity & press Ctrl+V + Enter',
+      dispatchFailed: 'Failed to dispatch prompt',
+      detailShort: 'Detail',
+      pushShort: 'Push',
+      workingAgentsLabel: 'Working',
     },
     theme: {
       light: 'Light',

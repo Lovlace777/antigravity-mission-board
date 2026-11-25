@@ -172,6 +172,13 @@ html.widget-mode body {
   animation: agmb-pulse-ring 2.2s cubic-bezier(0.22, 0.61, 0.36, 1) infinite;
 }
 
+/* Zero-GPU idle optimization when document/window is hidden or obscured */
+html.agmb-paused .live-pulse-ring,
+html.agmb-paused .animate-spin,
+html.agmb-paused .animate-pulse {
+  animation-play-state: paused !important;
+}
+
 /* Smooth Drawer, Palette & Toast entrances */
 @keyframes agmb-drawer-in {
   from {

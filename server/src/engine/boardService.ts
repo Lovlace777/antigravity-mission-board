@@ -7,6 +7,8 @@ import type {
   BoardSettings,
   ConversationCard,
   ConversationDetail,
+  DispatchRequest,
+  DispatchResponse,
   HealthResponse,
   OverlayData,
   OverlayPatch,
@@ -16,6 +18,8 @@ import type {
   SearchResult,
   SubagentInfo,
   SwarmDetail,
+  SwarmHoverPreview,
+  SwarmSummary,
 } from '../../../shared/types.js';
 import { APP_VERSION } from '../config.js';
 import { AntigravityReadOnlyDb, type FtsMetaRow, type SummaryRow } from '../db/antigravityDb.js';
@@ -36,11 +40,13 @@ import {
   type MemberRuntimeLookup,
 } from '../parsers/swarm.js';
 import {
+  buildCompactPreview,
   createEmptyTranscript,
   parseTranscriptFile,
   type ParsedTranscript,
 } from '../parsers/transcript.js';
 import { buildFilesSignature, FileStatCache } from '../utils/cache.js';
+import { detectDispatchCapabilities, launchAgyCliDispatch } from '../utils/dispatch.js';
 import {
   isValidConversationId,
   readBoundedTextFile,
@@ -49,7 +55,7 @@ import {
 import { normalizeTimestamp } from '../utils/time.js';
 import { parseWorkspaceUris } from '../utils/uri.js';
 import { assembleBoardResponse, classifyConversation } from './classifier.js';
-import type { IBoardService } from './types.js';
+import type { IBoardService, ServiceMetrics } from './types.js';
 
 interface HydratedConversation {
   card: ConversationCard;
@@ -60,6 +66,37 @@ interface HydratedConversation {
   annotation: ParsedAnnotation | null;
 }
 
+const MAX_STEPS_PREVIEW = 10;
+const STALE_BUCKET_MS = 5 * 60_000; // Re-evaluate stale thresholds every 5 min on idle
+
+export function buildSwarmHoverPreview(swarm: SwarmSummary | null): SwarmHoverPreview | null {
+  if (!swarm) return null;
+  const workingAgents = swarm.members
+    .filter((m) => m.state === 'working')
+    .map((m) => m.name);
+  const lastMsg =
+    swarm.recentMessages.length > 0
+      ? swarm.recentMessages[swarm.recentMessages.length - 1]
+      : null;
+
+  return {
+    goalTitle: swarm.goalTitle ?? swarm.title,
+    goalLine: swarm.goalLine ?? '',
+    workingAgents,
+    latestPost: lastMsg
+      ? {
+          agent: lastMsg.agent,
+          text: buildCompactPreview(lastMsg.text, 140) ?? lastMsg.text.slice(0, 140),
+        }
+      : null,
+  };
+}
+
+function formatNoteTimestamp(date = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 export class LiveBoardService implements IBoardService {
   public readonly mode = 'live' as const;
   private readonly dataDir: string;
@@ -67,12 +104,19 @@ export class LiveBoardService implements IBoardService {
   private readonly overlayStore: OverlayStore;
   private readonly startedAt = Date.now();
 
-  // Stat-keyed caches so repeated polling stays fast (<50ms)
-  private readonly annotationCache = new FileStatCache<ParsedAnnotation>();
-  private readonly transcriptCache = new FileStatCache<ParsedTranscript>();
-  private readonly swarmCache = new FileStatCache<SwarmDetail | null>();
-  private readonly subagentDescCache = new FileStatCache<Map<string, SubagentDescriptorMeta>>();
-  private readonly artifactsCache = new FileStatCache<ArtifactInfo[]>();
+  // Bounded 200-entry LRU stat-keyed caches so memory stays flat over days/weeks
+  private readonly annotationCache = new FileStatCache<ParsedAnnotation>(200);
+  private readonly summaryTranscriptCache = new FileStatCache<ParsedTranscript>(200);
+  private readonly swarmCache = new FileStatCache<SwarmDetail | null>(200);
+  private readonly subagentDescCache = new FileStatCache<Map<string, SubagentDescriptorMeta>>(200);
+  private readonly artifactsCache = new FileStatCache<ArtifactInfo[]>(200);
+
+  // Stat-fingerprint fast path state (avoids opening SQLite when nothing changed on disk)
+  private lastFingerprint: string | null = null;
+  private cachedBoard: BoardResponse | null = null;
+  private lastRunningIds: string[] = [];
+  private _pollCount = 0;
+  private _skippedIdlePolls = 0;
 
   constructor(dataDir: string, overlayDbPath: string) {
     this.dataDir = dataDir;
@@ -80,12 +124,53 @@ export class LiveBoardService implements IBoardService {
     this.overlayStore = new OverlayStore(overlayDbPath);
   }
 
+  private statToken(targetPath: string): string {
+    try {
+      const st = fs.statSync(targetPath);
+      return `${st.mtimeMs}:${st.size}`;
+    } catch {
+      return 'm';
+    }
+  }
+
+  /**
+   * Ultra-cheap (<0.1ms) filesystem fingerprint checked before opening SQLite.
+   * Tracks DB + WAL, annotations dir mtime, local overlay mutation version,
+   * 5-minute stale bucket, and active running transcripts/swarms when any agent is running.
+   */
+  private computeFastFingerprint(): string {
+    const dbPath = this.antigravityDb.dbPath;
+    const walPath = `${dbPath}-wal`;
+    const annotationsDir = path.join(this.dataDir, 'annotations');
+    const timeBucket = Math.floor(Date.now() / STALE_BUCKET_MS);
+
+    const parts = [
+      this.statToken(dbPath),
+      this.statToken(walPath),
+      this.statToken(annotationsDir),
+      `ov:${this.overlayStore.version}`,
+      `tb:${timeBucket}`,
+    ];
+
+    // While agents are actively running, also stat their live logs & swarm files
+    for (const cid of this.lastRunningIds) {
+      const brainDir = path.join(this.dataDir, 'brain', cid);
+      parts.push(
+        `${cid}:${this.statToken(path.join(brainDir, '.system_generated', 'logs', 'transcript.jsonl'))}` +
+          `|${this.statToken(path.join(brainDir, '.system_generated', 'swarm', 'board.jsonl'))}` +
+          `|${this.statToken(path.join(brainDir, '.system_generated', 'swarm', 'members.json'))}`,
+      );
+    }
+
+    return parts.join(';');
+  }
+
   private getAnnotation(conversationId: string): ParsedAnnotation | null {
     const filePath = path.join(this.dataDir, 'annotations', `${conversationId}.pbtxt`);
     return this.annotationCache.getOrCompute(filePath, (p) => parseAnnotationFile(p));
   }
 
-  private getTranscript(conversationId: string): ParsedTranscript {
+  private getTranscript(conversationId: string, forDetail: boolean): ParsedTranscript {
     const logsDir = path.join(this.dataDir, 'brain', conversationId, '.system_generated', 'logs');
     const transcriptPath = path.join(logsDir, 'transcript.jsonl');
     const fullPath = path.join(logsDir, 'transcript_full.jsonl');
@@ -93,8 +178,14 @@ export class LiveBoardService implements IBoardService {
     if (sig.startsWith(`${transcriptPath}|missing`)) {
       return createEmptyTranscript();
     }
-    return this.transcriptCache.getOrComputeBySignature(transcriptPath, sig, () =>
-      parseTranscriptFile(transcriptPath),
+
+    // Detail view requests full timeline on demand without inflating the board summary cache
+    if (forDetail) {
+      return parseTranscriptFile(transcriptPath, { tailOnly: false });
+    }
+
+    return this.summaryTranscriptCache.getOrComputeBySignature(transcriptPath, sig, () =>
+      parseTranscriptFile(transcriptPath, { tailOnly: true }),
     );
   }
 
@@ -112,14 +203,12 @@ export class LiveBoardService implements IBoardService {
       return null;
     }
 
-    // Include live runtime statuses of swarm members so working/killed transitions reflect immediately
     const parsed = this.swarmCache.getOrComputeBySignature(swarmDir, fileSig, () =>
       parseSwarmDirectory(swarmDir, runtimeByConversationId),
     );
 
     if (!parsed) return null;
 
-    // Overlay fresh runtime states from conversation_summaries onto cached swarm structure
     let workingCount = 0;
     let waitingCount = 0;
     let killedCount = 0;
@@ -200,7 +289,10 @@ export class LiveBoardService implements IBoardService {
     );
   }
 
-  private hydrateAll(targetConversationIds?: string | Set<string>): HydratedConversation[] {
+  private hydrateAll(
+    targetConversationIds?: string | Set<string>,
+    forDetail = false,
+  ): HydratedConversation[] {
     const snapshot = this.antigravityDb.readSnapshot();
     const settings = this.overlayStore.getSettings();
     const overlays = this.overlayStore.getAllOverlays();
@@ -251,7 +343,16 @@ export class LiveBoardService implements IBoardService {
       const cid = row.conversationId;
       const ftsMeta: FtsMetaRow | undefined = snapshot.ftsMetaById.get(cid);
       const annotation = this.getAnnotation(cid);
-      const transcript = this.getTranscript(cid);
+      const isArchived = Boolean(annotation?.archived || ftsMeta?.archived);
+      const isDirectlyRunning =
+        row.status === 'CASCADE_RUN_STATUS_RUNNING' || row.notFullyIdle;
+
+      // Lazy archived transcript skip: do NOT parse archived transcript.jsonl during board polling!
+      const skipArchivedTranscript = isArchived && !forDetail && !isDirectlyRunning;
+      const transcript = skipArchivedTranscript
+        ? createEmptyTranscript()
+        : this.getTranscript(cid, forDetail);
+
       const swarmDetail = this.getSwarmDetail(cid, runtimeByConversationId);
       const swarm = swarmDetail ? toSwarmSummary(swarmDetail) : null;
 
@@ -267,7 +368,6 @@ export class LiveBoardService implements IBoardService {
         normalizeTimestamp(row.lastModifiedTime) ?? new Date(0).toISOString();
       const lastUserInputAt = normalizeTimestamp(row.lastUserInputTime);
       const lastUserViewAt = annotation?.lastUserViewAt ?? null;
-      const isArchived = Boolean(annotation?.archived || ftsMeta?.archived);
       const markedAsUnread = Boolean(annotation?.markedAsUnread);
 
       const classification = classifyConversation({
@@ -295,6 +395,11 @@ export class LiveBoardService implements IBoardService {
         'Untitled Conversation';
 
       const stepsCompleted = transcript.steps.filter((s) => s.status === 'done').length;
+      const latestMessagePreview =
+        transcript.latestMessagePreview ?? buildCompactPreview(row.preview) ?? null;
+      const feedbackArtifacts = artifacts
+        .filter((a) => a.requestFeedback)
+        .map((a) => a.fileName);
 
       const card: ConversationCard = {
         id: cid,
@@ -340,6 +445,11 @@ export class LiveBoardService implements IBoardService {
         artifactCount: artifacts.length,
         sideQuestionCount: annotation?.sideQuestionIds.length ?? 0,
 
+        latestMessagePreview,
+        stepsPreview: transcript.steps.slice(0, MAX_STEPS_PREVIEW),
+        swarmPreview: buildSwarmHoverPreview(swarm),
+        feedbackArtifacts,
+
         overlay,
       };
 
@@ -368,12 +478,16 @@ export class LiveBoardService implements IBoardService {
     const dbAccessible = this.antigravityDb.isAccessible();
     let conversationCount = 0;
     if (dbAccessible) {
-      try {
-        conversationCount = this.antigravityDb
-          .readSnapshot()
-          .summaries.filter((s) => s.nestingDepth === 0 && !s.parentConversationId).length;
-      } catch {
-        conversationCount = 0;
+      if (this.cachedBoard) {
+        conversationCount = this.cachedBoard.stats.total;
+      } else {
+        try {
+          conversationCount = this.antigravityDb
+            .readSnapshot()
+            .summaries.filter((s) => s.nestingDepth === 0 && !s.parentConversationId).length;
+        } catch {
+          conversationCount = 0;
+        }
       }
     }
 
@@ -386,22 +500,35 @@ export class LiveBoardService implements IBoardService {
       dbAccessible,
       conversationCount,
       uptimeSec: Math.floor((Date.now() - this.startedAt) / 1000),
+      dispatchCapabilities: detectDispatchCapabilities(),
     };
   }
 
   getBoard(): BoardResponse {
+    this._pollCount += 1;
+    const fp = this.computeFastFingerprint();
+    if (this.cachedBoard && this.lastFingerprint === fp) {
+      this._skippedIdlePolls += 1;
+      return this.cachedBoard;
+    }
+
     const settings = this.overlayStore.getSettings();
-    const hydrated = this.hydrateAll();
-    return assembleBoardResponse(
+    const hydrated = this.hydrateAll(undefined, false);
+    const board = assembleBoardResponse(
       'live',
       hydrated.map((h) => h.card),
       settings,
     );
+
+    this.cachedBoard = board;
+    this.lastRunningIds = board.conversations.filter((c) => c.isRunning).map((c) => c.id);
+    this.lastFingerprint = this.computeFastFingerprint();
+    return board;
   }
 
   getConversationDetail(conversationId: string): ConversationDetail | null {
     if (!isValidConversationId(conversationId)) return null;
-    const hydrated = this.hydrateAll(conversationId);
+    const hydrated = this.hydrateAll(conversationId, true);
     if (hydrated.length === 0) return null;
 
     const item = hydrated[0];
@@ -450,7 +577,7 @@ export class LiveBoardService implements IBoardService {
     patch: OverlayPatch,
   ): { overlay: OverlayData; card: ConversationCard | null } {
     const overlay = this.overlayStore.patchOverlay(conversationId, patch);
-    const hydrated = this.hydrateAll(conversationId);
+    const hydrated = this.hydrateAll(conversationId, false);
     return {
       overlay,
       card: hydrated[0]?.card ?? null,
@@ -459,7 +586,7 @@ export class LiveBoardService implements IBoardService {
 
   markReviewed(conversationId: string): { overlay: OverlayData; card: ConversationCard | null } {
     const overlay = this.overlayStore.markReviewed(conversationId);
-    const hydrated = this.hydrateAll(conversationId);
+    const hydrated = this.hydrateAll(conversationId, false);
     return {
       overlay,
       card: hydrated[0]?.card ?? null,
@@ -472,11 +599,58 @@ export class LiveBoardService implements IBoardService {
       reviewedAt === undefined ? new Date().toISOString() : reviewedAt;
     this.overlayStore.markReviewedBatch(uniqueIds, appliedReviewedAt);
     const idSet = new Set(uniqueIds);
-    const hydrated = this.hydrateAll(idSet);
+    const hydrated = this.hydrateAll(idSet, false);
     return {
       updatedCount: uniqueIds.length,
       reviewedAt: appliedReviewedAt,
       cards: hydrated.map((h) => h.card),
+    };
+  }
+
+  dispatchPrompt(conversationId: string, request: DispatchRequest): DispatchResponse | null {
+    if (!isValidConversationId(conversationId)) return null;
+    const existing = this.hydrateAll(conversationId, false);
+    if (existing.length === 0) return null;
+
+    const prompt = request.prompt.trim();
+    let card = existing[0].card;
+    let noteSaved = false;
+
+    if (request.saveToNotes) {
+      const stamp = formatNoteTimestamp();
+      const entryLine = `[${stamp}] → ${prompt}`;
+      const nextNotes = card.overlay.notes.trim()
+        ? `${card.overlay.notes.trim()}\n${entryLine}`
+        : entryLine;
+      const updated = this.patchOverlay(conversationId, { notes: nextNotes });
+      if (updated.card) card = updated.card;
+      noteSaved = true;
+    }
+
+    const caps = detectDispatchCapabilities();
+    if (caps.agyCliAvailable) {
+      const launched = launchAgyCliDispatch(conversationId, prompt, card.workspacePath);
+      if (launched) {
+        return {
+          ok: true,
+          mode: 'agy_cli',
+          copiedPrompt: prompt,
+          conversationId,
+          noteSaved,
+          message: 'Dispatched follow-up prompt via Antigravity CLI (`agy`).',
+          card,
+        };
+      }
+    }
+
+    return {
+      ok: true,
+      mode: 'handoff',
+      copiedPrompt: prompt,
+      conversationId,
+      noteSaved,
+      message: 'Prompt prepared for Antigravity Desktop handoff.',
+      card,
     };
   }
 
@@ -487,11 +661,6 @@ export class LiveBoardService implements IBoardService {
     }
 
     const board = this.getBoard();
-    const cardsById = new Map<string, ConversationCard>();
-    for (const c of board.conversations) {
-      cardsById.set(c.id, c);
-    }
-
     const lowerQ = query.toLowerCase();
     const ftsHits = this.antigravityDb.searchFts(query, 50);
     const ftsSnippetById = new Map<string, string>();
@@ -543,7 +712,6 @@ export class LiveBoardService implements IBoardService {
       }
     }
 
-    // Prioritize direct title/tags/notes matches first, then recency
     results.sort((a, b) => {
       const aDirect = a.matchedIn.includes('title') || a.matchedIn.includes('tags') ? 0 : 1;
       const bDirect = b.matchedIn.includes('title') || b.matchedIn.includes('tags') ? 0 : 1;
@@ -564,6 +732,22 @@ export class LiveBoardService implements IBoardService {
 
   patchSettings(patch: Partial<BoardSettings>): BoardSettings {
     return this.overlayStore.patchSettings(patch);
+  }
+
+  getMetrics(): ServiceMetrics {
+    const cacheHits =
+      this._skippedIdlePolls +
+      this.annotationCache.hits +
+      this.summaryTranscriptCache.hits +
+      this.swarmCache.hits +
+      this.subagentDescCache.hits +
+      this.artifactsCache.hits;
+
+    return {
+      pollCount: this._pollCount,
+      cacheHits,
+      skippedIdlePolls: this._skippedIdlePolls,
+    };
   }
 
   close(): void {

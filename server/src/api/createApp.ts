@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import express, { type Express, type NextFunction, type Request, type Response } from 'express';
 import type {
   BoardSettings,
+  DispatchRequest,
   LaneId,
   OverlayPatch,
   Priority,
@@ -170,6 +171,38 @@ function validateReviewBatchRequest(body: unknown): {
   };
 }
 
+function validateDispatchRequest(body: unknown): {
+  request?: DispatchRequest;
+  error?: string;
+} {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    return { error: 'Request body must be a JSON object.' };
+  }
+
+  const raw = body as Record<string, unknown>;
+  if (typeof raw.prompt !== 'string' || !raw.prompt.trim()) {
+    return { error: 'Field `prompt` must be a non-empty string.' };
+  }
+  if (raw.prompt.trim().length > 4000) {
+    return { error: 'Prompt exceeds maximum length (4,000 characters).' };
+  }
+
+  let saveToNotes: boolean | undefined;
+  if ('saveToNotes' in raw) {
+    if (typeof raw.saveToNotes !== 'boolean') {
+      return { error: 'Field `saveToNotes` must be a boolean.' };
+    }
+    saveToNotes = raw.saveToNotes;
+  }
+
+  return {
+    request: {
+      prompt: raw.prompt.trim(),
+      ...(saveToNotes !== undefined ? { saveToNotes } : {}),
+    },
+  };
+}
+
 function validateSettingsPatch(body: unknown): { patch?: Partial<BoardSettings>; error?: string } {
   if (!body || typeof body !== 'object' || Array.isArray(body)) {
     return { error: 'Request body must be a JSON object.' };
@@ -313,6 +346,32 @@ export function createApp(service: IBoardService, options: CreateAppOptions = {}
 
     const result = service.markReviewed(id);
     sseBroker.notifyMutation();
+    res.json(result);
+  });
+
+  // Safe follow-up prompt dispatch (agy CLI when available, else clean Desktop handoff)
+  app.post('/api/conversations/:id/dispatch', (req, res) => {
+    const { id } = req.params;
+    if (!isValidConversationId(id)) {
+      res.status(400).json({ error: 'Invalid conversation ID format.' });
+      return;
+    }
+
+    const { request, error } = validateDispatchRequest(req.body);
+    if (error || !request) {
+      res.status(400).json({ error: error ?? 'Invalid dispatch payload.' });
+      return;
+    }
+
+    const result = service.dispatchPrompt(id, request);
+    if (!result) {
+      res.status(404).json({ error: 'Conversation not found.' });
+      return;
+    }
+
+    if (result.noteSaved) {
+      sseBroker.notifyMutation();
+    }
     res.json(result);
   });
 

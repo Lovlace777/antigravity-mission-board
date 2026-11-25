@@ -101,6 +101,13 @@ export interface SwarmBoardMessage {
   kind?: string;
 }
 
+export interface SwarmHoverPreview {
+  goalTitle: string;
+  goalLine: string;
+  workingAgents: string[];
+  latestPost: { agent: string; text: string } | null;
+}
+
 export interface SwarmSummary {
   swarmId: string;
   title: string;
@@ -220,6 +227,12 @@ export interface ConversationCard {
   artifactCount: number;
   sideQuestionCount: number;
 
+  /** Compact zero-latency hover preview payload for Floating Widget (0 extra HTTP calls on hover) */
+  latestMessagePreview: string | null;
+  stepsPreview: StepItem[];
+  swarmPreview: SwarmHoverPreview | null;
+  feedbackArtifacts: string[];
+
   overlay: OverlayData;
 }
 
@@ -298,6 +311,35 @@ export interface SearchResponse {
   results: SearchResult[];
 }
 
+export interface DispatchCapabilities {
+  agyCliAvailable: boolean;
+  protocolSchemeAvailable: boolean;
+  mode: 'agy_cli' | 'handoff';
+}
+
+export interface DispatchRequest {
+  prompt: string;
+  saveToNotes?: boolean;
+}
+
+export interface DispatchResponse {
+  ok: boolean;
+  mode: 'agy_cli' | 'handoff';
+  copiedPrompt: string;
+  conversationId: string;
+  noteSaved: boolean;
+  message: string;
+  card: ConversationCard | null;
+}
+
+export interface RuntimeMetrics {
+  memoryRssMb: number;
+  pollCount: number;
+  cacheHits: number;
+  skippedIdlePolls: number;
+  sseClients: number;
+}
+
 export interface HealthResponse {
   ok: boolean;
   mode: 'live' | 'demo';
@@ -307,6 +349,7 @@ export interface HealthResponse {
   dbAccessible: boolean;
   conversationCount: number;
   uptimeSec: number;
+  dispatchCapabilities: DispatchCapabilities;
 }
 
 export interface ArtifactContentResponse {

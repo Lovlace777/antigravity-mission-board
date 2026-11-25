@@ -244,6 +244,10 @@ describe('lane classification engine', () => {
       subagentsPreview: [],
       artifactCount: 0,
       sideQuestionCount: 0,
+      latestMessagePreview: null,
+      stepsPreview: [],
+      swarmPreview: null,
+      feedbackArtifacts: [],
       overlay: createDefaultOverlay('c1'),
     };
 

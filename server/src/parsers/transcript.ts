@@ -12,7 +12,18 @@ export interface ParsedTranscript {
   pendingQuestionText: string | null;
   hasError: boolean;
   lastError: string | null;
+  latestMessagePreview: string | null;
   timeline: TimelineTurn[];
+}
+
+export interface ParseTranscriptOptions {
+  /**
+   * Summary mode used during board polling: skips building the 80-turn `timeline`
+   * array and reads only a fast tail window (256 KB) for huge files (>256 KB)
+   * while streaming-scanning prefix token counters with flat 64 KB RAM.
+   */
+  tailOnly?: boolean;
+  maxTailBytes?: number;
 }
 
 interface RawToolCall {
@@ -57,6 +68,9 @@ const SUBSTANTIVE_TYPES = new Set([
 const MAX_TIMELINE_TURNS = 80;
 const MAX_TURN_TEXT_LEN = 2500;
 const MAX_THINKING_SUMMARY_LEN = 400;
+const MAX_PREVIEW_LEN = 180;
+export const DEFAULT_TAIL_WINDOW_BYTES = 256 * 1024;
+const TOKEN_SCAN_CHUNK_BYTES = 64 * 1024;
 
 export function createEmptyTokenUsage(): TokenUsage {
   return {
@@ -99,6 +113,7 @@ export function createEmptyTranscript(): ParsedTranscript {
     pendingQuestionText: null,
     hasError: false,
     lastError: null,
+    latestMessagePreview: null,
     timeline: [],
   };
 }
@@ -200,8 +215,25 @@ function truncateText(text: string | undefined, maxLen: number): string {
 }
 
 /**
+ * Build a clean single-paragraph preview excerpt (~180 chars) stripped of noisy markdown fences/headings.
+ */
+export function buildCompactPreview(raw: string | null | undefined, maxLen = MAX_PREVIEW_LEN): string | null {
+  if (!raw) return null;
+  const cleaned = raw
+    .replace(/```[\s\S]*?```/g, ' [code] ')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!cleaned) return null;
+  return cleaned.length <= maxLen ? cleaned : `${cleaned.slice(0, maxLen - 1).trimEnd()}…`;
+}
+
+/**
  * Look up the untruncated `update_steps` / `ask_question` payload from `transcript_full.jsonl`.
- * Uses fast substring pre-filtering so large transcripts scan in a few milliseconds.
+ * Reads a bounded tail window first for huge files so memory stays flat.
  */
 function resolveFromFullTranscript(
   fullTranscriptPath: string,
@@ -210,7 +242,22 @@ function resolveFromFullTranscript(
 ): { steps: StepItem[] | null; questionText: string | null } {
   let content: string;
   try {
-    content = fs.readFileSync(fullTranscriptPath, 'utf8');
+    const stat = fs.statSync(fullTranscriptPath);
+    const maxRead = 2 * 1024 * 1024; // 2 MB tail cap covers recent update_steps safely
+    if (stat.size > maxRead) {
+      const buf = Buffer.allocUnsafe(maxRead);
+      const fd = fs.openSync(fullTranscriptPath, 'r');
+      try {
+        fs.readSync(fd, buf, 0, maxRead, stat.size - maxRead);
+      } finally {
+        fs.closeSync(fd);
+      }
+      const raw = buf.toString('utf8');
+      const firstNl = raw.indexOf('\n');
+      content = firstNl >= 0 ? raw.slice(firstNl + 1) : raw;
+    } else {
+      content = fs.readFileSync(fullTranscriptPath, 'utf8');
+    }
   } catch {
     return { steps: null, questionText: null };
   }
@@ -219,7 +266,6 @@ function resolveFromFullTranscript(
   let resolvedQuestion: string | null = null;
 
   const lines = content.split(/\r?\n/);
-  // Walk backwards so we hit the latest update_steps / ask_question immediately
   for (let i = lines.length - 1; i >= 0; i--) {
     const line = lines[i];
     if (!line) continue;
@@ -281,18 +327,75 @@ function resolveFromFullTranscript(
 }
 
 /**
+ * Low-RAM streaming counter for token totals & models over the prefix `[0, endOffset)`
+ * of a large `transcript.jsonl` file using a reusable 64 KB buffer.
+ */
+function scanPrefixTokensLowRam(
+  fd: number,
+  endOffset: number,
+): { inputTokens: number; cacheReadTokens: number; outputTokens: number; models: string[] } {
+  let inputTokens = 0;
+  let cacheReadTokens = 0;
+  let outputTokens = 0;
+  const models = new Set<string>();
+
+  const buf = Buffer.allocUnsafe(TOKEN_SCAN_CHUNK_BYTES);
+  let pos = 0;
+  let carry = '';
+
+  const inRe = /"input_tokens"\s*:\s*(\d+)/g;
+  const cacheRe = /"cache_read_tokens"\s*:\s*(\d+)/g;
+  const outRe = /"output_tokens"\s*:\s*(\d+)/g;
+  const modelRe = /"model"\s*:\s*"([^"]{2,80})"/g;
+
+  while (pos < endOffset) {
+    const toRead = Math.min(TOKEN_SCAN_CHUNK_BYTES, endOffset - pos);
+    const bytesRead = fs.readSync(fd, buf, 0, toRead, pos);
+    if (bytesRead <= 0) break;
+    pos += bytesRead;
+
+    const text = carry + buf.toString('utf8', 0, bytesRead);
+    const lastNl = text.lastIndexOf('\n');
+    const slice = lastNl >= 0 ? text.slice(0, lastNl + 1) : pos >= endOffset ? text : '';
+    carry = lastNl >= 0 ? text.slice(lastNl + 1) : pos >= endOffset ? '' : text;
+
+    if (!slice) continue;
+
+    let m: RegExpExecArray | null;
+    inRe.lastIndex = 0;
+    while ((m = inRe.exec(slice)) !== null) inputTokens += Number(m[1]);
+    cacheRe.lastIndex = 0;
+    while ((m = cacheRe.exec(slice)) !== null) cacheReadTokens += Number(m[1]);
+    outRe.lastIndex = 0;
+    while ((m = outRe.exec(slice)) !== null) outputTokens += Number(m[1]);
+    modelRe.lastIndex = 0;
+    while ((m = modelRe.exec(slice)) !== null) {
+      if (m[1]) models.add(m[1]);
+    }
+  }
+
+  return { inputTokens, cacheReadTokens, outputTokens, models: Array.from(models) };
+}
+
+/**
  * Parse `transcript.jsonl` content, with optional fallback path to `transcript_full.jsonl`
  * whenever `update_steps` or `ask_question` was truncated in the compact transcript.
  */
 export function parseTranscriptContent(
   content: string,
   fullTranscriptPath?: string | null,
+  options?: {
+    includeTimeline?: boolean;
+    prefixTokens?: { inputTokens: number; cacheReadTokens: number; outputTokens: number; models: string[] };
+  },
 ): ParsedTranscript {
-  let inputTokens = 0;
-  let cacheReadTokens = 0;
-  let outputTokens = 0;
+  const includeTimeline = options?.includeTimeline !== false;
 
-  const modelSet = new Set<string>();
+  let inputTokens = options?.prefixTokens?.inputTokens ?? 0;
+  let cacheReadTokens = options?.prefixTokens?.cacheReadTokens ?? 0;
+  let outputTokens = options?.prefixTokens?.outputTokens ?? 0;
+
+  const modelSet = new Set<string>(options?.prefixTokens?.models ?? []);
   let latestSteps: StepItem[] = [];
   let currentFocus: string | null = null;
 
@@ -305,6 +408,9 @@ export function parseTranscriptContent(
   let lastSubstantiveType: string | null = null;
   let lastSubstantiveStatus: string | null = null;
   let lastSubstantiveError: string | null = null;
+
+  let latestPlannerContent: string | null = null;
+  let latestUserContent: string | null = null;
 
   const timeline: TimelineTurn[] = [];
 
@@ -339,6 +445,14 @@ export function parseTranscriptContent(
       modelSet.add(entry.model.trim());
     }
 
+    if (typeof entry.content === 'string' && entry.content.trim()) {
+      if (type === 'PLANNER_RESPONSE') {
+        latestPlannerContent = entry.content;
+      } else if (type === 'USER_INPUT') {
+        latestUserContent = entry.content;
+      }
+    }
+
     const truncatedToolCalls =
       Array.isArray(entry.truncated_fields) && entry.truncated_fields.includes('tool_calls');
 
@@ -348,7 +462,12 @@ export function parseTranscriptContent(
     if (Array.isArray(entry.tool_calls)) {
       for (const tc of entry.tool_calls) {
         if (!tc || typeof tc !== 'object') continue;
-        const tcName = typeof tc.name === 'string' ? tc.name : typeof tc.tool_name === 'string' ? tc.tool_name : '';
+        const tcName =
+          typeof tc.name === 'string'
+            ? tc.name
+            : typeof tc.tool_name === 'string'
+              ? tc.tool_name
+              : '';
         if (!tcName) continue;
         toolNames.push(tcName);
 
@@ -365,8 +484,6 @@ export function parseTranscriptContent(
             latestSteps = parsed;
             truncatedUpdateStepsIdx = null;
           } else if (parsed && parsed.length > 0) {
-            // Valid even when tool_calls marked truncated, keep parsed as baseline
-            // and still check full transcript in case array items were truncated.
             latestSteps = parsed;
             truncatedUpdateStepsIdx = stepIndex;
           } else {
@@ -387,7 +504,6 @@ export function parseTranscriptContent(
       }
     }
 
-    // Track whether conversation moved past ask_question
     if (
       latestAskQuestionStepIdx !== null &&
       !calledAskQuestionThisStep &&
@@ -406,12 +522,12 @@ export function parseTranscriptContent(
       }
     }
 
-    // Build timeline turns for meaningful events
     if (
-      type === 'USER_INPUT' ||
-      type === 'PLANNER_RESPONSE' ||
-      type === 'ERROR_MESSAGE' ||
-      status === 'ERROR'
+      includeTimeline &&
+      (type === 'USER_INPUT' ||
+        type === 'PLANNER_RESPONSE' ||
+        type === 'ERROR_MESSAGE' ||
+        status === 'ERROR')
     ) {
       const text = truncateText(entry.content, MAX_TURN_TEXT_LEN);
       const thinkingSummary = entry.thinking
@@ -422,7 +538,6 @@ export function parseTranscriptContent(
           ? extractErrorString(entry.error, entry.content)
           : undefined;
 
-      // Skip completely empty non-error tool-free turns
       if (text || toolNames.length > 0 || errorMessage || thinkingSummary) {
         timeline.push({
           stepIndex,
@@ -443,7 +558,6 @@ export function parseTranscriptContent(
   const hasPendingQuestion =
     latestAskQuestionStepIdx !== null && !lastUserOrPlannerAfterQuestion;
 
-  // Fallback to transcript_full.jsonl only when needed
   if (
     fullTranscriptPath &&
     (truncatedUpdateStepsIdx !== null || (hasPendingQuestion && truncatedAskQuestionIdx !== null))
@@ -462,6 +576,14 @@ export function parseTranscriptContent(
   }
 
   const hasError = lastSubstantiveType === 'ERROR_MESSAGE' || lastSubstantiveStatus === 'ERROR';
+  const lastError = hasError ? lastSubstantiveError : null;
+  const effectivePendingQuestion = hasPendingQuestion ? pendingQuestionText : null;
+
+  const latestMessagePreview =
+    buildCompactPreview(lastError) ??
+    buildCompactPreview(effectivePendingQuestion) ??
+    buildCompactPreview(latestPlannerContent) ??
+    buildCompactPreview(latestUserContent);
 
   return {
     steps: latestSteps,
@@ -469,16 +591,52 @@ export function parseTranscriptContent(
     tokens: finalizeTokenUsage(inputTokens, cacheReadTokens, outputTokens),
     models: Array.from(modelSet),
     hasPendingQuestion,
-    pendingQuestionText: hasPendingQuestion ? pendingQuestionText : null,
+    pendingQuestionText: effectivePendingQuestion,
     hasError,
-    lastError: hasError ? lastSubstantiveError : null,
+    lastError,
+    latestMessagePreview,
     timeline: timeline.length > MAX_TIMELINE_TURNS ? timeline.slice(-MAX_TIMELINE_TURNS) : timeline,
   };
 }
 
-export function parseTranscriptFile(transcriptPath: string): ParsedTranscript {
-  const content = fs.readFileSync(transcriptPath, 'utf8');
+export function parseTranscriptFile(
+  transcriptPath: string,
+  options: ParseTranscriptOptions = {},
+): ParsedTranscript {
   const fullPath = path.join(path.dirname(transcriptPath), 'transcript_full.jsonl');
   const resolvedFullPath = fs.existsSync(fullPath) ? fullPath : null;
-  return parseTranscriptContent(content, resolvedFullPath);
+  const tailOnly = options.tailOnly === true;
+  const maxTailBytes = options.maxTailBytes ?? DEFAULT_TAIL_WINDOW_BYTES;
+
+  if (tailOnly) {
+    const stat = fs.statSync(transcriptPath);
+    if (stat.size > maxTailBytes) {
+      const fd = fs.openSync(transcriptPath, 'r');
+      try {
+        const tailStart = stat.size - maxTailBytes;
+        const tailBuf = Buffer.allocUnsafe(maxTailBytes);
+        fs.readSync(fd, tailBuf, 0, maxTailBytes, tailStart);
+
+        // Find the first newline inside tailBuf so we start on a clean JSONL line boundary
+        const firstNlByte = tailBuf.indexOf(0x0a);
+        const alignedTailOffset = firstNlByte >= 0 ? tailStart + firstNlByte + 1 : tailStart;
+        const tailContent =
+          firstNlByte >= 0 ? tailBuf.toString('utf8', firstNlByte + 1) : tailBuf.toString('utf8');
+
+        const prefixTokens = scanPrefixTokensLowRam(fd, alignedTailOffset);
+
+        return parseTranscriptContent(tailContent, resolvedFullPath, {
+          includeTimeline: false,
+          prefixTokens,
+        });
+      } finally {
+        fs.closeSync(fd);
+      }
+    }
+  }
+
+  const content = fs.readFileSync(transcriptPath, 'utf8');
+  return parseTranscriptContent(content, resolvedFullPath, {
+    includeTimeline: !tailOnly,
+  });
 }
